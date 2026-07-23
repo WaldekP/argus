@@ -23,6 +23,7 @@ function mapScheme(scheme: typeof Palette.dark | typeof Palette.light) {
     backgroundSelected: scheme.cardAlt,
     accent: scheme.accent,
     accentLight: scheme.accentLight,
+    cta: scheme.cta,
     onAccent: scheme.onAccent,
     teal: scheme.teal,
     success: scheme.success,

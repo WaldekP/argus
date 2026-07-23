@@ -33,7 +33,7 @@ export function PrimaryButton({
       style={({ pressed }) => [
         styles.button,
         isPrimary
-          ? { backgroundColor: theme.accent }
+          ? { backgroundColor: theme.cta }
           : { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border },
         (pressed || blocked) && styles.dimmed,
       ]}>

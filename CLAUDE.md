@@ -67,7 +67,9 @@ Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → we
 
 **Źródło prawdy: `../briefy/15-mini-brief-design-argus.md`** (mini brief designu — przeczytaj przed każdą pracą nad UI). Spójność wizualna z prezentacją (brief 13). Klimat: "quiet power" — antyczna powaga + nowoczesny produkt, "muzeum nocą, nie startup". **Dark mode first.** Motyw oka Argusa (logo, empty states, loader, kropka-oko zamiast bulletów) — subtelnie.
 
-Skrót palety (dark):
+**Korekta dla aplikacji (decyzja usera, 2026-07-23):** tła w apce są jaśniejsze niż w decku, a CTA ma własne złoto. Dark: tło `#161D45`, karty `#1F2755`, panel alt `#1A214C`, tło głębsze `#0F1535`, przyciski CTA `#E3B93C` (token `cta`) z tekstem `#10173A`. Wartości z tabeli poniżej dotyczą prezentacji; w apce zawsze bierz kolory z `src/constants/Colors.ts`.
+
+Skrót palety (dark, deck):
 
 | Token | HEX | Użycie |
 | --- | --- | --- |

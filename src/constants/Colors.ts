@@ -8,14 +8,17 @@
 
 export const Colors = {
   dark: {
-    /** Główne tło ekranów */
-    background: '#0A0F2C',
+    /**
+     * Główne tło ekranów. Jaśniejszy granat niż w decku (#0A0F2C):
+     * decyzja usera z 2026-07-23, apka nie może być tak ciemna jak prezentacja.
+     */
+    background: '#161D45',
     /** Tło głębsze: krawędzie, gradienty, cień */
-    backgroundDeep: '#080C22',
+    backgroundDeep: '#0F1535',
     /** Karty, modale, pola */
-    card: '#0E1436',
+    card: '#1F2755',
     /** Drugi ton kart, wiersze, stany zaznaczenia */
-    cardAlt: '#0B1026',
+    cardAlt: '#1A214C',
     /** Tekst główny (nigdy czysta biel) */
     text: '#F4F1E8',
     /** Akapity (tekst 80%) */
@@ -26,16 +29,18 @@ export const Colors = {
     accent: '#C9A227',
     /** Złoto jasne: hover, podświetlenia, iris, tekst chipów */
     accentLight: '#E6C65A',
-    /** Tekst na tle złota */
-    onAccent: '#0A0F2C',
+    /** Tło głównych przycisków (CTA): cieplejsze, jaśniejsze złoto */
+    cta: '#E3B93C',
+    /** Tekst na tle złota/CTA */
+    onAccent: '#10173A',
     /** Teal (pawi): dane, drugi akcent, wykresy, alerty info */
     teal: '#14857A',
     /** Sukces w alertach = złoto (patrz brief designu) */
     success: '#C9A227',
     /** Ostrzeżenia, kryzys */
     error: '#E0483A',
-    /** Obramowania kart (złoto 25%) */
-    border: 'rgba(201,162,39,0.25)',
+    /** Obramowania kart (złoto 28%) */
+    border: 'rgba(201,162,39,0.28)',
     /** Obramowania chipów (złoto 40%) */
     borderStrong: 'rgba(201,162,39,0.4)',
     /** Tor pasków postępu */
@@ -52,7 +57,8 @@ export const Colors = {
     textSecondary: 'rgba(10,15,44,0.55)',
     accent: '#C9A227',
     accentLight: '#A9871B',
-    onAccent: '#0A0F2C',
+    cta: '#C9A227',
+    onAccent: '#10173A',
     teal: '#14857A',
     success: '#C9A227',
     error: '#E0483A',
