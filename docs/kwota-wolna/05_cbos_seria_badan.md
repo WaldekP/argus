@@ -20,7 +20,7 @@ w ogóle powinno się płacić podatek).
 | BS/140/140/98 „Opinie o systemie podatkowym” | listopad 1998 | Średnia | Punkt odniesienia dla trendu progresja kontra liniowy, plus preferencja prostoty |
 | BS/196/171/95 „Dylematy budżetu państwa '96” | listopad 1995 | Średnia | Zaskakująco aktualne pytanie: niskie podatki bez ulg czy wyższe z ulgami |
 | BS/70/70/98 „Opinie o podatkach” | czerwiec 1998 | Niska (dubluje 140/98) | Ten sam pomiar pół roku wcześniej, przydatny tylko do serii czasowej |
-| BS/103/99 „Jakie podatki?” | czerwiec 1999 | Niska | Powtórzenie wniosków z 1998 r. bez nowych danych o kwocie wolnej |
+| [BS/103/99 „Jakie podatki?”](https://cbos.pl/SPISKOM.POL/1999/K_103_99.PDF) | czerwiec 1999 | Niska | Powtórzenie wniosków z 1998 r. bez nowych danych o kwocie wolnej |
 
 ## 1. Komunikat 74/2021: reakcja na zapowiedź podniesienia kwoty wolnej do 30 tys. zł
 
