@@ -43,7 +43,19 @@ argus_app/
       functions/      — Edge Functions (Deno)
         _shared/      — wspólny kod + prompts/ (wszystkie prompty, po polsku, wersjonowane)
     scripts/          — skrypty seedujące (baza mediów itp.)
+  docs/               — kontrakty API i tematyczne bazy wiedzy
 ```
+
+## Tematyczne bazy wiedzy (`docs/`)
+
+Korpusy merytoryczne pod briefy przedwywiadowe i generator przekazu. Każdy korpus ma własny
+katalog z `README.md` (rola, mapa dokumentów, zasady pracy, audyt źródeł).
+
+- `docs/kwota-wolna/` — kwota wolna od podatku: finanse i budżet, sondaże, elektoraty,
+  benchmarking CEE i UE, seria badań CBOS, cytaty Konfederacji, Tuska i Polski 2050.
+
+Zasada: przed odpowiedzią na pytanie merytoryczne z danego tematu przeszukaj korpus, nie
+odpowiadaj z pamięci modelu. Liczby oznaczone `[do weryfikacji]` nie nadają się do publikacji.
 
 ## Auth i multi-tenancy (krytyczne)
 
