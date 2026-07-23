@@ -230,17 +230,18 @@ export async function runSejmImport(
   mpId: number,
   onProgress: (step: ImportStepResult) => void
 ): Promise<ImportStepResult> {
-  let retried = false;
+  // API Sejmu bywa bardzo wolne: pojedynczy krok ponawiamy do 3 razy.
+  let attempts = 0;
   for (let i = 0; i < IMPORT_MAX_STEPS; i += 1) {
     let step: ImportStepResult;
     try {
       step = await importSejmStep(mpId);
-      retried = false;
+      attempts = 0;
     } catch (error) {
-      if (retried) {
+      attempts += 1;
+      if (attempts >= 3) {
         throw error;
       }
-      retried = true;
       continue;
     }
     onProgress(step);
