@@ -14,7 +14,28 @@
       "Bash(git commit -m 'Rename app to Argus, PL README, split Claude settings *)",
       "Bash(git branch *)",
       "Bash(git remote *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(npx expo *)",
+      "mcp__claude_ai_Supabase__list_organizations",
+      "mcp__claude_ai_Supabase__list_projects",
+      "Bash(echo \"---exit $?\")",
+      "Bash(supabase --version)",
+      "Bash(npx --no-install supabase --version)",
+      "Bash(supabase init *)",
+      "mcp__claude_ai_Supabase__get_cost",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(npx tsc *)",
+      "Bash(git check-ignore *)",
+      "Bash(node -e \"const p=require\\('posthog-react-native/package.json'\\); console.log\\(p.types||p.typings||p.main\\)\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(echo \"LINT EXIT: $?\")",
+      "Bash(npm uninstall *)",
+      "Bash(echo \"exit=$?\")",
+      "Read(//tmp/**)"
+    ],
+    "additionalDirectories": [
+      "/Users/waldemarpieniak/Documents/Programowanie/argus/briefy"
     ]
   }
 }
