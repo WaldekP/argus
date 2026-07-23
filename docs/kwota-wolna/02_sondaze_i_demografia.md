@@ -4,13 +4,14 @@ Stan na 23 lipca 2026.
 
 ## Ostrzeżenie metodologiczne
 
-Nie udało się znaleźć aktualnego, opisanego metodologicznie badania opinii poświęconego wprost
-podniesieniu kwoty wolnej do 60 000 zł. To najpoważniejsza luka w tej bazie wiedzy.
-Materiał poniżej to trzy różne rzeczy i nie wolno ich mieszać:
+Nie istnieje badanie pytające wprost o kwotę 60 000 zł. Najbliższy pomiar, sondaż SW Research
+dla Onetu z września 2025 r., pyta o priorytet rządu i o gotowość zapłacenia za to deficytem.
+Materiał poniżej to cztery różne rzeczy i nie wolno ich mieszać:
 
-1. Stare badania o podniesieniu kwoty wolnej do 30 000 zł (2021 i 2022).
-2. Aktualne badania o ogólnym nastawieniu Polaków do konstrukcji podatków (CBOS 2025).
-3. Twarde dane o tym, kto na reformie zyskuje, czyli demografia beneficjentów, a nie opinii.
+1. Sondaż z ceną w pytaniu, o priorytet rządu, nie o konkretną kwotę (SW Research 2025).
+2. Stare badania o podniesieniu kwoty wolnej do 30 000 zł (2021 i 2022).
+3. Aktualne badania o ogólnym nastawieniu Polaków do konstrukcji podatków (CBOS 2025).
+4. Twarde dane o tym, kto na reformie zyskuje, czyli demografia beneficjentów, a nie opinii.
 
 Pełna analiza dziewięciu komunikatów CBOS o podatkach z lat 1995–2025, z serią czasową i oceną
 przydatności każdego badania, znajduje się w pliku [05_cbos_seria_badan.md](05_cbos_seria_badan.md).
@@ -22,6 +23,57 @@ Jeśli rozmówca lub dziennikarz powoła się na „sondaż o kwocie wolnej”, 
 datę i próbę, zanim odniesiesz się do liczby.
 
 ## 1. Badania opinii o samej kwocie wolnej
+
+### SW Research dla Onetu (2025): jedyne badanie z ceną w pytaniu
+
+To najważniejszy sondaż w całej bazie, bo jako jedyny pyta o kwotę wolną razem z jej kosztem.
+
+| Parametr | Wartość |
+| --- | --- |
+| Instytut | SW Research |
+| Zleceniodawca | Onet |
+| Termin badania | 2–3 września 2025 r. |
+| Publikacja | 6 września 2025 r. |
+| Próba | 830 ankiet, panel SW Panel, CAWI |
+| Dobór | kwotowy, reprezentatywny ze względu na płeć, wiek i wielkość miejscowości |
+
+Pytanie: „Czy podniesienie kwoty wolnej od podatku powinno być priorytetem rządu, nawet kosztem
+zwiększenia deficytu budżetowego?”
+
+| Odpowiedź | Odsetek |
+| --- | --- |
+| Tak | 39,9 proc. |
+| Nie | 29,2 proc. |
+| Trudno powiedzieć | 31 proc. |
+
+Przekroje:
+
+| Grupa | Poparcie |
+| --- | --- |
+| Mężczyźni | 46,5 proc. |
+| Kobiety | 34,1 proc. |
+| 35–49 lat | 43,2 proc. |
+| 25–34 lata | 40,7 proc. |
+
+Źródła: [Polskie Radio 24](https://polskieradio24.pl/artykul/3575612,co-z-kwota-wolna-od-podatku-wiemy-co-sadza-polacy),
+[Wprost Biznes](https://biznes.wprost.pl/finanse-i-inwestycje/12117064/podniesienie-kwoty-wolnej-od-podatku-kosztem-budzetu-zaskakujacy-sondaz.html),
+[WP Wiadomości](https://wiadomosci.wp.pl/tusk-skusil-ta-obietnica-wyborcow-dalej-jej-nie-spelnil-co-sadza-polacy-7197229661285312a).
+
+**Jak to czytać i jak tego nie nadużyć:**
+
+1. **Poparcie spada drastycznie, gdy w pytaniu pojawia się cena.** Bez kosztu w pytaniu badania
+   dawały 79 proc. poparcia (Pollster 2021, kwota 30 tys. zł). Z kosztem w pytaniu zostaje
+   39,9 proc. To nie jest sprzeczność między badaniami, tylko klasyczny efekt sformułowania pytania,
+   i jest to najważniejsza informacja komunikacyjna w tym pliku.
+2. **Zwolenników nadal jest więcej niż przeciwników**, 39,9 do 29,2 proc., mimo że pytanie było
+   sformułowane maksymalnie niekorzystnie („nawet kosztem zwiększenia deficytu”).
+3. **31 proc. bez zdania to ogromna grupa.** Powtarza się wzorzec z Polskiego Ładu, gdzie 30 proc.
+   nie potrafiło powiedzieć, czy zyskało, czy straciło (patrz [05](05_cbos_seria_badan.md)).
+   Ten temat jest dla większości ludzi abstrakcyjny, dopóki nie pokaże się kwoty w złotówkach.
+4. **Różnica płci wynosi 12,4 punktu procentowego**, wyraźnie więcej niż różnice wiekowe. Nie mam
+   danych, które by ją wyjaśniały, więc jej nie interpretuj, tylko odnotuj.
+5. Pytanie dotyczy „priorytetu rządu”, a nie samej kwoty 60 tys. zł. Nie podpisuj tych 39,9 proc.
+   pod tezą o poparciu dla konkretnej kwoty.
 
 ### CBOS: podniesienie do 30 tys. zł, przed reformą i po niej
 
@@ -119,9 +171,10 @@ Przekrój, który warto mieć w głowie przed wywiadem:
 - Brak sondażu wprost o 60 tys. zł: brak poparcia ogółem, brak przekrojów według wieku, dochodu,
   miejsca zamieszkania i elektoratu. Najbliższy substytut to CBOS 74/2021 (kwota 30 tys. zł
   w pakiecie z innymi zmianami), opisany w pliku [05](05_cbos_seria_badan.md).
-- Brak badania testującego reakcję na argument kosztowy, czyli pytania typu „czy popierasz
-  podniesienie kwoty wolnej, jeśli kosztuje to 56 mld zł rocznie”. To najważniejsze brakujące
-  pytanie z punktu widzenia komunikacji.
+- Luka „brak badania z argumentem kosztowym” została **domknięta** sondażem SW Research dla Onetu
+  z września 2025 r. (punkt 1). Nadal brakuje wersji z konkretną kwotą kosztu w pytaniu
+  („jeśli kosztuje to 56 mld zł rocznie”) zamiast ogólnego „kosztem deficytu”.
+- Brak przekroju elektoratowego dla sondażu SW Research. Publikacje podają tylko płeć i wiek.
 - Brak danych o rozpoznawalności samego pojęcia kwoty wolnej i o tym, ile osób poprawnie szacuje
   własną korzyść. Wcześniejsze badania pokazywały niską świadomość podatkową (21 proc. Polaków
   uważało, że nie płaci żadnych podatków), ale źródło jest stare i nie zostało zweryfikowane.

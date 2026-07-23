@@ -85,7 +85,11 @@ Materiał nadający się na krótką formę, uszeregowany od najmocniejszego:
    ta liczba padła u Tuska w Tarnowie i jest merytorycznie poprawna ([07](07_donald_tusk_ko.md)).
 3. **22 proc. Polaków uznało, że zyskało na Polskim Ładzie**, choć kwota wolna wzrosła wtedy
    prawie czterokrotnie ([05](05_cbos_seria_badan.md) punkt 2).
-4. **Zamrożona kwota wolna to cicha podwyżka podatków.** Odsetek niepłacących PIT spadł z 43 do
+4. **Prognozowano ubytek 20–22 mld zł, wyszło 5,5 mld, a dołek trwał rok.** Wykonanie budżetu
+   po podniesieniu kwoty wolnej z 8 do 30 tys. zł ([01](01_finanse_i_budzet.md) punkt 7).
+5. **Poparcie spada z 79 do 40 proc., gdy w pytaniu pojawia się cena.** Porównanie sondażu
+   Pollstera z 2021 r. i SW Research z 2025 r. ([02](02_sondaze_i_demografia.md) punkt 1).
+6. **Zamrożona kwota wolna to cicha podwyżka podatków.** Odsetek niepłacących PIT spadł z 43 do
    33 proc. w dwa lata; Brytyjczycy mają na to nazwę: fiscal drag
    ([01](01_finanse_i_budzet.md) punkt 4, [04](04_benchmarking_cee_ue.md)).
 5. **Cytat Bosaka „cokolwiek się nie stanie, zyskamy”** przy sporze o intencje wnioskodawców
@@ -139,16 +143,25 @@ Pierwsza wersja bazy została zweryfikowana źródło po źródle. Wyniki:
 | Grundfreibetrag 12 348 EUR | Potwierdzony źródłem pierwotnym: Bundesfinanzministerium |
 | Rozliczenie obietnicy przez Demagog | Oznaczone `[do weryfikacji]`, strona blokuje pobranie (403) |
 | Dane CBOS | Wszystkie czytane z oryginalnych PDF, nie ze streszczeń prasowych |
+| Spadek wpływów z PIT w 2022 r. | **Sprzeczność.** MF: 68,1 mld zł, spadek o 5,5 mld. Omówienia NIK: ok. 64,5 mld zł, spadek o 21,5 mld. Do publikacji bierz szereg MF |
 
-Znaczników `[do weryfikacji]` jest obecnie czternaście: cztery w pliku 01, po dwa w plikach 02 i 03,
+Runda uzupełniająca (23 lipca 2026) domknęła dwie luki: znalazł się sondaż z ceną w pytaniu
+(SW Research dla Onetu, wrzesień 2025) oraz dane o rzeczywistym wykonaniu budżetu po poprzedniej
+podwyżce kwoty wolnej, wraz z kontrolą NIK.
+
+Znaczników `[do weryfikacji]` jest obecnie piętnaście: pięć w pliku 01, po dwa w plikach 02 i 03,
 po jednym w plikach 04, 06 i 07, trzy w pliku 08. Żaden z nich nie nadaje się do cytowania
 publicznie bez dotarcia do źródła pierwotnego.
 
+Baza liczy 87 unikalnych źródeł.
+
 ## Luki całej bazy
 
-- Brak aktualnego, opisanego metodologicznie sondażu poświęconego wprost kwocie 60 tys. zł.
-  Najbliższe dostępne badania dotyczą podniesienia do 30 tys. zł i pochodzą z 2021 i 2022 roku
+- Brak sondażu pytającego wprost o kwotę 60 tys. zł. Najbliższy pomiar, SW Research dla Onetu
+  z września 2025 r., dotyczy priorytetu rządu i gotowości zapłacenia deficytem, nie konkretnej
+  kwoty. Badania o podniesieniu do 30 tys. zł pochodzą z 2021 i 2022 roku
   (CBOS 74/2021 i 25/2022, omówione w pliku [05](05_cbos_seria_badan.md)).
+- Brak przekroju elektoratowego dla sondażu SW Research.
 - Brak oficjalnej oceny skutków regulacji dla rządowego projektu, bo taki projekt nie powstał.
 - Brak danych o rozbiciu kosztu reformy na budżet państwa, JST i pozostałe elementy sektora
   finansów publicznych po reformie dochodów samorządów z 2025 roku.
