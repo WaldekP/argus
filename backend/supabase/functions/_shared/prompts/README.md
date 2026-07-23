@@ -14,3 +14,16 @@ Wszystkie prompty aplikacji trzymamy w tym katalogu jako pliki `.md`, ładowane 
 ## Konwencja nazw
 
 Jeden plik per zadanie, np. `brief-generate.md`, `onboarding-interview.md`, `consistency-check.md`. Nazwa pliku (bez `.md`) jest argumentem `loadPrompt`.
+
+## Generowany `index.ts` (wymagane przy deployu)
+
+`supabase functions deploy` NIE bundluje plików `.md` (eszip zawiera tylko importowane moduły), więc treść promptów trafia do Edge Functions przez generowany moduł `index.ts` w tym katalogu. Źródłem prawdy są pliki `.md`.
+
+Po każdej zmianie albo dodaniu promptu `.md`:
+
+```bash
+./backend/scripts/build-prompts.sh   # regeneruje prompts/index.ts
+cd backend && supabase functions deploy <funkcja>
+```
+
+`index.ts` jest generowany — nie edytuj go ręcznie i commituj razem ze zmianą `.md`.

@@ -76,6 +76,7 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? ArgusDarkTheme : ArgusLightTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
       </Stack>
     </ThemeProvider>

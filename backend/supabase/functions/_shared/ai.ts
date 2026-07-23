@@ -1,7 +1,11 @@
 // AI module for Edge Functions (Deno) based on LangChain.
 // All AI calls happen EXCLUSIVELY in Edge Functions. The Anthropic API key
 // is never exposed to the client (see CLAUDE.md).
-import { ChatAnthropic } from "npm:@langchain/anthropic";
+//
+// LangChain is loaded LAZILY (dynamic import): operations that don't call
+// the LLM (e.g. Sejm import steps, embeddings) must not pay its memory cost.
+// Edge Function workers have tight resource limits (WORKER_RESOURCE_LIMIT).
+import type { ChatAnthropic } from "npm:@langchain/anthropic";
 
 // Models per CLAUDE.md: sonnet 5 for generation (briefs, content),
 // haiku 4.5 for classification.
@@ -18,31 +22,40 @@ function getApiKey(): string {
   return key;
 }
 
+async function loadChatAnthropic() {
+  const mod = await import("npm:@langchain/anthropic");
+  return mod.ChatAnthropic;
+}
+
 // Model for content generation (briefs, message variants, morning brief).
-export function getGenerationModel(): ChatAnthropic {
-  return new ChatAnthropic({
+export async function getGenerationModel(): Promise<ChatAnthropic> {
+  const Chat = await loadChatAnthropic();
+  return new Chat({
     model: GENERATION_MODEL,
     apiKey: getApiKey(),
   });
 }
 
 // Model for cheap classification tasks (topic tagging, routing).
-export function getClassificationModel(): ChatAnthropic {
-  return new ChatAnthropic({
+export async function getClassificationModel(): Promise<ChatAnthropic> {
+  const Chat = await loadChatAnthropic();
+  return new Chat({
     model: CLASSIFICATION_MODEL,
     apiKey: getApiKey(),
   });
 }
 
-// Prompt loader: reads _shared/prompts/<name>.md, cached per isolate.
-const promptCache = new Map<string, string>();
+// Prompt loader. Deploy nie bundluje plikow .md, wiec prompty sa modulem TS
+// generowanym z .md przez backend/scripts/build-prompts.sh (patrz prompts/README.md).
+import { prompts } from "./prompts/index.ts";
 
-export async function loadPrompt(name: string): Promise<string> {
-  const cached = promptCache.get(name);
-  if (cached !== undefined) return cached;
-
-  const url = new URL(`./prompts/${name}.md`, import.meta.url);
-  const text = await Deno.readTextFile(url);
-  promptCache.set(name, text);
+export function loadPrompt(name: string): string {
+  const text = prompts[name];
+  if (text === undefined) {
+    throw new Error(
+      `Nieznany prompt "${name}" — dostepne: ${Object.keys(prompts).join(", ")}. ` +
+        "Po dodaniu pliku .md odpal backend/scripts/build-prompts.sh",
+    );
+  }
   return text;
 }

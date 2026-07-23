@@ -113,8 +113,8 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 
 - [x] TASK 0 — szkielet: Expo + backend/supabase + Colors.ts + auth (ekrany gotowe; wymaga konfiguracji `.env` z kluczami Supabase)
 - [x] TASK 1 — migracja 001: pełny model danych + RLS + testy RLS (przechodzą na żywej bazie: `backend/scripts/run-rls-tests.sh`). Embeddingi: `vector(1024)` — model embeddingowy do wyboru w TASK 2, wymiar można zmienić dopóki tabele puste. Konta pilotażowe: `waldek.pieniak@gmail.com` (politician) + `skokowski@gmail.com` (assistant), wspólny tenant "Biuro pilotażowe". Ekran logowania nosi motto "Sto oczu. Jeden przekaz."
-- [ ] TASK 2 — ingest Sejm API + embeddingi
-- [ ] TASK 3 — onboarding (import, wywiad AI, profil stylu)
+- [x] TASK 2 — ingest Sejm API + embeddingi. Embeddingi: **gte-small (384 wymiary)** przez wbudowane `Supabase.ai.Session` (bez zewnętrznego klucza; słabszy dla polskiego — ewentualna wymiana modelu = migracja + re-embed). Funkcje RPC wyszukiwania wektorowego: `match_statements`, `match_sejm_statements`, `match_news_items`. Import działa w **pętli porcjowanej** (limit zasobów workera Edge Functions; patrz kontrakt `docs/kontrakt-task-2-3.md`).
+- [x] TASK 3 — onboarding (import, wywiad AI, profil stylu, segmenty). **Żaden krok onboardingu nie jest obowiązkowy** (decyzja usera 2026-07-23): każdy ekran ma link pominięcia, całość można pominąć z ekranu startowego (trwała flaga na urządzeniu, powrót z zakładki Profil). Odpowiedzi AI normalizowane po stronie klienta (`normalizeStyleProfile`, `normalizeSegment`). Prompty: źródło w `.md`, ale bundlowane jako moduł TS (`_shared/prompts/index.ts`) — deploy nie pakuje luźnych plików.
 - [ ] TASK 4 — seed bazy mediów + ekrany media/journalist/outlet
 - [ ] TASK 5 — brief przedwywiadowy (pipeline + ekrany + push)
 - [ ] TASK 6 — strażnik spójności

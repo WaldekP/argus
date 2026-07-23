@@ -10,6 +10,7 @@ import { Platform } from 'react-native';
 import { create } from 'zustand';
 
 import { supabase } from '@/lib/supabase';
+import { resetOnboarding } from '@/store/onboarding';
 
 export type AuthResult = {
   /** Komunikat błędu po polsku albo null, gdy operacja się powiodła. */
@@ -135,5 +136,9 @@ export async function signInWithGoogle(): Promise<AuthResult> {
 
 export async function signOut(): Promise<AuthResult> {
   const { error } = await supabase.auth.signOut();
+  if (!error) {
+    // Stan onboardingu należy do konta, nie do urządzenia.
+    resetOnboarding();
+  }
   return { error: error ? toPolishAuthError(error) : null };
 }
