@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "argus_scaffold",
-    "slug": "argus_scaffold",
+    "name": "Argus",
+    "slug": "argus",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "argusscaffold",
+    "scheme": "argus",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
