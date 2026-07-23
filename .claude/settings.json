@@ -32,7 +32,14 @@
       "Bash(echo \"LINT EXIT: $?\")",
       "Bash(npm uninstall *)",
       "Bash(echo \"exit=$?\")",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git commit -m 'TASK 0: szkielet Argus.ai — CLAUDE.md, design system, auth, backend, moduł AI *)",
+      "Bash(awk -F= '/^EXPO_PUBLIC/ {print $1\"=\" \\(length\\($2\\)>0 ? \"<uzupelnione, \"length\\($2\\)\" znakow>\" : \"<PUSTE>\"\\)}' .env)",
+      "Bash(awk -F= '{name=$1; v=\"\"; for\\(i=2;i<=NF;i++\\) v=v $i; printf \"%d: %s = %s\\\\n\", NR, name, \\(length\\(v\\)>0 ? \"<\"length\\(v\\)\" znakow>\" : \"<puste>\"\\)}' .env)",
+      "Bash(sed -i '' 's|^EXPO_PUBLIC_SUPABASE_URL=$|EXPO_PUBLIC_SUPABASE_URL=https://jgwvtlghpkztivbhnofi.supabase.co|; s|^EXPO_PUBLIC_SUPABASE_ANON_KEY=$|EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_Ajz-5W700NFj5bHOCxQv5g_V41lk2jX|' .env)",
+      "Bash(awk -F= '{printf \"%s = %s\\\\n\", $1, \\(length\\($2\\)>0 ? \"<ok>\" : \"<puste>\"\\)}' .env)",
+      "Bash(curl -s -o /dev/null -w \"auth health: %{http_code}\\\\n\" -H \"apikey: sb_publishable_Ajz-5W700NFj5bHOCxQv5g_V41lk2jX\" https://jgwvtlghpkztivbhnofi.supabase.co/auth/v1/health)",
+      "Bash(git commit -m 'Supabase: fallback nazwy klucza EXPO_PUBLIC_SUPABASE_KEY *)"
     ],
     "additionalDirectories": [
       "/Users/waldemarpieniak/Documents/Programowanie/argus/briefy"
