@@ -22,7 +22,7 @@ Plus: **brief poranny lite** (synteza RSS + stenogramy per tematy użytkownika, 
 | --- | --- |
 | Frontend | React Native + Expo (expo-router, TypeScript **strict**). Target: iOS, Android, **Web** — web pierwszorzędny (asystent pracuje na laptopie) |
 | State | Zustand |
-| Backend | Supabase (osobny projekt, EU/Frankfurt — NIE współdzielić z TwójPsycholog): Postgres + pgvector, Auth (e-mail + Google), Edge Functions (Deno), Storage. **Stan: projekt jeszcze niepodłączony — user podepnie nowy; do tego czasu ŻADNYCH migracji na zdalnych projektach.** Konfiguracja klienta przez `.env` (patrz `.env.example`) |
+| Backend | Supabase, projekt **"Argus"** (`jgwvtlghpkztivbhnofi`, West EU/Irlandia; osobna organizacja, NIE współdzielić z TwójPsycholog): Postgres + pgvector, Auth (e-mail; **Google OAuth odłożony na później — nie dodawać przycisku bez decyzji usera**), Edge Functions (Deno), Storage. Deploy przez Supabase CLI z `backend/` (projekt zlinkowany; `SUPABASE_ACCESS_TOKEN` i `SUPABASE_DB_PASSWORD` w `.env`). Konfiguracja klienta przez `.env` (patrz `.env.example`) |
 | AI | Claude API przez **LangChain/LangGraph** (npm: specifiers w Deno) — `claude-sonnet-5` (briefy/treści), `claude-haiku-4-5` (klasyfikacja). Wywołania WYŁĄCZNIE z Edge Functions, klucz nigdy na kliencie. Moduł: `backend/supabase/functions/_shared/ai.ts`, pipeline'y (LangGraph): `_shared/pipelines/` |
 | Embeddingi | pgvector + model multilingual przez Edge Function |
 | Ingest | Edge Functions + pg_cron (Sejm API, RSS ~50 feedów). Bez zewnętrznego orkiestratora |
@@ -110,7 +110,7 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 ## Postęp (TASK 0–10 z briefu, sekcja 9)
 
 - [x] TASK 0 — szkielet: Expo + backend/supabase + Colors.ts + auth (ekrany gotowe; wymaga konfiguracji `.env` z kluczami Supabase)
-- [ ] TASK 1 — migracja 001: pełny model danych + RLS + testy RLS
+- [x] TASK 1 — migracja 001: pełny model danych + RLS + testy RLS (przechodzą na żywej bazie: `backend/scripts/run-rls-tests.sh`). Embeddingi: `vector(1024)` — model embeddingowy do wyboru w TASK 2, wymiar można zmienić dopóki tabele puste. Konta pilotażowe: `waldek.pieniak@gmail.com` (politician) + `skokowski@gmail.com` (assistant), wspólny tenant "Biuro pilotażowe". Ekran logowania nosi motto "Sto oczu. Jeden przekaz."
 - [ ] TASK 2 — ingest Sejm API + embeddingi
 - [ ] TASK 3 — onboarding (import, wywiad AI, profil stylu)
 - [ ] TASK 4 — seed bazy mediów + ekrany media/journalist/outlet

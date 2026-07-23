@@ -39,7 +39,13 @@
       "Bash(sed -i '' 's|^EXPO_PUBLIC_SUPABASE_URL=$|EXPO_PUBLIC_SUPABASE_URL=https://jgwvtlghpkztivbhnofi.supabase.co|; s|^EXPO_PUBLIC_SUPABASE_ANON_KEY=$|EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_Ajz-5W700NFj5bHOCxQv5g_V41lk2jX|' .env)",
       "Bash(awk -F= '{printf \"%s = %s\\\\n\", $1, \\(length\\($2\\)>0 ? \"<ok>\" : \"<puste>\"\\)}' .env)",
       "Bash(curl -s -o /dev/null -w \"auth health: %{http_code}\\\\n\" -H \"apikey: sb_publishable_Ajz-5W700NFj5bHOCxQv5g_V41lk2jX\" https://jgwvtlghpkztivbhnofi.supabase.co/auth/v1/health)",
-      "Bash(git commit -m 'Supabase: fallback nazwy klucza EXPO_PUBLIC_SUPABASE_KEY *)"
+      "Bash(git commit -m 'Supabase: fallback nazwy klucza EXPO_PUBLIC_SUPABASE_KEY *)",
+      "Bash(supabase projects *)",
+      "Bash(awk -F= '{printf \"%d: %s = %s\\\\n\", NR, $1, \\(length\\($2\\)>0 ? \"<ok>\" : \"<puste>\"\\)}' .env)",
+      "Bash(awk -F= '{printf \"%d: %s = %s\\\\n\", NR, $1, \\(length\\($2\\)>0 ? \"<ok, \"length\\($2\\)\" znakow>\" : \"<puste>\"\\)}' .env)",
+      "Bash(echo \"lint exit=$?\")",
+      "Read(//private/tmp/**)",
+      "Bash(git commit -m 'TASK 1: migracja 001 — pełny model danych, RLS, testy RLS na żywej bazie *)"
     ],
     "additionalDirectories": [
       "/Users/waldemarpieniak/Documents/Programowanie/argus/briefy"

@@ -8,7 +8,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
-import { signIn, signInWithGoogle } from '@/store/auth';
+import { signIn } from '@/store/auth';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -16,7 +16,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleSignIn = async () => {
     if (!email.trim() || !password) {
@@ -31,16 +30,6 @@ export default function LoginScreen() {
       setError(result.error);
     }
     // Po sukcesie przekierowanie robi (auth)/_layout.tsx.
-  };
-
-  const handleGoogle = async () => {
-    setError(null);
-    setGoogleLoading(true);
-    const result = await signInWithGoogle();
-    setGoogleLoading(false);
-    if (result.error) {
-      setError(result.error);
-    }
   };
 
   return (
@@ -58,8 +47,8 @@ export default function LoginScreen() {
             <ThemedText themeColor="accent" style={styles.brand}>
               Argus
             </ThemedText>
-            <ThemedText themeColor="textSecondary">
-              Zaloguj się, aby wrócić do swoich briefów i przekazu.
+            <ThemedText themeColor="text80" style={styles.motto}>
+              Sto oczu. Jeden przekaz.
             </ThemedText>
           </View>
 
@@ -92,12 +81,6 @@ export default function LoginScreen() {
             ) : null}
 
             <PrimaryButton title="Zaloguj się" onPress={handleSignIn} loading={loading} />
-            <PrimaryButton
-              title="Kontynuuj z Google"
-              variant="secondary"
-              onPress={handleGoogle}
-              loading={googleLoading}
-            />
           </View>
 
           <View style={styles.footer}>
@@ -139,6 +122,11 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serifBold,
     fontSize: 48,
     lineHeight: 56,
+  },
+  motto: {
+    fontFamily: FontFamily.serifItalic,
+    fontSize: 22,
+    lineHeight: 30,
   },
   form: {
     gap: Spacing.three,
