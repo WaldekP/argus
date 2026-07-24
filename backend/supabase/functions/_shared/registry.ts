@@ -5,11 +5,21 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   type CallContext,
+  getFinancialDocuments,
+  getFinancialDocumentJson,
+  getOrgConnections,
   getPersonConnections,
   normalizeKrs,
   orgToRow,
   type RioOrg,
+  type RioPerson,
 } from "./rejestrio.ts";
+import {
+  extractFinancials,
+  type FinancialDocument,
+  findProfitAndLossDocument,
+} from "./financials.ts";
+import { getMpList } from "./sejm.ts";
 import {
   describeLatestEntry,
   getCurrentExtract,
@@ -114,37 +124,46 @@ export async function syncPersonConnections(
   personId: number,
   ctx: CallContext,
 ): Promise<number> {
-  const orgs = await getPersonConnections(personId, ctx);
+  // Plan Biznes daje też powiązania historyczne, czyli spółki, z których
+  // polityk już wyszedł. Dziennikarz pyta o nie równie chętnie, co o obecne.
+  const [current, past] = await Promise.all([
+    getPersonConnections(personId, ctx, "aktualne"),
+    getPersonConnections(personId, ctx, "historyczne"),
+  ]);
   const now = new Date().toISOString();
 
-  // Powiązania aktualne to pełny obraz: kasujemy poprzednie, żeby zniknęły te,
-  // których już nie ma w rejestrze.
+  // Pobrane listy to pełny obraz, więc kasujemy poprzedni stan, żeby zniknęły
+  // powiązania, których już nie ma w rejestrze.
   const { error: deleteError } = await supabase
     .from("registry_connections")
     .delete()
-    .eq("person_id", personId)
-    .eq("is_current", true);
+    .eq("person_id", personId);
   if (deleteError) {
     throw new Error(`Czyszczenie powiazan: ${deleteError.message}`);
   }
 
   const rows: Record<string, unknown>[] = [];
-  for (const org of orgs) {
-    const krs = await upsertOrg(supabase, org);
-    if (!krs) continue;
-    // Wzbogacenie z darmowego API: kapitał, PKD, sprawozdania. Zero kosztu.
-    await enrichOrgFromOpenKrs(supabase, krs);
-    for (const link of org.krs_powiazania_kwerendowane ?? []) {
-      rows.push({
-        person_id: personId,
-        org_krs: krs,
-        role_type: link.typ,
-        direction: link.kierunek ?? null,
-        date_start: link.data_start ?? null,
-        date_end: link.data_koniec ?? null,
-        is_current: true,
-        synced_at: now,
-      });
+  let currentCount = 0;
+
+  for (const [orgs, isCurrent] of [[current, true], [past, false]] as const) {
+    for (const org of orgs) {
+      const krs = await upsertOrg(supabase, org);
+      if (!krs) continue;
+      // Wzbogacenie z darmowego API: kapitał, PKD, okresy sprawozdań.
+      await enrichOrgFromOpenKrs(supabase, krs);
+      for (const link of org.krs_powiazania_kwerendowane ?? []) {
+        rows.push({
+          person_id: personId,
+          org_krs: krs,
+          role_type: link.typ,
+          direction: link.kierunek ?? null,
+          date_start: link.data_start ?? null,
+          date_end: link.data_koniec ?? null,
+          is_current: isCurrent,
+          synced_at: now,
+        });
+        if (isCurrent) currentCount += 1;
+      }
     }
   }
 
@@ -157,7 +176,11 @@ export async function syncPersonConnections(
 
   await supabase
     .from("registry_persons")
-    .update({ connections_current: rows.length, synced_at: now })
+    .update({
+      connections_current: currentCount,
+      connections_past: rows.length - currentCount,
+      synced_at: now,
+    })
     .eq("rejestrio_id", personId);
 
   return rows.length;
@@ -196,6 +219,193 @@ export async function syncWatchesForSubject(
     );
   if (upsertError) throw new Error(`Zapis obserwacji: ${upsertError.message}`);
   return orgs.length;
+}
+
+// ---------------------------------------------------------------------------
+// Sprawozdania finansowe (plan Biznes)
+// ---------------------------------------------------------------------------
+
+// Ile okresów rozliczeniowych pobieramy z kwotami. Treść dokumentu w JSON
+// kosztuje więcej niż zwykłe wywołanie, więc bierzemy tylko najnowsze okresy.
+// Rok poprzedni i tak jest w tym samym dokumencie, więc trzy pobrania dają
+// cztery lata historii.
+const FINANCIAL_PERIODS_WITH_AMOUNTS = 3;
+
+// Uzupełnia kwoty przychodu i wyniku netto dla spółki.
+// Historia okresów pochodzi z darmowego API MS (wzmianki), a kwoty stąd.
+export async function syncFinancials(
+  supabase: SupabaseClient,
+  krs: string,
+  ctx: CallContext,
+): Promise<{ periods: number; with_amounts: number }> {
+  const groups = await getFinancialDocuments(krs, ctx);
+  let withAmounts = 0;
+
+  for (const group of groups.slice(0, FINANCIAL_PERIODS_WITH_AMOUNTS)) {
+    const documentId = findProfitAndLossDocument(group);
+
+    // Brak wersji JSON: notujemy sam okres i flagę, żeby interfejs mógł
+    // powiedzieć "sprawozdanie jest, ale tylko jako PDF", zamiast milczeć.
+    if (!documentId) {
+      await supabase.from("registry_org_financials").upsert(
+        {
+          org_krs: krs,
+          period_start: group.data_start,
+          period_end: group.data_koniec,
+          has_json: false,
+          source: "rejestrio",
+          synced_at: new Date().toISOString(),
+        },
+        { onConflict: "org_krs,period_start,period_end" },
+      );
+      continue;
+    }
+
+    try {
+      const doc = await getFinancialDocumentJson<FinancialDocument>(
+        krs,
+        documentId,
+        ctx,
+      );
+      const amounts = extractFinancials(doc);
+      const { error } = await supabase.from("registry_org_financials").upsert(
+        {
+          org_krs: krs,
+          period_start: group.data_start,
+          period_end: group.data_koniec,
+          document_id: documentId,
+          has_json: true,
+          revenue: amounts.revenue,
+          revenue_label: amounts.revenue_label,
+          revenue_prev: amounts.revenue_prev,
+          net_result: amounts.net_result,
+          net_result_label: amounts.net_result_label,
+          net_result_prev: amounts.net_result_prev,
+          source: "rejestrio",
+          synced_at: new Date().toISOString(),
+        },
+        { onConflict: "org_krs,period_start,period_end" },
+      );
+      if (error) throw new Error(error.message);
+      withAmounts += 1;
+    } catch (err) {
+      // Pojedynczy nieparsowalny dokument nie może wywrócić całej synchronizacji.
+      console.error(`syncFinancials ${krs} dok ${documentId}:`, err);
+    }
+  }
+
+  return { periods: groups.length, with_amounts: withAmounts };
+}
+
+// ---------------------------------------------------------------------------
+// Skład osobowy spółki i wykrywanie innych polityków
+// ---------------------------------------------------------------------------
+
+function normalizeName(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ł/g, "l")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+interface MpMatch {
+  sejm_mp_id: number;
+  sejm_club: string | null;
+  match_basis: "birth_date" | "name_only";
+}
+
+/**
+ * Dopasowanie osoby z KRS do posła.
+ *
+ * Samo nazwisko to poszlaka, bo imienników jest pełno. Dopiero data urodzenia
+ * (mamy ją z Rejestr.io od planu Biznes, a API Sejmu podaje `birthDate`)
+ * daje dopasowanie, które można pokazać jako fakt. Rozróżnienie zapisujemy
+ * w `match_basis`, żeby interfejs mógł oznaczyć słabsze trafienia.
+ */
+function matchToMp(
+  fullName: string,
+  birthDate: string | null,
+  mps: { id: number; firstLastName: string; club?: string; birthDate?: string }[],
+): MpMatch | null {
+  const needle = normalizeName(fullName);
+  const byName = mps.filter((mp) => normalizeName(mp.firstLastName ?? "") === needle);
+  if (byName.length === 0) return null;
+
+  if (birthDate) {
+    const exact = byName.find((mp) => mp.birthDate === birthDate);
+    if (exact) {
+      return {
+        sejm_mp_id: exact.id,
+        sejm_club: exact.club ?? null,
+        match_basis: "birth_date",
+      };
+    }
+    // Nazwisko się zgadza, data nie. To NIE jest ten poseł, tylko imiennik.
+    return null;
+  }
+
+  // Bez daty urodzenia zostaje poszlaka. Jednoznaczna tylko gdy w Sejmie jest
+  // dokładnie jeden poseł o tym nazwisku.
+  if (byName.length > 1) return null;
+  return {
+    sejm_mp_id: byName[0].id,
+    sejm_club: byName[0].club ?? null,
+    match_basis: "name_only",
+  };
+}
+
+// Pobiera skład osobowy spółki i oznacza osoby, które są posłami.
+export async function syncOrgPeople(
+  supabase: SupabaseClient,
+  krs: string,
+  ctx: CallContext,
+): Promise<{ people: number; politicians: number }> {
+  const entries = await getOrgConnections(krs, ctx);
+  const mps = await getMpList();
+  const now = new Date().toISOString();
+
+  const rows: Record<string, unknown>[] = [];
+  let politicians = 0;
+
+  for (const entry of entries) {
+    // Powiązania organizacja z organizacją pomijamy: tu interesują nas ludzie.
+    if (entry.typ !== "osoba") continue;
+    const person = entry as RioPerson;
+    const fullName = person.tozsamosc?.imiona_i_nazwisko ??
+      `${person.tozsamosc?.imie ?? ""} ${person.tozsamosc?.nazwisko ?? ""}`.trim();
+    const birthDate = person.tozsamosc?.data_urodzenia ?? null;
+    const match = matchToMp(fullName, birthDate, mps);
+    if (match) politicians += 1;
+
+    for (const link of (entry as unknown as RioOrg).krs_powiazania_kwerendowane ?? []) {
+      rows.push({
+        org_krs: krs,
+        person_id: person.id,
+        full_name: fullName || "brak danych",
+        birth_date: birthDate,
+        role_type: link.typ,
+        date_start: link.data_start ?? null,
+        date_end: link.data_koniec ?? null,
+        is_current: !link.data_koniec,
+        sejm_mp_id: match?.sejm_mp_id ?? null,
+        sejm_club: match?.sejm_club ?? null,
+        match_basis: match?.match_basis ?? null,
+        synced_at: now,
+      });
+    }
+  }
+
+  if (rows.length > 0) {
+    const { error } = await supabase
+      .from("registry_org_people")
+      .upsert(rows, { onConflict: "org_krs,person_id,role_type" });
+    if (error) throw new Error(`Zapis skladu spolki: ${error.message}`);
+  }
+
+  return { people: rows.length, politicians };
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +498,21 @@ const STOPWORDS = new Set([
   "wylaczeniem", "działalność", "dzialalnosc", "produkcja", "sprzedaż", "sprzedaz",
 ]);
 
+/**
+ * Rdzenie nieniosace tresci PO obcieciu do 6 znakow. Osobna lista od STOPWORDS,
+ * bo dopiero po przycieciu widac, ze "prowadzonych" i "prowadzenie" to ten sam
+ * biurokratyczny wypelniacz. Bez tego debata o finansach panstwa dopasowuje sie
+ * do kazdej spolki, ktora ma w PKD slowo "finansowa".
+ */
+const STOP_STEMS = new Set([
+  "prowad", "dziala", "zmiana", "zmiani", "ustawa", "ustawy", "ustawi",
+  "projek", "spraw", "sprawi", "inform", "rozstr", "wniose", "wniosk",
+  "porzad", "dzienn", "sejmu", "rzadu", "polski", "krajow", "panstw",
+  "przepi", "punkt", "punktu", "posiedz", "glosow", "komisj", "posel",
+  "poselsk", "rzadow", "uzupel", "zwiazan", "dotycz", "niekto", "innych",
+  "ogolne", "ogolny", "obywat", "narodo",
+]);
+
 // Rdzeń wyrazu: przycięcie do 6 znaków zdejmuje większość polskiej fleksji
 // bez stemmera. Świadomy kompromis, bo to wejście dla AI, nie werdykt.
 function stems(text: string): Set<string> {
@@ -299,7 +524,8 @@ function stems(text: string): Set<string> {
       .replace(/ł/g, "l")
       .split(/[^a-z0-9]+/)
       .filter((word) => word.length >= 4 && !STOPWORDS.has(word))
-      .map((word) => word.slice(0, 6)),
+      .map((word) => word.slice(0, 6))
+      .filter((stem) => !STOP_STEMS.has(stem)),
   );
 }
 
@@ -360,6 +586,63 @@ export async function findPotentialConflicts(
 
   // Najmocniejsze pokrycia na górze: tyle wystarczy, żeby brief nie utonął.
   return hits.sort((a, b) => b.matched_terms.length - a.matched_terms.length);
+}
+
+// ---------------------------------------------------------------------------
+// Zestawienie spółki z dorobkiem parlamentarnym
+// ---------------------------------------------------------------------------
+
+export interface VoteHit {
+  title: string;
+  date: string;
+  vote: string;
+  matched_terms: string[];
+}
+
+/**
+ * Głosowania polityka tematycznie bliskie branży spółki.
+ *
+ * Głosowania nie mają embeddingów (tabela `sejm_votings` przechowuje tytuł
+ * i opis), więc dopasowanie jest leksykalne, na tych samych rdzeniach co
+ * heurystyka konfliktu interesów. To wejście dla modelu, nie werdykt.
+ */
+export async function findRelatedVotes(
+  supabase: SupabaseClient,
+  tenantId: string,
+  branchText: string,
+  limit = 8,
+): Promise<VoteHit[]> {
+  const needle = stems(branchText);
+  if (needle.size === 0) return [];
+
+  const { data, error } = await supabase
+    .from("politician_votes")
+    .select("vote, sejm_votings(title, description, date)")
+    .eq("tenant_id", tenantId)
+    .limit(500);
+  if (error) throw new Error(`Odczyt glosowan: ${error.message}`);
+
+  const hits: VoteHit[] = [];
+  for (const row of data ?? []) {
+    const voting = row.sejm_votings as
+      | { title: string; description: string | null; date: string }
+      | null;
+    if (!voting) continue;
+    const haystack = stems(`${voting.title} ${voting.description ?? ""}`);
+    const matched = [...needle].filter((term) => haystack.has(term));
+    // Jedno wspolne slowo to zbieg okolicznosci, dopiero dwa sa sygnalem.
+    if (matched.length < 2) continue;
+    hits.push({
+      title: voting.title,
+      date: voting.date,
+      vote: row.vote as string,
+      matched_terms: matched,
+    });
+  }
+
+  return hits
+    .sort((a, b) => b.matched_terms.length - a.matched_terms.length)
+    .slice(0, limit);
 }
 
 export { normalizeKrs };

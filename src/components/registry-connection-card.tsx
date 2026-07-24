@@ -131,6 +131,11 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
             <ThemedText type="small">
               Za {formatYear(filing.period_end)}, złożone {formatDate(filing.filed_on)}.
             </ThemedText>
+            {filing.revenue_label && !/^przychody netto ze sprzeda/i.test(filing.revenue_label) ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Przychód wykazany jako: {filing.revenue_label.toLowerCase()}.
+              </ThemedText>
+            ) : null}
             <View style={styles.metrics}>
               <View style={styles.metric}>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -143,6 +148,11 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
                   ]}>
                   {formatMoney(filing.revenue, filing.currency)}
                 </ThemedText>
+                {filing.revenue !== null && filing.revenue_prev !== null ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Rok wcześniej {formatMoney(filing.revenue_prev, filing.currency)}
+                  </ThemedText>
+                ) : null}
               </View>
               <View style={styles.metric}>
                 <ThemedText type="small" themeColor="textSecondary">
@@ -161,8 +171,24 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
                   ]}>
                   {formatMoney(filing.net_result, filing.currency)}
                 </ThemedText>
+                {filing.net_result !== null && filing.net_result_prev !== null ? (
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Rok wcześniej {formatMoney(filing.net_result_prev, filing.currency)}
+                  </ThemedText>
+                ) : null}
               </View>
             </View>
+            {/* Rozróżniamy dwie różne rzeczy: kwot jeszcze nie pobieraliśmy
+                (source krs_open) i kwot nie ma, bo spółka złożyła sam PDF. */}
+            {filing.source !== 'rejestrio' ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Kwoty nie zostały jeszcze pobrane. Odśwież dane z rejestru.
+              </ThemedText>
+            ) : !filing.has_json ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Sprawozdanie złożone tylko jako PDF, więc kwot nie odczytaliśmy.
+              </ThemedText>
+            ) : null}
           </>
         ) : (
           <ThemedText type="small" themeColor="textSecondary">

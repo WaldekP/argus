@@ -30,12 +30,18 @@ import {
 import {
   enrichOrgFromOpenKrs,
   findPotentialConflicts,
+  findRelatedVotes,
   isStale,
   scanBulletin,
+  syncFinancials,
+  syncOrgPeople,
   syncPersonConnections,
   syncWatchesForSubject,
   upsertOrg,
 } from "../_shared/registry.ts";
+import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
+import { embedText } from "../_shared/embeddings.ts";
+import { z } from "npm:zod";
 
 const SUBJECT_TYPES = ["politician", "journalist", "outlet", "other"] as const;
 type SubjectType = typeof SUBJECT_TYPES[number];
@@ -129,6 +135,9 @@ async function opSearchPerson(
       person_id: p.id,
       full_name: p.tozsamosc?.imiona_i_nazwisko ?? `${firstName} ${lastName}`,
       middle_names: p.tozsamosc?.drugie_imiona || null,
+      // Data urodzenia (plan Biznes) rozstrzyga imienników. To ona zamienia
+      // zgadywanie w wybór na podstawie danych.
+      birth_date: p.tozsamosc?.data_urodzenia ?? null,
       connections_current: p.krs_powiazania_liczby?.aktualne ?? 0,
       connections_past: p.krs_powiazania_liczby?.przeszle ?? 0,
       organizations_preview: (p.organizacje_skrot ?? []).map((o) => o.nazwa_skrocona),
@@ -264,6 +273,10 @@ async function opGetConnections(
 
   const stale = isStale(subject.connections_synced_at);
   const refreshed = body.refresh === true || stale;
+
+  // Ile spolek dostaje kwoty przy jednym odswiezeniu. Dokument finansowy
+  // w JSON kosztuje wiecej niz zwykle wywolanie, wiec ograniczamy porcje.
+  const FINANCIALS_PER_REFRESH = 10;
   if (refreshed) {
     await syncPersonConnections(ctx.supabase, subject.person_id, ctx);
     await ctx.supabase
@@ -277,13 +290,32 @@ async function opGetConnections(
       subject.person_id,
       `Powiązanie: ${subject.label}`,
     );
+
+    // Kwoty ze sprawozdan dla spolek, w ktorych polityk jest OBECNIE.
+    // Zakonczone powiazania zostawiamy do wejscia w karte spolki.
+    const { data: currentOrgs } = await ctx.supabase
+      .from("registry_connections")
+      .select("org_krs")
+      .eq("person_id", subject.person_id)
+      .eq("is_current", true);
+    const unique = [...new Set((currentOrgs ?? []).map((r) => r.org_krs as string))]
+      .slice(0, FINANCIALS_PER_REFRESH);
+    for (const krs of unique) {
+      try {
+        await syncFinancials(ctx.supabase, krs, ctx);
+      } catch (err) {
+        console.error(`syncFinancials ${krs}:`, err);
+      }
+    }
   }
 
+  // Bierzemy powiazania aktualne ORAZ zakonczone. Spolka, z ktorej polityk
+  // wyszedl rok temu, jest tak samo dobrym tematem na pytanie od dziennikarza.
   let { data, error } = await ctx.supabase
     .from("registry_connections")
     .select("*, registry_orgs(*)")
     .eq("person_id", subject.person_id)
-    .eq("is_current", true);
+    .order("is_current", { ascending: false });
   if (error) throw new Error(`Odczyt powiazan: ${error.message}`);
 
   const krsList = [...new Set((data ?? []).map((row) => row.org_krs as string))];
@@ -294,6 +326,8 @@ async function opGetConnections(
   // limitu zapytań po stronie ministerstwa przy dużej liczbie spółek.
   const missing = (data ?? [])
     .filter((row) => !(row.registry_orgs as { enriched_at?: string } | null)?.enriched_at)
+    // Aktualne najpierw: to one sa na gorze ekranu.
+    .sort((a, b) => Number(b.is_current) - Number(a.is_current))
     .map((row) => row.org_krs as string);
   const toEnrich = [...new Set(missing)].slice(0, ENRICH_PER_CALL);
 
@@ -305,7 +339,7 @@ async function opGetConnections(
       .from("registry_connections")
       .select("*, registry_orgs(*)")
       .eq("person_id", subject.person_id)
-      .eq("is_current", true);
+      .order("is_current", { ascending: false });
     if (reread.error) throw new Error(`Odczyt powiazan: ${reread.error.message}`);
     data = reread.data;
   }
@@ -348,13 +382,17 @@ async function opGetConnections(
 
 // Czego integracja nie wie i dlaczego. Zwracane przy każdej liście powiązań,
 // żeby interfejs nie musiał tego wiedzieć na sztywno.
+// Plan Rejestr.io Biznes (wykupiony 2026-07-24) odblokował kwoty ze sprawozdań,
+// powiązania historyczne i datę urodzenia. Zostaje jedno ograniczenie: spółki
+// raportujące według MSSF składają sprawozdanie jako PDF bez wersji JSON,
+// więc dla nich kwot nie wyciągniemy.
 const LIMITS = {
-  historical_connections: false,
-  financial_amounts: false,
+  historical_connections: true,
+  financial_amounts: true,
   note:
-    "Kwoty przychodu i wyniku wymagają planu Rejestr.io Biznes. Powiązania " +
-    "zakończone wymagają planu Premium. Z darmowego API KRS mamy okres i datę " +
-    "złożenia sprawozdania, kapitał zakładowy i pełne PKD.",
+    "Dane z Krajowego Rejestru Sądowego przez Rejestr.io i otwarte API " +
+    "Ministerstwa Sprawiedliwości. Spółki raportujące według MSSF składają " +
+    "sprawozdanie tylko jako PDF, więc dla nich kwoty pozostają nieznane.",
 } as const;
 
 interface LatestFiling {
@@ -362,8 +400,16 @@ interface LatestFiling {
   period_end: string;
   filed_on: string | null;
   revenue: number | null;
+  revenue_label: string | null;
+  revenue_prev: number | null;
   net_result: number | null;
+  net_result_label: string | null;
+  net_result_prev: number | null;
   currency: string;
+  has_json: boolean;
+  // krs_open = znamy tylko wzmianke z darmowego API, kwot nikt jeszcze nie
+  // probowal pobrac. rejestrio = probowalismy i wiemy, czy sa.
+  source: string;
 }
 
 async function loadLatestFilings(
@@ -375,7 +421,11 @@ async function loadLatestFilings(
 
   const { data, error } = await supabase
     .from("registry_org_financials")
-    .select("org_krs, period_start, period_end, filed_on, revenue, net_result, currency")
+    .select(
+      "org_krs, period_start, period_end, filed_on, revenue, revenue_label, " +
+        "revenue_prev, net_result, net_result_label, net_result_prev, currency, " +
+        "has_json, source",
+    )
     .in("org_krs", krsList)
     .order("period_end", { ascending: false });
   if (error) throw new Error(`Odczyt sprawozdan: ${error.message}`);
@@ -389,23 +439,63 @@ async function loadLatestFilings(
       period_end: row.period_end as string,
       filed_on: row.filed_on as string | null,
       revenue: row.revenue as number | null,
+      revenue_label: row.revenue_label as string | null,
+      revenue_prev: row.revenue_prev as number | null,
       net_result: row.net_result as number | null,
+      net_result_label: row.net_result_label as string | null,
+      net_result_prev: row.net_result_prev as number | null,
       currency: (row.currency as string) ?? "PLN",
+      has_json: Boolean(row.has_json),
+      source: (row.source as string) ?? "krs_open",
     });
   }
   return result;
 }
 
-// Karta pojedynczej spółki. Dane pochodzą z cache'u, a wzbogacenie z darmowego
-// API MS odświeża się samo po ORG_DETAILS_TTL_DAYS. Nie zużywa środków.
+// Karta pojedynczej spółki.
+//
+// Wzbogacenie z darmowego API MS (kapitał, PKD, okresy sprawozdań) jest zawsze.
+// Płatne pobrania (kwoty ze sprawozdań, skład osobowy) robimy raz na spółkę
+// i trzymamy w cache'u, bo dokument finansowy w JSON kosztuje więcej niż
+// zwykłe wywołanie API.
 async function opGetOrgDetails(
-  supabase: SupabaseClient,
+  ctx: CallContext,
   body: { krs?: unknown; refresh?: unknown },
 ) {
+  const supabase = ctx.supabase;
   const krs = normalizeKrs(requireString(body.krs, "krs"));
   if (!krs) throw new HttpError(400, "Nieprawidłowy numer KRS.");
+  const forceRefresh = body.refresh === true;
 
-  await enrichOrgFromOpenKrs(supabase, krs, body.refresh === true);
+  await enrichOrgFromOpenKrs(supabase, krs, forceRefresh);
+
+  // Kwoty ze sprawozdań: pobieramy, gdy nie mamy ani jednego okresu ze
+  // znanym statusem JSON, czyli gdy jeszcze nigdy o nie nie pytaliśmy.
+  const { count: pricedCount } = await supabase
+    .from("registry_org_financials")
+    .select("id", { count: "exact", head: true })
+    .eq("org_krs", krs)
+    .eq("source", "rejestrio");
+  if (forceRefresh || (pricedCount ?? 0) === 0) {
+    try {
+      await syncFinancials(supabase, krs, ctx);
+    } catch (err) {
+      console.error(`syncFinancials ${krs}:`, err);
+    }
+  }
+
+  // Skład osobowy plus dopasowanie do posłów.
+  const { count: peopleCount } = await supabase
+    .from("registry_org_people")
+    .select("id", { count: "exact", head: true })
+    .eq("org_krs", krs);
+  if (forceRefresh || (peopleCount ?? 0) === 0) {
+    try {
+      await syncOrgPeople(supabase, krs, ctx);
+    } catch (err) {
+      console.error(`syncOrgPeople ${krs}:`, err);
+    }
+  }
 
   const { data: org, error } = await supabase
     .from("registry_orgs")
@@ -417,31 +507,176 @@ async function opGetOrgDetails(
 
   const { data: filings, error: filingsError } = await supabase
     .from("registry_org_financials")
-    .select("period_start, period_end, filed_on, revenue, net_result, currency")
+    .select(
+      "period_start, period_end, filed_on, revenue, revenue_label, revenue_prev, " +
+        "net_result, net_result_label, net_result_prev, currency, has_json",
+    )
     .eq("org_krs", krs)
     .order("period_end", { ascending: false });
   if (filingsError) throw new Error(`Odczyt sprawozdan: ${filingsError.message}`);
 
   const { data: people, error: peopleError } = await supabase
-    .from("registry_connections")
-    .select("role_type, date_start, registry_persons(full_name)")
+    .from("registry_org_people")
+    .select("*")
     .eq("org_krs", krs)
-    .eq("is_current", true);
-  if (peopleError) throw new Error(`Odczyt osob: ${peopleError.message}`);
+    .order("is_current", { ascending: false });
+  if (peopleError) throw new Error(`Odczyt skladu: ${peopleError.message}`);
+
+  const mapped = (people ?? []).map((row) => ({
+    full_name: row.full_name as string,
+    birth_date: row.birth_date as string | null,
+    role_label: roleLabel(row.role_type as string),
+    date_start: row.date_start as string | null,
+    date_end: row.date_end as string | null,
+    is_current: row.is_current as boolean,
+    sejm_mp_id: row.sejm_mp_id as number | null,
+    sejm_club: row.sejm_club as string | null,
+    match_basis: row.match_basis as string | null,
+  }));
 
   return {
     org,
     filings: filings ?? [],
-    // Osoby znane nam z rejestru, czyli te, których tożsamość ktoś potwierdził.
-    // To nie jest pełny skład zarządu spółki.
-    known_people: (people ?? []).map((row) => ({
-      full_name: (row.registry_persons as { full_name?: string } | null)?.full_name ??
-        "brak danych",
-      role_label: roleLabel(row.role_type as string),
-      date_start: row.date_start,
-    })),
+    people: mapped,
+    // Osoby, które są posłami. To jest odpowiedź na pytanie "czy siedzę w tej
+    // spółce z kimś jeszcze z polityki".
+    politicians: mapped.filter((person) => person.sejm_mp_id !== null),
     limits: LIMITS,
   };
+}
+
+// Zestawienie branży spółki z dorobkiem parlamentarnym polityka.
+// Wynik cache'ujemy per tenant i spółka, bo generacja kosztuje wywołanie modelu.
+async function opCompanyContext(
+  ctx: CallContext,
+  tenantId: string,
+  body: { krs?: unknown; refresh?: unknown },
+) {
+  const supabase = ctx.supabase;
+  const krs = normalizeKrs(requireString(body.krs, "krs"));
+  if (!krs) throw new HttpError(400, "Nieprawidłowy numer KRS.");
+
+  if (body.refresh !== true) {
+    const { data: cached } = await supabase
+      .from("registry_company_context")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("org_krs", krs)
+      .maybeSingle();
+    if (cached) return { ...cached, from_cache: true };
+  }
+
+  const { data: org, error } = await supabase
+    .from("registry_orgs")
+    .select("krs, name_full, legal_form, pkd_main_section, pkd_all, capital_amount")
+    .eq("krs", krs)
+    .maybeSingle();
+  if (error) throw new Error(`Odczyt organizacji: ${error.message}`);
+  if (!org) throw new HttpError(404, "Nie znamy tej spółki.");
+
+  const pkd = (org.pkd_all as { code: string; description: string }[] ?? [])
+    .map((entry) => entry.description)
+    .join(". ");
+  const branchText = `${org.name_full} ${org.pkd_main_section ?? ""} ${pkd}`.trim();
+
+  // Rola polityka w tej spółce. Nie ma klucza obcego między connections
+  // a subjects, więc idziemy przez person_id potwierdzonych podmiotów tenanta.
+  const { data: subjects } = await supabase
+    .from("registry_subjects")
+    .select("person_id")
+    .eq("tenant_id", tenantId)
+    .eq("match_status", "confirmed")
+    .not("person_id", "is", null);
+  const personIds = (subjects ?? []).map((row) => row.person_id as number);
+
+  let ownRoles: { role_type: string; date_start: string | null; is_current: boolean }[] = [];
+  if (personIds.length > 0) {
+    const { data } = await supabase
+      .from("registry_connections")
+      .select("role_type, date_start, is_current")
+      .eq("org_krs", krs)
+      .in("person_id", personIds);
+    ownRoles = (data ?? []) as typeof ownRoles;
+  }
+
+  const votes = await findRelatedVotes(supabase, tenantId, branchText);
+
+  // Wypowiedzi sejmowe: tu embeddingi są, więc szukamy semantycznie.
+  let statements: { date: string; excerpt: string }[] = [];
+  try {
+    const embedding = await embedText(branchText.slice(0, 2000));
+    const { data: matched } = await supabase.rpc("match_statements", {
+      p_tenant_id: tenantId,
+      p_query_embedding: embedding,
+      p_limit: 5,
+    });
+    statements = (matched ?? []).map((row: Record<string, unknown>) => ({
+      date: String(row.date ?? "brak danych"),
+      excerpt: String(row.text ?? "").slice(0, 600),
+    }));
+  } catch (err) {
+    // Brak embeddingów (pominięty onboarding) nie może wywrócić operacji.
+    console.error(`company_context embed ${krs}:`, err);
+  }
+
+  const contextSchema = z.object({
+    summary: z.string().describe("Podsumowanie po polsku, od 2 do 5 zdan"),
+    risk: z.enum(["brak", "pytanie", "ryzyko"]).describe("Poziom ryzyka"),
+  });
+
+  const model = (await getGenerationModel()).withStructuredOutput(contextSchema, {
+    name: "company_context",
+  });
+
+  const result = await model.invoke([
+    ["system", loadPrompt("company-vote-context")],
+    [
+      "human",
+      [
+        "Spolka:",
+        `Nazwa: ${org.name_full}`,
+        `Forma prawna: ${org.legal_form ?? "brak danych"}`,
+        `Branza przewazajaca: ${org.pkd_main_section ?? "brak danych"}`,
+        `Pelne PKD: ${pkd || "brak danych"}`,
+        `Rola polityka: ${
+          ownRoles.map((r) =>
+            `${roleLabel(r.role_type)} od ${r.date_start ?? "brak danych"}` +
+            (r.is_current ? " (nadal)" : " (zakonczona)")
+          ).join("; ") || "brak danych"
+        }`,
+        "",
+        "Glosowania politykia tematycznie bliskie branzy:",
+        votes.length === 0
+          ? "brak danych"
+          : votes.map((v) => `- ${v.date}: ${v.title} — glosowal: ${v.vote}`).join("\n"),
+        "",
+        "Fragmenty wypowiedzi sejmowych politykia:",
+        statements.length === 0
+          ? "brak danych"
+          : statements.map((s) => `- ${s.date}: ${s.excerpt}`).join("\n\n"),
+      ].join("\n"),
+    ],
+  ]);
+
+  const row = {
+    tenant_id: tenantId,
+    org_krs: krs,
+    summary: result.summary,
+    evidence: { risk: result.risk, votes, statements },
+    votes_found: votes.length,
+    statements_found: statements.length,
+    model: "claude-sonnet-5",
+    generated_at: new Date().toISOString(),
+  };
+
+  const { data: saved, error: saveError } = await supabase
+    .from("registry_company_context")
+    .upsert(row, { onConflict: "tenant_id,org_krs" })
+    .select("*")
+    .single();
+  if (saveError) throw new Error(`Zapis kontekstu: ${saveError.message}`);
+
+  return { ...saved, from_cache: false };
 }
 
 async function opSearchOrg(
@@ -652,7 +887,12 @@ Deno.serve(async (req) => {
       case "get_org_details":
         return jsonResponse({
           ok: true,
-          data: await opGetOrgDetails(supabase, body),
+          data: await opGetOrgDetails(ctx, body),
+        });
+      case "company_context":
+        return jsonResponse({
+          ok: true,
+          data: await opCompanyContext(ctx, tenantId, body),
         });
       case "link_org":
         return jsonResponse({

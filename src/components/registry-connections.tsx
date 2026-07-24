@@ -15,10 +15,11 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { FormTextInput } from '@/components/form-text-input';
+import { RegistryAttribution } from '@/components/registry-attribution';
 import { RegistryConnectionCard } from '@/components/registry-connection-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontFamily, Radius, Spacing } from '@/constants/theme';
+import { FontFamily, KickerStyle, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import {
   getConnections,
@@ -138,6 +139,8 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
     }
   };
 
+  const pastConnections = connections.filter((c) => !c.is_current);
+
   const handleRefresh = async () => {
     if (!subject) return;
     setError(null);
@@ -216,9 +219,8 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
           {ambiguous ? (
             <View style={[styles.warning, { borderLeftColor: theme.error }]}>
               <ThemedText type="small">
-                Rejestr zwrócił kilka osób o tym samym imieniu i nazwisku i nie udostępnia danych,
-                którymi można je rozróżnić. Wybierz właściwą osobę na podstawie listy spółek.
-                Błędny wybór przypisze Ci cudze powiązania.
+                Rejestr zwrócił kilka osób o tym samym imieniu i nazwisku. Rozróżnij je po roku
+                urodzenia i liście spółek. Błędny wybór przypisze Ci cudze powiązania.
               </ThemedText>
             </View>
           ) : null}
@@ -233,6 +235,11 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
                 {candidate.full_name}
                 {candidate.middle_names ? ` (${candidate.middle_names})` : ''}
               </ThemedText>
+              {candidate.birth_date ? (
+                <ThemedText type="small" themeColor="teal">
+                  Rok urodzenia: {candidate.birth_date.slice(0, 4)}
+                </ThemedText>
+              ) : null}
               <ThemedText type="small" themeColor="textSecondary">
                 Powiązania aktualne: {candidate.connections_current}, historyczne:{' '}
                 {candidate.connections_past}
@@ -258,22 +265,33 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
 
           {connections.length === 0 ? (
             <ThemedText type="small">
-              Brak aktualnych powiązań kapitałowych w KRS.
+              Brak powiązań kapitałowych w KRS.
             </ThemedText>
-          ) : (
-            groupByOrg(connections).map(([krs, group]) => (
-              <RegistryConnectionCard
-                key={krs}
-                connections={group}
-                onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
-              />
-            ))
-          )}
+          ) : null}
 
-          {limits && connections.length > 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              {limits.note}
-            </ThemedText>
+          {groupByOrg(connections.filter((c) => c.is_current)).map(([krs, group]) => (
+            <RegistryConnectionCard
+              key={krs}
+              connections={group}
+              onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
+            />
+          ))}
+
+          {/* Spółki, z których polityk już wyszedł. Dziennikarz pyta o nie
+              równie chętnie, co o obecne, więc nie chowamy ich. */}
+          {pastConnections.length > 0 ? (
+            <>
+              <ThemedText style={[KickerStyle, styles.kicker]} themeColor="accent">
+                Powiązania zakończone
+              </ThemedText>
+              {groupByOrg(pastConnections).map(([krs, group]) => (
+                <RegistryConnectionCard
+                  key={`past-${krs}`}
+                  connections={group}
+                  onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
+                />
+              ))}
+            </>
           ) : null}
 
           <PrimaryButton
@@ -287,6 +305,11 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
               Odepnij tożsamość z rejestru
             </ThemedText>
           </Pressable>
+
+          <RegistryAttribution
+            note={limits?.note}
+            syncedAt={syncedAt ? formatDate(syncedAt.slice(0, 10)) : null}
+          />
         </View>
       ) : null}
     </ThemedView>
@@ -323,5 +346,10 @@ const styles = StyleSheet.create({
   },
   unlink: {
     textDecorationLine: 'underline',
+  },
+  kicker: {
+    fontSize: 11,
+    letterSpacing: 11 * 0.24,
+    marginTop: Spacing.three,
   },
 });

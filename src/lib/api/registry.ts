@@ -23,6 +23,8 @@ export type PersonCandidate = {
   person_id: number;
   full_name: string;
   middle_names: string | null;
+  /** Data urodzenia z Rejestr.io (plan Biznes). Rozstrzyga imienników. */
+  birth_date: string | null;
   connections_current: number;
   connections_past: number;
   organizations_preview: string[];
@@ -45,8 +47,52 @@ export type FinancialFiling = {
   period_end: string;
   filed_on: string | null;
   revenue: number | null;
+  /**
+   * Etykieta księgowa kwoty. W schemach Ministerstwa Finansów "przychód"
+   * znaczy co innego dla spółki, a co innego dla organizacji pozarządowej.
+   */
+  revenue_label: string | null;
+  revenue_prev: number | null;
   net_result: number | null;
+  net_result_label: string | null;
+  net_result_prev: number | null;
   currency: string;
+  /** Spółki raportujące według MSSF składają tylko PDF, wtedy kwot nie ma. */
+  has_json: boolean;
+  /**
+   * krs_open = mamy tylko wzmiankę z darmowego API, kwot nikt nie pobierał.
+   * rejestrio = pytaliśmy o kwoty i wiemy, czy istnieją.
+   */
+  source: string;
+};
+
+/** Osoba w spółce, z ewentualnym dopasowaniem do posła. */
+export type OrgPerson = {
+  full_name: string;
+  birth_date: string | null;
+  role_label: string;
+  date_start: string | null;
+  date_end: string | null;
+  is_current: boolean;
+  sejm_mp_id: number | null;
+  sejm_club: string | null;
+  /** birth_date = dopasowanie pewne, name_only = do weryfikacji. */
+  match_basis: 'birth_date' | 'name_only' | null;
+};
+
+/** Zestawienie branży spółki z dorobkiem parlamentarnym (operation: company_context). */
+export type CompanyContext = {
+  org_krs: string;
+  summary: string;
+  evidence: {
+    risk?: 'brak' | 'pytanie' | 'ryzyko';
+    votes?: { title: string; date: string; vote: string }[];
+    statements?: { date: string; excerpt: string }[];
+  };
+  votes_found: number;
+  statements_found: number;
+  generated_at: string;
+  from_cache: boolean;
 };
 
 /** Czego integracja nie wie i dlaczego. Interfejs to pokazuje wprost. */
@@ -64,7 +110,7 @@ export type RegistryConnection = {
   direction: string | null;
   date_start: string | null;
   date_end: string | null;
-  /** Pobieramy wyłącznie powiązania aktualne, więc zawsze true. */
+  /** Fałsz dla powiązań zakończonych (plan Biznes daje też historyczne). */
   is_current: boolean;
   name: string;
   legal_form: string | null;
@@ -104,7 +150,9 @@ export type OrgDetails = {
     status: Record<string, unknown>;
   };
   filings: FinancialFiling[];
-  known_people: { full_name: string; role_label: string; date_start: string | null }[];
+  people: OrgPerson[];
+  /** Osoby ze spółki, które są posłami. */
+  politicians: OrgPerson[];
   limits: RegistryLimits;
 };
 
@@ -225,9 +273,20 @@ export function searchOrg(criteria: { nazwa?: string; nip?: string }) {
   return call<{ organizations: OrgSearchItem[] }>('search_org', criteria);
 }
 
-/** Karta spółki. Nie zużywa środków: dane z cache'u i darmowego API KRS. */
+/**
+ * Karta spółki. Pierwsze otwarcie pobiera kwoty ze sprawozdań i skład osobowy
+ * z płatnego API, kolejne idą z cache'u.
+ */
 export function getOrgDetails(krs: string, refresh = false) {
   return call<OrgDetails>('get_org_details', { krs, refresh });
+}
+
+/**
+ * Zestawienie branży spółki z głosowaniami i wypowiedziami polityka.
+ * Generowane przez model, cache'owane per tenant i spółka.
+ */
+export function getCompanyContext(krs: string, refresh = false) {
+  return call<CompanyContext>('company_context', { krs, refresh });
 }
 
 export function linkOrg(params: {

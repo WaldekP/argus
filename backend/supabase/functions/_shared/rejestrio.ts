@@ -210,14 +210,53 @@ export function getPerson(id: number, ctx?: CallContext): Promise<RioPerson> {
   return request<RioPerson>(`/osoby/${id}`, ctx);
 }
 
-// Aktualne powiązania osoby z organizacjami w KRS.
-// Powiązania historyczne (aktualnosc=historyczne) wymagają abonamentu premium
-// i na koncie testowym zwracają 403.
+// Powiązania osoby z organizacjami w KRS.
+// Powiązania historyczne wymagają abonamentu Premium lub wyższego (mamy Biznes).
 export function getPersonConnections(
   id: number,
   ctx?: CallContext,
+  scope: "aktualne" | "historyczne" = "aktualne",
 ): Promise<RioOrg[]> {
-  return request<RioOrg[]>(`/osoby/${id}/krs-powiazania`, ctx);
+  return request<RioOrg[]>(
+    `/osoby/${id}/krs-powiazania?aktualnosc=${scope}`,
+    ctx,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sprawozdania finansowe (plan Biznes)
+// ---------------------------------------------------------------------------
+
+export interface RioDocumentGroup {
+  data_start: string;
+  data_koniec: string;
+  dokumenty: { czy_ma_json: boolean; id: number; nazwa: string }[];
+}
+
+// Lista dokumentów finansowych złożonych przez organizację, pogrupowana
+// po okresach rozliczeniowych, od najnowszego.
+export function getFinancialDocuments(
+  krs: string,
+  ctx?: CallContext,
+): Promise<RioDocumentGroup[]> {
+  return request<RioDocumentGroup[]>(
+    `/org/${String(Number(krs))}/krs-dokumenty`,
+    ctx,
+  );
+}
+
+// Treść dokumentu finansowego w JSON. UWAGA: to wywołanie kosztuje więcej niż
+// podstawowa stawka API, dlatego wołamy je tylko dla najnowszego okresu i tylko
+// dla rachunku zysków i strat.
+export function getFinancialDocumentJson<T>(
+  krs: string,
+  documentId: number,
+  ctx?: CallContext,
+): Promise<T> {
+  return request<T>(
+    `/org/${String(Number(krs))}/krs-dokumenty/${documentId}?format=json`,
+    ctx,
+  );
 }
 
 export async function searchOrgs(
@@ -289,6 +328,8 @@ export function personToRow(person: RioPerson) {
     middle_names: t.drugie_imiona || null,
     last_name: t.nazwisko ?? "brak danych",
     full_name: t.imiona_i_nazwisko ?? `${t.imie} ${t.nazwisko}`.trim(),
+    // Dostępna od planu Premium. To ona rozstrzyga imienników.
+    birth_date: t.data_urodzenia ?? null,
     connections_current: person.krs_powiazania_liczby?.aktualne ?? 0,
     connections_past: person.krs_powiazania_liczby?.przeszle ?? 0,
     raw: person as unknown as Record<string, unknown>,
@@ -307,6 +348,7 @@ const ROLE_LABELS: Record<string, string> = {
   KRS_FOUNDER: "fundator",
   KRS_REPRESENTATIVE: "reprezentant",
   KRS_BENEFICIARY: "beneficjent rzeczywisty",
+  BENEFICIARY: "beneficjent rzeczywisty",
 };
 
 export function roleLabel(roleType: string): string {

@@ -1,9 +1,9 @@
 /**
  * Karta spółki z KRS. Wejście z listy powiązań polityka.
  *
- * Wszystko na tym ekranie pochodzi z darmowego otwartego API Ministerstwa
- * Sprawiedliwości albo z cache'u, więc otwieranie karty nie zużywa środków
- * z konta Rejestr.io.
+ * Dane rejestrowe (kapitał, PKD, okresy sprawozdań) pochodzą z darmowego API
+ * Ministerstwa Sprawiedliwości. Kwoty ze sprawozdań i skład osobowy to płatne
+ * Rejestr.io, pobierane raz na spółkę i trzymane w cache'u.
  */
 
 import { Ionicons } from '@expo/vector-icons';
@@ -24,7 +24,14 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { getOrgDetails, type OrgDetails } from '@/lib/api/registry';
+import { PrimaryButton } from '@/components/primary-button';
+import { RegistryAttribution } from '@/components/registry-attribution';
+import {
+  type CompanyContext,
+  getCompanyContext,
+  getOrgDetails,
+  type OrgDetails,
+} from '@/lib/api/registry';
 import { formatDate, formatMoney, formatYear } from '@/lib/format';
 
 /** Flagi stanu spółki warte pokazania na górze karty. */
@@ -53,8 +60,23 @@ export default function CompanyScreen() {
   const insets = useSafeAreaInsets();
   const { krs } = useLocalSearchParams<{ krs: string }>();
   const [details, setDetails] = useState<OrgDetails | null>(null);
+  const [context, setContext] = useState<CompanyContext | null>(null);
+  const [contextBusy, setContextBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Zestawienie generujemy na zadanie, bo kosztuje wywolanie modelu.
+  const handleContext = async () => {
+    setContextBusy(true);
+    setError(null);
+    try {
+      setContext(await getCompanyContext(krs ?? ''));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setContextBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -192,31 +214,106 @@ export default function CompanyScreen() {
               </View>
             ))}
 
-            {details?.limits.financial_amounts === false ? (
-              <View style={[styles.notice, { borderLeftColor: theme.teal }]}>
+            {/* Zestawienie branży spółki z dorobkiem parlamentarnym polityka.
+                Model dostaje wyłącznie znalezione głosowania i wypowiedzi,
+                a brak materiału ma prowadzić do zdania "brak danych". */}
+            <ThemedText style={[KickerStyle, styles.sectionKicker]} themeColor="accent">
+              Spółka a głosowania
+            </ThemedText>
+            {context ? (
+              <View
+                style={[
+                  styles.notice,
+                  {
+                    borderLeftColor:
+                      context.evidence?.risk === 'ryzyko'
+                        ? theme.error
+                        : context.evidence?.risk === 'pytanie'
+                          ? theme.accent
+                          : theme.teal,
+                  },
+                ]}>
                 <ThemedText type="small" themeColor="text80">
-                  {details.limits.note}
-                </ThemedText>
-              </View>
-            ) : null}
-
-            {details?.known_people && details.known_people.length > 0 ? (
-              <>
-                <ThemedText style={[KickerStyle, styles.sectionKicker]} themeColor="accent">
-                  Znane nam osoby
+                  {context.summary}
                 </ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  Wyłącznie osoby, których tożsamość ktoś potwierdził w Argusie. To nie jest pełny
-                  skład zarządu.
+                  Podstawa: {context.votes_found} głosowań i {context.statements_found} wypowiedzi
+                  dopasowanych tematycznie do branży spółki.
                 </ThemedText>
-                {details.known_people.map((person) => (
+                {(context.evidence?.votes ?? []).map((vote) => (
+                  <ThemedText
+                    key={`${vote.date}-${vote.title}`}
+                    type="small"
+                    themeColor="textSecondary">
+                    {formatDate(vote.date)}: {vote.title}. Głos: {vote.vote}.
+                  </ThemedText>
+                ))}
+              </View>
+            ) : (
+              <>
+                <ThemedText type="small" themeColor="textSecondary">
+                  Argus zestawi branżę tej spółki z Twoimi głosowaniami i wypowiedziami w Sejmie,
+                  żeby pokazać, o co może zapytać dziennikarz.
+                </ThemedText>
+                <PrimaryButton
+                  title="Zestaw z moimi głosowaniami"
+                  variant="secondary"
+                  onPress={handleContext}
+                  loading={contextBusy}
+                />
+              </>
+            )}
+
+            {/* Inni politycy w tej samej spółce. Dopasowanie po nazwisku ORAZ
+                dacie urodzenia jest pewne, samo nazwisko to poszlaka. */}
+            {details?.politicians && details.politicians.length > 0 ? (
+              <>
+                <ThemedText style={[KickerStyle, styles.sectionKicker]} themeColor="accent">
+                  Politycy w tej spółce
+                </ThemedText>
+                {details.politicians.map((person) => (
                   <View
-                    key={`${person.full_name}-${person.role_label}`}
-                    style={[styles.filingRow, { borderColor: theme.border }]}>
+                    key={`mp-${person.full_name}-${person.role_label}`}
+                    style={[styles.filingRow, { borderColor: theme.accent }]}>
                     <View style={styles.filingBody}>
-                      <ThemedText type="small">{person.full_name}</ThemedText>
+                      <ThemedText type="small">
+                        {person.full_name}
+                        {person.sejm_club ? `, klub ${person.sejm_club}` : ''}
+                      </ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
                         {person.role_label}, od {formatDate(person.date_start)}
+                        {person.is_current ? '' : ` do ${formatDate(person.date_end)}`}
+                      </ThemedText>
+                      <ThemedText
+                        type="small"
+                        themeColor={person.match_basis === 'birth_date' ? 'teal' : 'error'}>
+                        {person.match_basis === 'birth_date'
+                          ? 'Poseł potwierdzony nazwiskiem i datą urodzenia.'
+                          : 'Dopasowanie po samym nazwisku, wymaga weryfikacji.'}
+                      </ThemedText>
+                    </View>
+                  </View>
+                ))}
+              </>
+            ) : null}
+
+            {details?.people && details.people.length > 0 ? (
+              <>
+                <ThemedText style={[KickerStyle, styles.sectionKicker]} themeColor="accent">
+                  Skład osobowy
+                </ThemedText>
+                {details.people.map((person) => (
+                  <View
+                    key={`${person.full_name}-${person.role_label}-${person.date_start}`}
+                    style={[styles.filingRow, { borderColor: theme.border }]}>
+                    <View style={styles.filingBody}>
+                      <ThemedText type="small">
+                        {person.full_name}
+                        {person.birth_date ? ` (ur. ${person.birth_date.slice(0, 4)})` : ''}
+                      </ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {person.role_label}, od {formatDate(person.date_start)}
+                        {person.is_current ? ', nadal' : ` do ${formatDate(person.date_end)}`}
                       </ThemedText>
                     </View>
                   </View>
@@ -252,6 +349,8 @@ export default function CompanyScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Adres: {formatAddress(org.address ?? {})}
             </ThemedText>
+
+            <RegistryAttribution note={details?.limits.note} />
           </>
         ) : null}
       </ScrollView>
