@@ -170,12 +170,16 @@ linie przekazu nie mogą być merytorycznie sprzeczne z dokumentem.
 
 ## 5. Frontend
 
-Trasy w root Stack jak `content/*` (katalog `src/app/topics/`).
+Umiejscowienie (korekta po odkryciu kodu): w projekcie istnieje już zakładka **„Tematy"**
+(`src/app/(tabs)/topics.tsx`), która przeglądała statyczne korpusy (`lib/knowledge`,
+trasa `/temat/[slug]`). Feature nie dostaje osobnej zakładki — rozbudowujemy istniejącą:
+u góry sekcja „Twoje tematy" (dossiery z uploadu) + CTA „Nowy temat", niżej bez zmian
+„Korpusy tematyczne". Ekrany `new` i `[id]` to trasy Stack (jak `content/*`), zarejestrowane
+w root `_layout` jako `topics/new` i `topics/[id]`.
 
-- **`src/app/(tabs)/index.tsx`** — nowa `LinkCard` „Tematy" (ikona np. `library`/`document-text`)
-  → `/topics`.
-- **`src/app/topics/index.tsx`** — lista tematów: tytuł (Cormorant), status chip, liczba
-  pytań, data; CTA „Nowy temat"; pull-to-refresh; empty state (motyw oka Argusa).
+- **`src/app/(tabs)/topics.tsx`** — rozbudowana zakładka: lista dossierów (tytuł Cormorant,
+  status chip, liczba dokumentów/pytań, data), CTA „Nowy temat" → `/topics/new`,
+  pull-to-refresh, empty state (oko Argusa); pod spodem zachowane korpusy tematyczne.
 - **`src/app/topics/new.tsx`** — pole `title`; sekcja Dokumenty (picker .pdf/.md/.txt przez
   `expo-document-picker` + `expo-file-system`, base64 dla pdf, tekst dla md/txt; lista
   załączników z usuwaniem przed wysłaniem); CTA „Wygeneruj dossier" → `create` →

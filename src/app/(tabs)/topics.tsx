@@ -1,9 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EyeDot } from '@/components/eye-dot';
+import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -17,16 +26,73 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
+import { listTopics, type TopicListItem, type TopicStatus } from '@/lib/api/topics';
+import { formatDate, polishPlural } from '@/lib/format';
 import { tematy } from '@/lib/knowledge/kwota-wolna';
 
+const STATUS_LABEL: Record<TopicStatus, string> = {
+  generating: 'W trakcie',
+  ready: 'Gotowe',
+  error: 'Błąd',
+};
+
+/** Chip statusu dossier tematu. */
+function TopicStatusChip({ status }: { status: TopicStatus }) {
+  const theme = useTheme();
+  const color =
+    status === 'ready' ? theme.success : status === 'error' ? theme.error : theme.accentLight;
+  return (
+    <View style={[styles.chip, { borderColor: color }]}>
+      <ThemedText type="small" style={[styles.chipText, { color }]}>
+        {STATUS_LABEL[status]}
+      </ThemedText>
+    </View>
+  );
+}
+
 /**
- * Lista tematów programowych. Wejście w temat otwiera korpus: syntezę opinii
- * społecznej, wypowiedzi polityków ze źródłami i playbooki komunikacyjne.
+ * Zakładka Tematy: u góry własne dossiery (upload analizy → podsumowanie,
+ * liczby, pytania, linie ataku i obrony), niżej gotowe korpusy tematyczne.
  */
 export default function TopicsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  const [topics, setTopics] = useState<TopicListItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadTopics = useCallback(async () => {
+    try {
+      const list = await listTopics();
+      setTopics(list);
+      setError(null);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Nie udało się wczytać tematów.');
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadTopics();
+    }, [loadTopics])
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadTopics();
+    setRefreshing(false);
+  }, [loadTopics]);
+
+  const handleRetry = () => {
+    setLoaded(false);
+    setError(null);
+    void loadTopics();
+  };
 
   return (
     <ThemedView style={styles.screen}>
@@ -34,12 +100,92 @@ export default function TopicsScreen() {
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: BottomTabInset + Spacing.four },
-        ]}>
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void handleRefresh()}
+            tintColor={theme.accent}
+            colors={[theme.accent]}
+          />
+        }>
         <View style={styles.header}>
           <ThemedText style={styles.title}>Tematy</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Tematy ważne programowo, z gotowym korpusem: co mówią badania, co mówią politycy i jak o
-            tym mówić do poszczególnych grup.
+            Wgraj gotową analizę, a Argus zrobi z niej dossier: podsumowanie, kluczowe liczby,
+            przewidywane pytania i linie ataku oraz obrony.
+          </ThemedText>
+        </View>
+
+        <PrimaryButton title="Nowy temat" onPress={() => router.push('/topics/new')} />
+
+        {!loaded ? (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={theme.accent} />
+          </View>
+        ) : null}
+
+        {loaded && error && topics.length === 0 ? (
+          <View style={styles.errorBox}>
+            <ThemedText type="small" themeColor="error" style={styles.centered}>
+              {error}
+            </ThemedText>
+            <PrimaryButton title="Spróbuj ponownie" variant="secondary" onPress={handleRetry} />
+          </View>
+        ) : null}
+
+        {loaded && !error && topics.length === 0 ? (
+          <View style={styles.emptyState}>
+            <EyeDot size={14} />
+            <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+              Nie masz jeszcze żadnego tematu. Wgraj analizę w formacie PDF albo MD, a Argus
+              przygotuje z niej dossier do przygotowania się do rozmowy.
+            </ThemedText>
+          </View>
+        ) : null}
+
+        {topics.length > 0 ? (
+          <View style={styles.cards}>
+            {topics.map((topic) => (
+              <Pressable
+                key={topic.id}
+                accessibilityRole="button"
+                onPress={() => router.push(`/topics/${topic.id}`)}
+                style={({ pressed }) => [
+                  styles.dossierCard,
+                  { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                  pressed && styles.dimmed,
+                ]}>
+                <ThemedText style={styles.dossierTitle}>{topic.title}</ThemedText>
+                <TopicStatusChip status={topic.status} />
+                <View style={styles.cardMeta}>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {formatDate(topic.created_at)}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {polishPlural(topic.documents_count, 'dokument', 'dokumenty', 'dokumentów')}
+                  </ThemedText>
+                  {topic.questions_count > 0 ? (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {polishPlural(topic.questions_count, 'pytanie', 'pytania', 'pytań')}
+                    </ThemedText>
+                  ) : null}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={styles.corpusHeader}>
+          <View style={styles.kickerRow}>
+            <EyeDot size={8} />
+            <ThemedText themeColor="accentLight" style={styles.kicker}>
+              Korpusy tematyczne
+            </ThemedText>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            Tematy ważne programowo, z gotowym korpusem: co mówią badania, co mówią politycy i jak
+            o tym mówić do poszczególnych grup.
           </ThemedText>
         </View>
 
@@ -106,14 +252,6 @@ export default function TopicsScreen() {
             </ThemedText>
           </Pressable>
         ))}
-
-        <View style={styles.emptyState}>
-          <Ionicons name="add-circle-outline" size={28} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptyText}>
-            Kolejne tematy dodajemy po ustaleniu programu. Każdy przechodzi ten sam tryb: źródła z
-            przypisami, audyt i oznaczenie danych niegotowych do publikacji.
-          </ThemedText>
-        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -138,6 +276,64 @@ const styles = StyleSheet.create({
     fontSize: FontSize.screenTitle,
     lineHeight: FontSize.screenTitle * 1.25,
   },
+  centerBox: {
+    alignItems: 'center',
+    paddingVertical: Spacing.six,
+  },
+  errorBox: {
+    gap: Spacing.three,
+    paddingVertical: Spacing.four,
+  },
+  centered: {
+    textAlign: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.five,
+    paddingHorizontal: Spacing.four,
+  },
+  cards: {
+    gap: Spacing.three,
+  },
+  dossierCard: {
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    padding: Spacing.four,
+    gap: Spacing.two,
+  },
+  dossierTitle: {
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize.section,
+    lineHeight: FontSize.section * 1.3,
+  },
+  cardMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.three,
+  },
+  chip: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.half,
+  },
+  chipText: {
+    fontFamily: FontFamily.sansSemiBold,
+  },
+  corpusHeader: {
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
+  kickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  kicker: {
+    ...KickerStyle,
+  },
   card: {
     borderWidth: 1,
     borderRadius: Radius.card,
@@ -148,14 +344,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  kickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  kicker: {
-    ...KickerStyle,
   },
   cardTitle: {
     fontFamily: FontFamily.serif,
@@ -179,12 +367,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serifBold,
     fontSize: 22,
   },
-  emptyState: {
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingVertical: Spacing.four,
-  },
-  emptyText: {
-    textAlign: 'center',
+  dimmed: {
+    opacity: 0.7,
   },
 });

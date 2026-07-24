@@ -26,4 +26,9 @@ export type AnalyticsEvent =
   /** Tematyczne bazy wiedzy: wejście w temat, sekcję i kartę polityka. */
   | 'topic_opened'
   | 'topic_section_viewed'
-  | 'topic_politician_viewed';
+  | 'topic_politician_viewed'
+  /** Dossier tematyczne (upload analizy → podsumowanie, liczby, pytania, linie). */
+  | 'topic_created'
+  | 'topic_viewed'
+  | 'topic_document_added'
+  | 'topic_question_asked';
