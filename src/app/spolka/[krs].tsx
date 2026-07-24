@@ -107,7 +107,10 @@ export default function CompanyScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.three, paddingBottom: BottomTabInset + Spacing.five },
         ]}>
-        <Pressable onPress={() => router.back()} style={styles.back} accessibilityRole="button">
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/profile'))}
+          style={styles.back}
+          accessibilityRole="button">
           <Ionicons name="chevron-back" size={20} color={theme.accentLight} />
           <ThemedText type="small" themeColor="accentLight">
             Wróć

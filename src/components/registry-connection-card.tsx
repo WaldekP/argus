@@ -51,6 +51,12 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
     .sort()[0] ?? null;
   const years = yearsSince(earliest);
   const anyCurrent = connections.some((c) => c.is_current);
+
+  // Ta sama rola potrafi wystapic w jednej spolce kilka razy, np. rada
+  // nadzorcza w dwoch kadencjach z roznymi datami. Chip ma sie pokazac raz.
+  const uniqueRoles = [
+    ...new Map(connections.map((c) => [c.role_type, c])).values(),
+  ];
   const flags = riskFlags(connection.status ?? {});
   const filing = connection.latest_filing;
 
@@ -66,7 +72,7 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
       <ThemedText style={styles.name}>{connection.name}</ThemedText>
 
       <View style={styles.chipRow}>
-        {connections.map((role) => (
+        {uniqueRoles.map((role) => (
           <View
             key={role.role_type}
             style={[styles.chip, { borderColor: theme.borderStrong }]}>
