@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ScreenPlaceholder } from '@/components/screen-placeholder';
 import { ThemedText } from '@/components/themed-text';
@@ -34,12 +35,50 @@ function SectionCard({ icon, title, description }: SectionCardProps) {
   );
 }
 
+/** Karta aktywnej sekcji: prowadzi do gotowego feature'u. */
+function LinkCard({
+  icon,
+  title,
+  description,
+  onPress,
+}: SectionCardProps & { onPress: () => void }) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+        pressed && styles.dimmed,
+      ]}>
+      <View style={styles.cardHeader}>
+        <Ionicons name={icon} size={20} color={theme.accent} />
+        <ThemedText style={styles.cardTitle}>{title}</ThemedText>
+        <Ionicons name="arrow-forward" size={18} color={theme.accentLight} />
+      </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        {description}
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 export default function TodayScreen() {
+  const router = useRouter();
+
   return (
     <ScreenPlaceholder
       title="Dziś"
       description="Dzień dobry. Tu zobaczysz wszystko, co ważne na dzisiaj: syntezę prasową, plan wywiadów i ostrzeżenia spójności.">
       <View style={styles.cards}>
+        <LinkCard
+          icon="search-outline"
+          title="Analizy niespójności"
+          description="Wskaż temat i cel, a Argus znajdzie sprzeczności w wypowiedziach i głosowaniach z Sejmu."
+          onPress={() => router.push('/analysis')}
+        />
         <SectionCard
           icon="sunny-outline"
           title="Brief poranny"
@@ -83,5 +122,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.half,
+  },
+  dimmed: {
+    opacity: 0.7,
   },
 });

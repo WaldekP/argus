@@ -148,6 +148,117 @@ export async function getMp(id: number): Promise<SejmMp | null> {
   return await fetchJson<SejmMp>(`/MP/${id}`);
 }
 
+// --- kluby -------------------------------------------------------------------
+
+export interface SejmClub {
+  id: string;
+  name: string;
+  mp_count: number;
+}
+
+let clubNamesCache: Map<string, string> | null = null;
+
+// Pelne nazwy klubow z /clubs (np. KO -> "Klub Parlamentarny Koalicja
+// Obywatelska ..."). Przy bledzie API zostaje skrot z listy poslow.
+async function getClubNames(): Promise<Map<string, string>> {
+  if (!clubNamesCache) {
+    const map = new Map<string, string>();
+    try {
+      const clubs = await fetchJson<{ id: string; name?: string }[]>("/clubs");
+      for (const c of clubs ?? []) {
+        if (c.id) map.set(c.id, c.name ?? c.id);
+      }
+    } catch (err) {
+      console.warn("Nie udalo sie pobrac /clubs (zostaja skroty):", err);
+    }
+    clubNamesCache = map;
+  }
+  return clubNamesCache;
+}
+
+// Kluby agregowane z listy poslow term10 (pole club), liczeni tylko aktywni.
+export async function listClubs(): Promise<SejmClub[]> {
+  const [list, names] = await Promise.all([getMpList(), getClubNames()]);
+  const counts = new Map<string, number>();
+  for (const mp of list) {
+    if (!mp.active || !mp.club) continue;
+    counts.set(mp.club, (counts.get(mp.club) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([id, mp_count]) => ({ id, name: names.get(id) ?? id, mp_count }))
+    .sort((a, b) => b.mp_count - a.mp_count);
+}
+
+// Wyszukiwanie klubu po fragmencie skrotu albo pelnej nazwy.
+export async function searchClubs(query: string): Promise<SejmClub[]> {
+  const q = normalize(query.trim());
+  if (q.length < 2) return [];
+  const clubs = await listClubs();
+  return clubs.filter((c) =>
+    normalize(c.id).includes(q) || normalize(c.name).includes(q)
+  );
+}
+
+// Aktywni poslowie wskazanego klubu (dopasowanie po skrocie albo nazwie).
+export async function getClubMps(club: string): Promise<SejmMp[]> {
+  const [list, names] = await Promise.all([getMpList(), getClubNames()]);
+  const q = normalize(club.trim());
+  let clubId: string | null = null;
+  for (const [id, name] of names.entries()) {
+    if (normalize(id) === q || normalize(name) === q) clubId = id;
+  }
+  if (!clubId) {
+    // Dopasowanie czesciowe: pierwszy klub zawierajacy query.
+    const found = (await listClubs()).find((c) =>
+      normalize(c.id).includes(q) || normalize(c.name).includes(q)
+    );
+    clubId = found?.id ?? null;
+  }
+  if (!clubId) return [];
+  const id = clubId;
+  return list.filter((mp) => mp.active && mp.club === id);
+}
+
+// Wybor do `limit` najaktywniejszych poslow klubu: liczba wystapien
+// w listach stenogramow z ostatnich `scanDays` dni posiedzen.
+// Fallback (blad API / zero wystapien): pierwsi z listy klubu.
+export async function pickMostActiveMps(
+  clubMps: SejmMp[],
+  days: ProceedingDay[],
+  limit = 5,
+  scanDays = 10,
+): Promise<SejmMp[]> {
+  if (clubMps.length <= limit) return clubMps;
+  const ids = new Set(clubMps.map((mp) => mp.id));
+  const counts = new Map<number, number>();
+  const scan = days.slice(0, scanDays);
+  let cursor = 0;
+  async function worker() {
+    while (cursor < scan.length) {
+      const day = scan[cursor++];
+      try {
+        const transcript = await fetchJson<{ statements: TranscriptMeta[] }>(
+          `/proceedings/${day.sitting}/${day.date}/transcripts`,
+        );
+        for (const s of transcript?.statements ?? []) {
+          if (!s.unspoken && ids.has(s.memberID)) {
+            counts.set(s.memberID, (counts.get(s.memberID) ?? 0) + 1);
+          }
+        }
+      } catch (err) {
+        console.warn(`Pominieto dzien ${day.sitting}/${day.date}:`, err);
+      }
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(4, scan.length) }, () => worker()),
+  );
+  if (counts.size === 0) return clubMps.slice(0, limit);
+  return [...clubMps]
+    .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+    .slice(0, limit);
+}
+
 // --- posiedzenia ------------------------------------------------------------
 
 // Dni posiedzen (number > 0, daty przeszle), posortowane od najnowszych.
@@ -397,6 +508,235 @@ export async function importMpStatementsForDays(
   }
 
   return { inserted: texts.length, daysProcessed };
+}
+
+// --- import globalny na potrzeby analiz niespojnosci ---------------------------
+// (kontrakt docs/kontrakt-analizy.md: dane DOWOLNEGO posla, tabele globalne)
+
+// Wystapienia posla dla wskazanych dni -> GLOBALNA sejm_statements.
+// Dedup w bazie: unikalny indeks (mp_id, date, text_hash) + upsert z
+// ignorowaniem duplikatow, wiec retry kroku nie robi duplikatow.
+// Dni, ktore juz maja wpisy tego posla w bazie, sa pomijane bez pobierania
+// (kolejne analizy tego samego posla sa szybkie). Dni przetwarzane atomowo.
+export interface GlobalStatementsStepResult {
+  inserted: number;
+  daysProcessed: number;
+  daysSkipped: number;
+}
+
+export async function importGlobalMpStatementsForDays(
+  supabase: SupabaseClient,
+  mpId: number,
+  days: ProceedingDay[],
+  softCap: number,
+): Promise<GlobalStatementsStepResult> {
+  if (days.length === 0) {
+    return { inserted: 0, daysProcessed: 0, daysSkipped: 0 };
+  }
+
+  // Dni juz zaimportowane dla tego posla (sa wpisy z ta data) pomijamy.
+  const { data: existingDays, error: daysError } = await supabase
+    .from("sejm_statements")
+    .select("date")
+    .eq("mp_id", mpId)
+    .in("date", days.map((d) => d.date));
+  if (daysError) {
+    throw new Error(`Odczyt sejm_statements: ${daysError.message}`);
+  }
+  const covered = new Set((existingDays ?? []).map((r) => r.date as string));
+
+  const metas: { sitting: number; date: string; num: number }[] = [];
+  let daysProcessed = 0;
+  let daysSkipped = 0;
+  for (const day of days) {
+    if (covered.has(day.date)) {
+      daysProcessed++;
+      daysSkipped++;
+      continue;
+    }
+    // Limit sprawdzany PRZED dniem: dzien zawsze przetwarzany w calosci.
+    if (metas.length >= softCap) break;
+    const transcript = await fetchJson<{ statements: TranscriptMeta[] }>(
+      `/proceedings/${day.sitting}/${day.date}/transcripts`,
+    );
+    daysProcessed++;
+    if (!transcript?.statements) continue;
+    for (const s of transcript.statements) {
+      if (s.memberID !== mpId || s.unspoken || !s.num) continue;
+      metas.push({ sitting: day.sitting, date: day.date, num: s.num });
+    }
+  }
+  if (metas.length === 0) return { inserted: 0, daysProcessed, daysSkipped };
+
+  const texts: { date: string; text: string }[] = [];
+  let cursor = 0;
+  async function htmlWorker() {
+    while (cursor < metas.length) {
+      const meta = metas[cursor++];
+      const html = await fetchHtml(
+        `/proceedings/${meta.sitting}/${meta.date}/transcripts/${meta.num}`,
+      );
+      if (!html) continue;
+      const text = stripTranscriptHtml(html);
+      if (text.length < MIN_STATEMENT_CHARS) continue; // szum proceduralny
+      texts.push({ date: meta.date, text: text.slice(0, MAX_STATEMENT_CHARS) });
+    }
+  }
+  await Promise.all(
+    Array.from(
+      { length: Math.min(HTML_CONCURRENCY, metas.length) },
+      () => htmlWorker(),
+    ),
+  );
+  if (texts.length === 0) return { inserted: 0, daysProcessed, daysSkipped };
+
+  let inserted = 0;
+  for (let i = 0; i < texts.length; i += 50) {
+    const chunk = texts.slice(i, i + 50).map((t) => ({
+      mp_id: mpId,
+      date: t.date,
+      text: t.text,
+      embedding: null,
+    }));
+    const { error } = await supabase
+      .from("sejm_statements")
+      .upsert(chunk, {
+        onConflict: "mp_id,date,text_hash",
+        ignoreDuplicates: true,
+      });
+    if (error) throw new Error(`Zapis sejm_statements: ${error.message}`);
+    inserted += chunk.length;
+  }
+
+  return { inserted, daysProcessed, daysSkipped };
+}
+
+// Glosy posla dla wskazanych dni -> GLOBALNE sejm_mp_votes (upsert po
+// (mp_id, voting_id)); sejm_votings uzupelniane po drodze. Dni, dla ktorych
+// posel ma juz glosy w bazie, pomijane bez pobierania.
+export interface GlobalVotesStepResult {
+  votings: number;
+  votes: number;
+  daysProcessed: number;
+  daysSkipped: number;
+}
+
+export async function importGlobalMpVotesForDays(
+  supabase: SupabaseClient,
+  mpId: number,
+  days: ProceedingDay[],
+): Promise<GlobalVotesStepResult> {
+  if (days.length === 0) {
+    return { votings: 0, votes: 0, daysProcessed: 0, daysSkipped: 0 };
+  }
+
+  // Ktore daty sa juz pokryte glosami tego posla?
+  const covered = new Set<string>();
+  const { data: knownVotings, error: knownError } = await supabase
+    .from("sejm_votings")
+    .select("id, date")
+    .in("date", days.map((d) => d.date));
+  if (knownError) throw new Error(`Odczyt sejm_votings: ${knownError.message}`);
+  const dateByVotingId = new Map(
+    (knownVotings ?? []).map((v) => [v.id as string, v.date as string]),
+  );
+  if (dateByVotingId.size > 0) {
+    const ids = [...dateByVotingId.keys()];
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: hisVotes, error: votesError } = await supabase
+        .from("sejm_mp_votes")
+        .select("voting_id")
+        .eq("mp_id", mpId)
+        .in("voting_id", ids.slice(i, i + 200));
+      if (votesError) {
+        throw new Error(`Odczyt sejm_mp_votes: ${votesError.message}`);
+      }
+      for (const row of hisVotes ?? []) {
+        const date = dateByVotingId.get(row.voting_id as string);
+        if (date) covered.add(date);
+      }
+    }
+  }
+
+  const collected: {
+    sitting: number;
+    voting_no: number;
+    date: string;
+    title: string;
+    description: string | null;
+    vote: string;
+  }[] = [];
+  let daysProcessed = 0;
+  let daysSkipped = 0;
+  for (const day of days) {
+    daysProcessed++;
+    if (covered.has(day.date)) {
+      daysSkipped++;
+      continue;
+    }
+    const list = await fetchJson<MpDayVoting[]>(
+      `/MP/${mpId}/votings/${day.sitting}/${day.date}`,
+    );
+    if (!list) continue;
+    for (const item of list) {
+      const vote = VOTE_MAP[item.vote];
+      if (!vote) continue; // glosowania listowe (VOTE_VALID itp.) pomijamy
+      collected.push({
+        sitting: day.sitting,
+        voting_no: item.votingNumber,
+        date: (item.date ?? day.date).slice(0, 10),
+        title: item.title ?? item.topic ?? "Glosowanie",
+        description: item.description ?? null,
+        vote,
+      });
+    }
+  }
+  if (collected.length === 0) {
+    return { votings: 0, votes: 0, daysProcessed, daysSkipped };
+  }
+
+  // Upsert glosowan globalnych i mapowanie (sitting, voting_no) -> id.
+  const votingIdByKey = new Map<string, string>();
+  for (let i = 0; i < collected.length; i += DB_CHUNK) {
+    const chunk = collected.slice(i, i + DB_CHUNK);
+    const { data, error } = await supabase
+      .from("sejm_votings")
+      .upsert(
+        chunk.map((c) => ({
+          sitting: c.sitting,
+          voting_no: c.voting_no,
+          date: c.date,
+          title: c.title.slice(0, 2000),
+          description: c.description,
+        })),
+        { onConflict: "sitting,voting_no" },
+      )
+      .select("id, sitting, voting_no");
+    if (error) throw new Error(`Zapis sejm_votings: ${error.message}`);
+    for (const row of data ?? []) {
+      votingIdByKey.set(`${row.sitting}:${row.voting_no}`, row.id);
+    }
+  }
+
+  const voteRows = collected
+    .map((c) => {
+      const votingId = votingIdByKey.get(`${c.sitting}:${c.voting_no}`);
+      if (!votingId) return null;
+      return { mp_id: mpId, voting_id: votingId, vote: c.vote };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  let votes = 0;
+  for (let i = 0; i < voteRows.length; i += DB_CHUNK) {
+    const chunk = voteRows.slice(i, i + DB_CHUNK);
+    const { error } = await supabase
+      .from("sejm_mp_votes")
+      .upsert(chunk, { onConflict: "mp_id,voting_id" });
+    if (error) throw new Error(`Zapis sejm_mp_votes: ${error.message}`);
+    votes += chunk.length;
+  }
+
+  return { votings: votingIdByKey.size, votes, daysProcessed, daysSkipped };
 }
 
 // --- globalny sync glosowan (argus-ingest, cron) -------------------------------

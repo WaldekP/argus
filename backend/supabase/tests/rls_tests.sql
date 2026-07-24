@@ -37,6 +37,16 @@ insert into public.promises (tenant_id, text) values
 insert into public.access_logs (tenant_id, action, resource) values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'test', 'rls');
 
+insert into public.analyses (tenant_id, topic, target_type, target_name, target_mp_ids) values
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'analiza tenanta A', 'mps', 'Jan Testowy', '{1}'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'analiza tenanta B', 'mps', 'Anna Testowa', '{2}');
+
+insert into public.sejm_votings (id, sitting, voting_no, date, title) values
+  ('dddddddd-dddd-dddd-dddd-dddddddddddd', 999, 999, '2026-01-01', 'Testowe glosowanie RLS');
+
+insert into public.sejm_mp_votes (mp_id, voting_id, vote) values
+  (12345, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'for');
+
 insert into public.outlets (id, name, type) values
   ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Testowa Redakcja', 'portal');
 
@@ -105,6 +115,34 @@ begin
   exception
     when insufficient_privilege then null;
   end;
+
+  -- Analizy: user A widzi tylko swoją, nie widzi analizy tenanta B
+  select count(*) into c from public.analyses;
+  if c <> 1 then raise exception 'FAIL: user A widzi % analiz (oczekiwano 1)', c; end if;
+
+  select count(*) into c from public.analyses where topic = 'analiza tenanta B';
+  if c <> 0 then raise exception 'FAIL: user A widzi analize tenanta B'; end if;
+
+  -- Insert analizy do cudzego tenanta musi zostać odrzucony
+  begin
+    insert into public.analyses (tenant_id, topic, target_type, target_name)
+    values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'wlamanie', 'mps', 'X');
+    raise exception 'FAIL: insert analizy do tenanta B przeszedl';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  -- sejm_mp_votes: odczyt globalny działa, zapis dla klienta zablokowany
+  select count(*) into c from public.sejm_mp_votes where mp_id = 12345;
+  if c <> 1 then raise exception 'FAIL: brak odczytu sejm_mp_votes'; end if;
+
+  begin
+    insert into public.sejm_mp_votes (mp_id, voting_id, vote)
+    values (12346, 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'against');
+    raise exception 'FAIL: insert do sejm_mp_votes przeszedl';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 -- ---------------------------------------------------------------------------
@@ -130,6 +168,12 @@ begin
 
   select count(*) into c from public.promises;
   if c <> 1 then raise exception 'FAIL: user B nie widzi wlasnych promises'; end if;
+
+  select count(*) into c from public.analyses where topic = 'analiza tenanta A';
+  if c <> 0 then raise exception 'FAIL: user B widzi analize tenanta A'; end if;
+
+  select count(*) into c from public.analyses;
+  if c <> 1 then raise exception 'FAIL: user B widzi % analiz (oczekiwano 1)', c; end if;
 end $$;
 
 -- ---------------------------------------------------------------------------

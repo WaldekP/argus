@@ -19,4 +19,7 @@ export type AnalyticsEvent =
   | 'practice_session_finished'
   | 'morning_brief_read'
   | 'journalist_viewed'
-  | 'media_searched';
+  | 'media_searched'
+  | 'analysis_created'
+  | 'analysis_viewed'
+  | 'analysis_document_added';

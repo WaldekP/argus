@@ -80,6 +80,9 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="content/new" />
         <Stack.Screen name="content/[id]" />
+        <Stack.Screen name="analysis/index" />
+        <Stack.Screen name="analysis/new" />
+        <Stack.Screen name="analysis/[id]" />
       </Stack>
     </ThemeProvider>
   );
