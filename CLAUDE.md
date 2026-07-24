@@ -125,6 +125,19 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 - Logi dostępu do danych tenanta w tabeli `access_logs`.
 - Klucze: lokalny `.env` (nigdy nie commitować) trzyma `CLAUDE_API_KEY` i klucze publiczne Expo (`EXPO_PUBLIC_*`). Sekrety Edge Functions (klucz Claude, service_role) ustawiane przez `supabase secrets set` — nigdy w kodzie klienta.
 
+## Konfiguracja pilotażu (decyzje usera, 2026-07-24)
+
+- **Onboarding wyłączony na ten moment**: profil polityka ustawiony na sztywno w bazie
+  (`onboarding_status='done'`), apka wchodzi prosto do zakładek. Ekrany onboardingu
+  zostają w kodzie (powrót przez Profil), nie kierować do nich domyślnie.
+- **Polityk tenanta pilotażowego: Ryszard Petru** (mp_id 286, klub Centrum, okręg
+  Warszawa). Dane sejmowe zaimportowane, strategia zapisana w `politician_profiles`
+  (`goals`/`values`/`boundaries`): budowa nowej partii wolnościowo-liberalnej.
+- **Elektoraty docelowe** (tabela `segments`, wstrzykiwane do generatora przekazu):
+  wolnościowcy z Konfederacji nieakceptujący konserwatyzmu światopoglądowego (mobilize),
+  sieroty po Trzeciej Drodze (mobilize), rozczarowani Koalicją Obywatelską (persuade).
+  Boundaries: bez pogardy wobec wyborców tych formacji — to potencjalny elektorat.
+
 ## Postęp (TASK 0–10 z briefu, sekcja 9)
 
 - [x] TASK 0 — szkielet: Expo + backend/supabase + Colors.ts + auth (ekrany gotowe; wymaga konfiguracji `.env` z kluczami Supabase)
@@ -133,8 +146,8 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 - [x] TASK 3 — onboarding (import, wywiad AI, profil stylu, segmenty). **Żaden krok onboardingu nie jest obowiązkowy** (decyzja usera 2026-07-23): każdy ekran ma link pominięcia, całość można pominąć z ekranu startowego (trwała flaga na urządzeniu, powrót z zakładki Profil). Odpowiedzi AI normalizowane po stronie klienta (`normalizeStyleProfile`, `normalizeSegment`). Prompty: źródło w `.md`, ale bundlowane jako moduł TS (`_shared/prompts/index.ts`) — deploy nie pakuje luźnych plików.
 - [ ] TASK 4 — seed bazy mediów + ekrany media/journalist/outlet
 - [ ] TASK 5 — brief przedwywiadowy (pipeline + ekrany + push)
-- [ ] TASK 6 — strażnik spójności
-- [ ] TASK 7 — generator przekazu + segmenty
+- [ ] TASK 6 — strażnik spójności (pełny; wersja lite działa w generatorze przekazu)
+- [x] TASK 7 — generator przekazu (wyciągnięty przed TASK 4-6 na życzenie usera). Edge Function `argus-content` (kontrakt: `docs/kontrakt-task-7.md`): draft → porcjowana generacja wariantów per segment × kanał (Sonnet, styl + wartości z profilu; max 2 warianty na wywołanie), na końcu kontrola spójności lite (embedding tematu → `match_statements` → Haiku ocenia sprzeczności → `consistency_alerts`). Limity kanałów: X twardo ≤ 280 znaków, reszta promptem. Ekrany: lista draftów, formularz (segmenty opcjonalne — tryb ogólny), widok wariantów z kopiowaniem i regeneracją. Segmenty z danych PKW/GUS — nadal otwarte (obecnie suggest AI z onboardingu)
 - [ ] TASK 8 — tryb ćwiczenia
 - [ ] TASK 9 — brief poranny lite
 - [ ] TASK 10 — polish (states, PostHog komplet, eksport/usunięcie, E2E)

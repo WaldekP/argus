@@ -79,6 +79,9 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="temat" />
+        <Stack.Screen name="spolka/[krs]" />
+        <Stack.Screen name="content/new" />
+        <Stack.Screen name="content/[id]" />
       </Stack>
     </ThemeProvider>
   );

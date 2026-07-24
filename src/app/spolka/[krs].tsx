@@ -32,7 +32,7 @@ import {
   getOrgDetails,
   type OrgDetails,
 } from '@/lib/api/registry';
-import { formatDate, formatMoney, formatYear } from '@/lib/format';
+import { formatDateNumeric, formatMoney, formatYear } from '@/lib/format';
 
 /** Flagi stanu spółki warte pokazania na górze karty. */
 const STATUS_FLAGS: { key: string; label: string; alarming: boolean }[] = [
@@ -173,7 +173,7 @@ export default function CompanyScreen() {
                     Ostatni wpis
                   </ThemedText>
                   <ThemedText style={[styles.metricValue, { color: theme.accentLight }]}>
-                    {formatDate(org.last_entry_on)}
+                    {formatDateNumeric(org.last_entry_on)}
                   </ThemedText>
                 </View>
               </View>
@@ -185,7 +185,7 @@ export default function CompanyScreen() {
             {latest ? (
               <ThemedText type="small" themeColor="text80">
                 Ostatnie sprawozdanie dotyczy roku {formatYear(latest.period_end)} i zostało
-                złożone {formatDate(latest.filed_on)}. Liczba wzmianek o złożonych sprawozdaniach
+                złożone {formatDateNumeric(latest.filed_on)}. Liczba wzmianek o złożonych sprawozdaniach
                 w rejestrze: {details?.filings.length}.
               </ThemedText>
             ) : (
@@ -204,7 +204,7 @@ export default function CompanyScreen() {
                 </ThemedText>
                 <View style={styles.filingBody}>
                   <ThemedText type="small">
-                    Złożone {formatDate(filing.filed_on)}
+                    Złożone {formatDateNumeric(filing.filed_on)}
                   </ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
                     Przychód: {formatMoney(filing.revenue, filing.currency)}. Wynik netto:{' '}
@@ -245,7 +245,7 @@ export default function CompanyScreen() {
                     key={`${vote.date}-${vote.title}`}
                     type="small"
                     themeColor="textSecondary">
-                    {formatDate(vote.date)}: {vote.title}. Głos: {vote.vote}.
+                    {formatDateNumeric(vote.date)}: {vote.title}. Głos: {vote.vote}.
                   </ThemedText>
                 ))}
               </View>
@@ -281,8 +281,8 @@ export default function CompanyScreen() {
                         {person.sejm_club ? `, klub ${person.sejm_club}` : ''}
                       </ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {person.role_label}, od {formatDate(person.date_start)}
-                        {person.is_current ? '' : ` do ${formatDate(person.date_end)}`}
+                        {person.role_label}, od {formatDateNumeric(person.date_start)}
+                        {person.is_current ? '' : ` do ${formatDateNumeric(person.date_end)}`}
                       </ThemedText>
                       <ThemedText
                         type="small"
@@ -312,8 +312,8 @@ export default function CompanyScreen() {
                         {person.birth_date ? ` (ur. ${person.birth_date.slice(0, 4)})` : ''}
                       </ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
-                        {person.role_label}, od {formatDate(person.date_start)}
-                        {person.is_current ? ', nadal' : ` do ${formatDate(person.date_end)}`}
+                        {person.role_label}, od {formatDateNumeric(person.date_start)}
+                        {person.is_current ? ', nadal' : ` do ${formatDateNumeric(person.date_end)}`}
                       </ThemedText>
                     </View>
                   </View>

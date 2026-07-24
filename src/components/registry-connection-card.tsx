@@ -12,7 +12,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { FontFamily, KickerStyle, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDate, formatMoney, formatYear, yearsLabel, yearsSince } from '@/lib/format';
+import { formatDateNumeric, formatMoney, formatYear, yearsLabel, yearsSince } from '@/lib/format';
 import type { RegistryConnection } from '@/lib/api/registry';
 
 type Props = {
@@ -84,7 +84,7 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
             type="small"
             themeColor={anyCurrent ? 'teal' : 'textSecondary'}
             style={styles.chipText}>
-            {anyCurrent ? 'aktywne' : `do ${formatDate(connection.date_end)}`}
+            {anyCurrent ? 'aktywne' : `do ${formatDateNumeric(connection.date_end)}`}
           </ThemedText>
         </View>
         {flags.map((flag) => (
@@ -102,7 +102,7 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
             Od kiedy
           </ThemedText>
           <ThemedText style={[styles.metricValue, { color: theme.accentLight }]}>
-            {formatDate(earliest)}
+            {formatDateNumeric(earliest)}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {years === null ? 'brak danych' : yearsLabel(years)}
@@ -129,7 +129,7 @@ export function RegistryConnectionCard({ connections, onPress }: Props) {
         {filing ? (
           <>
             <ThemedText type="small">
-              Za {formatYear(filing.period_end)}, złożone {formatDate(filing.filed_on)}.
+              Za {formatYear(filing.period_end)}, złożone {formatDateNumeric(filing.filed_on)}.
             </ThemedText>
             {filing.revenue_label && !/^przychody netto ze sprzeda/i.test(filing.revenue_label) ? (
               <ThemedText type="small" themeColor="textSecondary">

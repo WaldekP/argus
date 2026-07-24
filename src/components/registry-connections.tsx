@@ -21,7 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, KickerStyle, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDate } from '@/lib/format';
+import { formatDateNumeric } from '@/lib/format';
 import {
   getConnections,
   linkPerson,
@@ -256,7 +256,7 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
       {subject ? (
         <View style={styles.section}>
           <ThemedText type="small" themeColor="textSecondary">
-            Potwierdzona tożsamość: {subject.label}. Dane z dnia {formatDate(syncedAt?.slice(0, 10) ?? null)}.
+            Potwierdzona tożsamość: {subject.label}. Dane z dnia {formatDateNumeric(syncedAt?.slice(0, 10) ?? null)}.
           </ThemedText>
 
           {connections.length === 0 ? (
@@ -304,7 +304,7 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
 
           <RegistryAttribution
             note={limits?.note}
-            syncedAt={syncedAt ? formatDate(syncedAt.slice(0, 10)) : null}
+            syncedAt={syncedAt ? formatDateNumeric(syncedAt.slice(0, 10)) : null}
           />
         </View>
       ) : null}
