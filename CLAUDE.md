@@ -53,9 +53,16 @@ katalog z `README.md` (rola, mapa dokumentów, zasady pracy, audyt źródeł).
 
 - `docs/kwota-wolna/` — kwota wolna od podatku: finanse i budżet, sondaże, elektoraty,
   benchmarking CEE i UE, seria badań CBOS, cytaty Konfederacji, Tuska i Polski 2050.
+- `docs/konfederacja-podatki/` — program podatkowy Konfederacji 2023 (6 postulatów): kwota wolna
+  12×, PIT liniowy 12%, podatek Belki, likwidacja 15 podatków, dobrowolny ZUS, uproszczenia.
+  Rekomendacje dwuwarstwowe (co podchwycić / gdzie uderzyć).
 
 Zasada: przed odpowiedzią na pytanie merytoryczne z danego tematu przeszukaj korpus, nie
 odpowiadaj z pamięci modelu. Liczby oznaczone `[do weryfikacji]` nie nadają się do publikacji.
+
+Ekrany „Tematy”: dane tematów w `src/lib/knowledge/topics/<slug>.ts` (typy w `types.ts`,
+rejestr w `index.ts`), renderowane w zakładce Tematy i na `/temat/[slug]`. Kontrakt produktowy:
+`docs/kontrakt-tematy.md`. Docelowo źródłem będzie tabela `knowledge_topics` z bazy.
 
 ## Auth i multi-tenancy (krytyczne)
 

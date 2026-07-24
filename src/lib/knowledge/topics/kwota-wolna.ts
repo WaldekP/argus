@@ -8,7 +8,7 @@
  * pilotażowego: podnieść własny temat czy poprzeć cudzy.
  */
 
-import type { Temat } from './types';
+import type { Temat } from '../types';
 
 export const kwotaWolna: Temat = {
   slug: 'kwota-wolna',
@@ -500,9 +500,3 @@ export const kwotaWolna: Temat = {
     'Playbooki komunikacyjne opierają się na danych CBOS o poglądach elektoratów, ale sam podział na trzy segmenty jest decyzją strategiczną, nie wynikiem badania.',
   ],
 };
-
-export const tematy: Temat[] = [kwotaWolna];
-
-export function znajdzTemat(slug: string): Temat | undefined {
-  return tematy.find((temat) => temat.slug === slug);
-}

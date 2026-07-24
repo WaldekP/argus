@@ -22,7 +22,7 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
-import { znajdzTemat } from '@/lib/knowledge/kwota-wolna';
+import { znajdzTemat } from '@/lib/knowledge';
 
 type Sekcja = 'opinia' | 'politycy' | 'komunikacja';
 
@@ -103,6 +103,39 @@ export default function TopicScreen() {
               </View>
             ))}
           </View>
+
+          {/* Dwie warstwy taktyczne: co przejąć i gdzie uderzyć. Opcjonalne. */}
+          {temat.rekomendacja.podchwycic?.length ? (
+            <View style={[styles.tactic, { borderColor: theme.teal }]}>
+              <ThemedText themeColor="teal" style={styles.kicker}>
+                Co podchwycić
+              </ThemedText>
+              {temat.rekomendacja.podchwycic.map((punkt) => (
+                <View key={punkt} style={styles.listRow}>
+                  <EyeDot size={8} style={styles.bullet} />
+                  <ThemedText type="small" style={styles.listText}>
+                    {punkt}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {temat.rekomendacja.zaatakowac?.length ? (
+            <View style={[styles.tactic, { borderColor: theme.accent }]}>
+              <ThemedText themeColor="accentLight" style={styles.kicker}>
+                Gdzie uderzyć
+              </ThemedText>
+              {temat.rekomendacja.zaatakowac.map((punkt) => (
+                <View key={punkt} style={styles.listRow}>
+                  <EyeDot size={8} style={styles.bullet} />
+                  <ThemedText type="small" style={styles.listText}>
+                    {punkt}
+                  </ThemedText>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           <View style={[styles.risk, { borderColor: theme.error }]}>
             <ThemedText type="small" themeColor="error" style={styles.riskTitle}>
@@ -189,7 +222,7 @@ export default function TopicScreen() {
               ))}
             </View>
 
-            {temat.badania.map((badanie) => (
+            {temat.badania?.map((badanie) => (
               <View
                 key={badanie.id}
                 style={[
@@ -426,6 +459,13 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serif,
     fontSize: 21,
     lineHeight: 30,
+  },
+  tactic: {
+    borderLeftWidth: 2,
+    borderRadius: Radius.small,
+    paddingLeft: Spacing.three,
+    paddingVertical: Spacing.two,
+    gap: Spacing.two,
   },
   risk: {
     borderWidth: 1,

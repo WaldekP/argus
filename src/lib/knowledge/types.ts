@@ -98,6 +98,10 @@ export type Rekomendacja = {
   uzasadnienie: string[];
   /** Co przemawia przeciw. Zawsze wypełnione. */
   ryzyko: string[];
+  /** Warstwa ofensywna: co z tego postulatu warto podchwycić we własnej wersji. */
+  podchwycic?: string[];
+  /** Warstwa ataku: gdzie postulat jest niespójny albo groźny i jak to wypunktować. */
+  zaatakowac?: string[];
 };
 
 export type Temat = {
@@ -114,7 +118,8 @@ export type Temat = {
   doWeryfikacji: number;
   rekomendacja: Rekomendacja;
   kluczoweLiczby: KluczowaLiczba[];
-  badania: Badanie[];
+  /** Badania z wykresem słupkowym. Opcjonalne: nie każdy temat ma czysty sondaż. */
+  badania?: Badanie[];
   /** Synteza opinii społecznej w kilku zdaniach. */
   syntezaOpinii: string[];
   politycy: Polityk[];

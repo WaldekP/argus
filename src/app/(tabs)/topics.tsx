@@ -28,7 +28,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import { listTopics, type TopicListItem, type TopicStatus } from '@/lib/api/topics';
 import { formatDate, polishPlural } from '@/lib/format';
-import { tematy } from '@/lib/knowledge/kwota-wolna';
+import { tematy } from '@/lib/knowledge';
 
 const STATUS_LABEL: Record<TopicStatus, string> = {
   generating: 'W trakcie',
