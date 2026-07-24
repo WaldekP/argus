@@ -67,7 +67,11 @@ odpowiadaj z pamięci modelu. Liczby oznaczone `[do weryfikacji]` nie nadają si
 
 ## Edge Functions — konwencja
 
-Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+
+### Rejestr sądowy (KRS)
+
+Kontrakt: `docs/kontrakt-rejestr-krs.md`. Dwa źródła rozdzielone kosztem: otwarte API Ministerstwa Sprawiedliwości (darmowe, wykrywa zmiany, ale maskuje dane osób fizycznych) i Rejestr.io (płatne z salda w PLN, daje nazwiska i sieć powiązań). Klucz: sekret `REJESTRIO_API_KEY`, nigdy na kliencie. Zasada nadrzędna: tożsamość osoby potwierdza człowiek, bo wyszukiwanie po nazwisku zwraca imienników bez pola rozróżniającego.
 
 ### Zasady promptów
 
