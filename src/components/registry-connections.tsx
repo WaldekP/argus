@@ -21,6 +21,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, KickerStyle, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { formatDate } from '@/lib/format';
 import {
   getConnections,
   linkPerson,
@@ -40,11 +41,6 @@ type Props = {
   /** Id profilu polityka, do którego przypinamy tożsamość. */
   subjectId?: string | null;
 };
-
-function formatDate(value: string | null): string {
-  if (!value) return 'brak danych';
-  return value.split('-').reverse().join('.');
-}
 
 /**
  * Powiązania zgrupowane po spółce, kolejność zachowana.

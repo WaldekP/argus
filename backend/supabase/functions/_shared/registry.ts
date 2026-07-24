@@ -95,6 +95,12 @@ export async function enrichOrgFromOpenKrs(
     if (error) throw new Error(error.message);
 
     if (details.filings.length > 0) {
+      // ignoreDuplicates jest tu krytyczne. Zwykly upsert nadpisalby kolumne
+      // `source` wartoscia "krs_open" takze w wierszach, dla ktorych mamy juz
+      // kwoty z Rejestr.io, a interfejs czyta `source`, zeby odroznic "kwot
+      // jeszcze nie pobieralismy" od "sprawozdanie jest tylko jako PDF".
+      // Po odswiezeniu po TTL spolka z kwotami zaczelaby klamac, ze ich nie ma.
+      // Data zlozenia raz wpisanego sprawozdania i tak sie nie zmienia.
       const { error: filingsError } = await supabase
         .from("registry_org_financials")
         .upsert(
@@ -106,7 +112,7 @@ export async function enrichOrgFromOpenKrs(
             source: "krs_open",
             synced_at: new Date().toISOString(),
           })),
-          { onConflict: "org_krs,period_start,period_end" },
+          { onConflict: "org_krs,period_start,period_end", ignoreDuplicates: true },
         );
       if (filingsError) throw new Error(filingsError.message);
     }
@@ -126,10 +132,18 @@ export async function syncPersonConnections(
 ): Promise<number> {
   // Plan Biznes daje też powiązania historyczne, czyli spółki, z których
   // polityk już wyszedł. Dziennikarz pyta o nie równie chętnie, co o obecne.
-  const [current, past] = await Promise.all([
-    getPersonConnections(personId, ctx, "aktualne"),
-    getPersonConnections(personId, ctx, "historyczne"),
-  ]);
+  //
+  // Powiązania aktualne są obowiązkowe, historyczne nie. Gdyby abonament
+  // wygasł, Rejestr.io odpowie na nie 403, a to nie może zablokować
+  // podpinania tożsamości. Wolimy uboższe dane niż funkcję, która przestaje
+  // działać w dniu, w którym nie przejdzie płatność.
+  const current = await getPersonConnections(personId, ctx, "aktualne");
+  let past: RioOrg[] = [];
+  try {
+    past = await getPersonConnections(personId, ctx, "historyczne");
+  } catch (err) {
+    console.error(`syncPersonConnections ${personId} historyczne:`, err);
+  }
   const now = new Date().toISOString();
 
   // Pobrane listy to pełny obraz, więc kasujemy poprzedni stan, żeby zniknęły
@@ -380,7 +394,7 @@ export async function syncOrgPeople(
     const match = matchToMp(fullName, birthDate, mps);
     if (match) politicians += 1;
 
-    for (const link of (entry as unknown as RioOrg).krs_powiazania_kwerendowane ?? []) {
+    for (const link of person.krs_powiazania_kwerendowane ?? []) {
       rows.push({
         org_krs: krs,
         person_id: person.id,
@@ -412,11 +426,17 @@ export async function syncOrgPeople(
 // Wykrywanie zmian (darmowe)
 // ---------------------------------------------------------------------------
 
+// Ile obserwowanych spolek obsluguje jeden przebieg skanu. Chroni przed
+// przekroczeniem limitu zapytan otwartego API MS.
+const SCAN_MAX_ORGS_PER_RUN = 40;
+
 export interface ScanResult {
   day: string;
   changed_in_krs: number;
   watched: number;
   matched: number;
+  /** Trafienia ponad limit przebiegu. Wracaja przy kolejnym uruchomieniu. */
+  skipped: number;
   events_created: number;
 }
 
@@ -434,7 +454,20 @@ export async function scanBulletin(
     .eq("active", true);
   if (error) throw new Error(`Odczyt obserwacji: ${error.message}`);
 
-  const matched = (watches ?? []).filter((w) => changed.has(w.org_krs as string));
+  const allMatched = (watches ?? []).filter((w) => changed.has(w.org_krs as string));
+
+  // Kazde trafienie to jedno lub dwa zapytania do otwartego API MS (rejestr P,
+  // potem S). Limit ministerstwa to ok. 100 zapytan na 15 minut z jednego IP,
+  // wiec przy duzej liczbie obserwowanych spolek musimy sie zatrzymac.
+  // Pominiete trafienia wracaja przy kolejnym przebiegu crona.
+  const matched = allMatched.slice(0, SCAN_MAX_ORGS_PER_RUN);
+  const skipped = allMatched.length - matched.length;
+  if (skipped > 0) {
+    console.warn(
+      `registry scan ${day}: pominieto ${skipped} z ${allMatched.length} trafien ` +
+        `(limit ${SCAN_MAX_ORGS_PER_RUN} na przebieg).`,
+    );
+  }
   let created = 0;
 
   for (const watch of matched) {
@@ -479,7 +512,8 @@ export async function scanBulletin(
     day,
     changed_in_krs: changed.size,
     watched: watches?.length ?? 0,
-    matched: matched.length,
+    matched: allMatched.length,
+    skipped,
     events_created: created,
   };
 }
@@ -645,4 +679,3 @@ export async function findRelatedVotes(
     .slice(0, limit);
 }
 
-export { normalizeKrs };

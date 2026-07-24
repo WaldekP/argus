@@ -154,6 +154,14 @@ export interface RioPerson {
     przeszle?: number;
   };
   organizacje_skrot?: { id: number; nazwa_skrocona: string }[];
+  // Obecne tylko w odpowiedzi na pytanie o powiazania organizacji: jak ta osoba
+  // wiaze sie ze spolka, o ktora pytalismy.
+  krs_powiazania_kwerendowane?: {
+    typ: string;
+    kierunek?: string;
+    data_start?: string | null;
+    data_koniec?: string | null;
+  }[];
 }
 
 export interface RioOrg {
