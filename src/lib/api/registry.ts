@@ -35,16 +35,45 @@ export type PersonSearchResult = {
   ambiguous: boolean;
 };
 
+/**
+ * Ostatnie sprawozdanie finansowe spółki.
+ * Okres i data złożenia pochodzą z darmowego API KRS. Kwoty (revenue,
+ * net_result) są null dopóki konto Rejestr.io nie ma planu Biznes.
+ */
+export type FinancialFiling = {
+  period_start: string;
+  period_end: string;
+  filed_on: string | null;
+  revenue: number | null;
+  net_result: number | null;
+  currency: string;
+};
+
+/** Czego integracja nie wie i dlaczego. Interfejs to pokazuje wprost. */
+export type RegistryLimits = {
+  historical_connections: boolean;
+  financial_amounts: boolean;
+  note: string;
+};
+
 /** Powiązanie osoby ze spółką (operation: get_connections). */
 export type RegistryConnection = {
   org_krs: string;
   role_type: string;
   role_label: string;
+  direction: string | null;
   date_start: string | null;
+  date_end: string | null;
+  /** Pobieramy wyłącznie powiązania aktualne, więc zawsze true. */
+  is_current: boolean;
   name: string;
   legal_form: string | null;
   branch: string | null;
+  capital_amount: number | null;
+  capital_currency: string | null;
+  registered_on: string | null;
   status: Record<string, unknown>;
+  latest_filing: FinancialFiling | null;
 };
 
 export type ConnectionsResult = {
@@ -52,6 +81,31 @@ export type ConnectionsResult = {
   refreshed: boolean;
   synced_at: string | null;
   connections: RegistryConnection[];
+  limits: RegistryLimits;
+};
+
+/** Karta spółki (operation: get_org_details). */
+export type OrgDetails = {
+  org: {
+    krs: string;
+    name_full: string;
+    name_short: string | null;
+    nip: string | null;
+    regon: string | null;
+    legal_form: string | null;
+    pkd_main_section: string | null;
+    pkd_all: { code: string; description: string; main: boolean }[];
+    capital_amount: number | null;
+    capital_currency: string | null;
+    registered_on: string | null;
+    last_entry_on: string | null;
+    last_entry_number: number | null;
+    address: Record<string, unknown>;
+    status: Record<string, unknown>;
+  };
+  filings: FinancialFiling[];
+  known_people: { full_name: string; role_label: string; date_start: string | null }[];
+  limits: RegistryLimits;
 };
 
 /** Podmiot z potwierdzoną (lub nie) tożsamością w rejestrze. */
@@ -169,6 +223,11 @@ export function refreshConnections(subjectId: string) {
 
 export function searchOrg(criteria: { nazwa?: string; nip?: string }) {
   return call<{ organizations: OrgSearchItem[] }>('search_org', criteria);
+}
+
+/** Karta spółki. Nie zużywa środków: dane z cache'u i darmowego API KRS. */
+export function getOrgDetails(krs: string, refresh = false) {
+  return call<OrgDetails>('get_org_details', { krs, refresh });
 }
 
 export function linkOrg(params: {

@@ -1,7 +1,7 @@
 // argus-registry — powiązania z Krajowego Rejestru Sądowego.
 // Operacje: balance, search_person, link_person, list_subjects, unlink,
-// get_connections, refresh_connections, search_org, link_org, list_events,
-// mark_event_seen, check_conflicts, scan_changes.
+// get_connections, refresh_connections, search_org, get_org_details, link_org,
+// list_events, mark_event_seen, check_conflicts, scan_changes.
 //
 // Dwa źródła danych, świadomie rozdzielone kosztem:
 //   - otwarte API KRS (darmowe) wykrywa, że coś się zmieniło,
@@ -28,6 +28,7 @@ import {
   searchPersons,
 } from "../_shared/rejestrio.ts";
 import {
+  enrichOrgFromOpenKrs,
   findPotentialConflicts,
   isStale,
   scanBulletin,
@@ -38,6 +39,11 @@ import {
 
 const SUBJECT_TYPES = ["politician", "journalist", "outlet", "other"] as const;
 type SubjectType = typeof SUBJECT_TYPES[number];
+
+// Ile spółek wzbogacamy z darmowego API MS w jednym wywołaniu. Otwarte API
+// ministerstwa ma nieoficjalny limit ok. 100 zapytań na 15 minut z jednego IP,
+// a wzbogacenie jednej spółki to jedno lub dwa zapytania (rejestr P, potem S).
+const ENRICH_PER_CALL = 12;
 
 function requireString(value: unknown, field: string, min = 1): string {
   const text = typeof value === "string" ? value.trim() : "";
@@ -273,12 +279,40 @@ async function opGetConnections(
     );
   }
 
-  const { data, error } = await ctx.supabase
+  let { data, error } = await ctx.supabase
     .from("registry_connections")
     .select("*, registry_orgs(*)")
     .eq("person_id", subject.person_id)
     .eq("is_current", true);
   if (error) throw new Error(`Odczyt powiazan: ${error.message}`);
+
+  const krsList = [...new Set((data ?? []).map((row) => row.org_krs as string))];
+
+  // Wzbogacenie z darmowego API MS przy odczycie. Robimy je niezależnie od
+  // płatnego TTL, bo nic nie kosztuje, a bez niego karta spółki nie ma
+  // kapitału ani sprawozdań. Limit na wywołanie chroni przed przekroczeniem
+  // limitu zapytań po stronie ministerstwa przy dużej liczbie spółek.
+  const missing = (data ?? [])
+    .filter((row) => !(row.registry_orgs as { enriched_at?: string } | null)?.enriched_at)
+    .map((row) => row.org_krs as string);
+  const toEnrich = [...new Set(missing)].slice(0, ENRICH_PER_CALL);
+
+  if (toEnrich.length > 0) {
+    for (const krs of toEnrich) {
+      await enrichOrgFromOpenKrs(ctx.supabase, krs);
+    }
+    const reread = await ctx.supabase
+      .from("registry_connections")
+      .select("*, registry_orgs(*)")
+      .eq("person_id", subject.person_id)
+      .eq("is_current", true);
+    if (reread.error) throw new Error(`Odczyt powiazan: ${reread.error.message}`);
+    data = reread.data;
+  }
+
+  // Ostatnie sprawozdanie finansowe per spółka. Jedno zapytanie na całą listę,
+  // zamiast N zapytań w pętli.
+  const latestFilings = await loadLatestFilings(ctx.supabase, krsList);
 
   return {
     subject_id: subject.id,
@@ -286,17 +320,127 @@ async function opGetConnections(
     synced_at: subject.connections_synced_at,
     connections: (data ?? []).map((row) => {
       const org = row.registry_orgs as Record<string, unknown> | null;
+      const krs = row.org_krs as string;
       return {
-        org_krs: row.org_krs,
+        org_krs: krs,
         role_type: row.role_type,
         role_label: roleLabel(row.role_type as string),
+        direction: row.direction,
         date_start: row.date_start,
+        date_end: row.date_end,
+        // Pobieramy wyłącznie powiązania aktualne, więc wszystko, co tu jest,
+        // trwa nadal. Powiązania zakończone wymagają abonamentu premium.
+        is_current: row.is_current,
         name: org?.name_full ?? "brak danych",
         legal_form: org?.legal_form ?? null,
         branch: org?.pkd_main_section ?? null,
+        capital_amount: org?.capital_amount ?? null,
+        capital_currency: org?.capital_currency ?? null,
+        registered_on: org?.registered_on ?? null,
         status: org?.status ?? {},
+        latest_filing: latestFilings.get(krs) ?? null,
       };
     }),
+    // Interfejs musi powiedzieć wprost, czego nie wie.
+    limits: LIMITS,
+  };
+}
+
+// Czego integracja nie wie i dlaczego. Zwracane przy każdej liście powiązań,
+// żeby interfejs nie musiał tego wiedzieć na sztywno.
+const LIMITS = {
+  historical_connections: false,
+  financial_amounts: false,
+  note:
+    "Kwoty przychodu i wyniku wymagają planu Rejestr.io Biznes. Powiązania " +
+    "zakończone wymagają planu Premium. Z darmowego API KRS mamy okres i datę " +
+    "złożenia sprawozdania, kapitał zakładowy i pełne PKD.",
+} as const;
+
+interface LatestFiling {
+  period_start: string;
+  period_end: string;
+  filed_on: string | null;
+  revenue: number | null;
+  net_result: number | null;
+  currency: string;
+}
+
+async function loadLatestFilings(
+  supabase: SupabaseClient,
+  krsList: string[],
+): Promise<Map<string, LatestFiling>> {
+  const result = new Map<string, LatestFiling>();
+  if (krsList.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from("registry_org_financials")
+    .select("org_krs, period_start, period_end, filed_on, revenue, net_result, currency")
+    .in("org_krs", krsList)
+    .order("period_end", { ascending: false });
+  if (error) throw new Error(`Odczyt sprawozdan: ${error.message}`);
+
+  // Kolejność malejąca po okresie, więc pierwszy wiersz dla danego KRS wygrywa.
+  for (const row of data ?? []) {
+    const krs = row.org_krs as string;
+    if (result.has(krs)) continue;
+    result.set(krs, {
+      period_start: row.period_start as string,
+      period_end: row.period_end as string,
+      filed_on: row.filed_on as string | null,
+      revenue: row.revenue as number | null,
+      net_result: row.net_result as number | null,
+      currency: (row.currency as string) ?? "PLN",
+    });
+  }
+  return result;
+}
+
+// Karta pojedynczej spółki. Dane pochodzą z cache'u, a wzbogacenie z darmowego
+// API MS odświeża się samo po ORG_DETAILS_TTL_DAYS. Nie zużywa środków.
+async function opGetOrgDetails(
+  supabase: SupabaseClient,
+  body: { krs?: unknown; refresh?: unknown },
+) {
+  const krs = normalizeKrs(requireString(body.krs, "krs"));
+  if (!krs) throw new HttpError(400, "Nieprawidłowy numer KRS.");
+
+  await enrichOrgFromOpenKrs(supabase, krs, body.refresh === true);
+
+  const { data: org, error } = await supabase
+    .from("registry_orgs")
+    .select("*")
+    .eq("krs", krs)
+    .maybeSingle();
+  if (error) throw new Error(`Odczyt organizacji: ${error.message}`);
+  if (!org) throw new HttpError(404, "Nie znamy tej spółki.");
+
+  const { data: filings, error: filingsError } = await supabase
+    .from("registry_org_financials")
+    .select("period_start, period_end, filed_on, revenue, net_result, currency")
+    .eq("org_krs", krs)
+    .order("period_end", { ascending: false });
+  if (filingsError) throw new Error(`Odczyt sprawozdan: ${filingsError.message}`);
+
+  const { data: people, error: peopleError } = await supabase
+    .from("registry_connections")
+    .select("role_type, date_start, registry_persons(full_name)")
+    .eq("org_krs", krs)
+    .eq("is_current", true);
+  if (peopleError) throw new Error(`Odczyt osob: ${peopleError.message}`);
+
+  return {
+    org,
+    filings: filings ?? [],
+    // Osoby znane nam z rejestru, czyli te, których tożsamość ktoś potwierdził.
+    // To nie jest pełny skład zarządu spółki.
+    known_people: (people ?? []).map((row) => ({
+      full_name: (row.registry_persons as { full_name?: string } | null)?.full_name ??
+        "brak danych",
+      role_label: roleLabel(row.role_type as string),
+      date_start: row.date_start,
+    })),
+    limits: LIMITS,
   };
 }
 
@@ -505,6 +649,11 @@ Deno.serve(async (req) => {
         });
       case "search_org":
         return jsonResponse({ ok: true, data: await opSearchOrg(ctx, body) });
+      case "get_org_details":
+        return jsonResponse({
+          ok: true,
+          data: await opGetOrgDetails(supabase, body),
+        });
       case "link_org":
         return jsonResponse({
           ok: true,

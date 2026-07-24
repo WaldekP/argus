@@ -81,6 +81,7 @@ obserwuje**, jest już informacją wrażliwą biznesowo i siedzi per tenant z RL
 | `get_connections` | zwykle darmowa | Z cache, płatna tylko gdy dane nieświeże |
 | `refresh_connections` | płatna | Wymuszone odświeżenie |
 | `search_org` | płatna | Wyszukiwanie spółek po nazwie, NIP, REGON |
+| `get_org_details` | darmowa | Karta spółki: kapitał, PKD, historia sprawozdań |
 | `link_org` | płatna | Przypięcie spółki, np. wydawcy do redakcji |
 | `list_events` | darmowa | Zdarzenia w obserwowanych spółkach |
 | `mark_event_seen` | darmowa | Oznaczenie zdarzenia jako przeczytane |
@@ -120,11 +121,37 @@ w rachunek. Zabezpieczenia:
 5. **Brief poranny (TASK 9).** Zdarzenia z `registry_events`: zmiana w zarządzie
    spółki polityka albo jej likwidacja to ryzyko medialne na ten sam dzień.
 
+## Sprawozdania finansowe
+
+Rejestr.io udostępnia sprawozdania wyłącznie w abonamencie: dokumenty PDF od
+planu Premium (119 zł miesięcznie), treść w JSON dopiero od planu Biznes
+(249 zł miesięcznie). Konto pay as you go dostaje na obu endpointach 403.
+
+Darmowe otwarte API MS ma w dziale 3 wzmianki o złożonych sprawozdaniach, czyli
+za jaki okres i kiedy dokument wpłynął. To pokrywa większość wartości dla
+polityka: „spółka złożyła sprawozdanie za 2025 dnia 13.07.2026" albo, co bywa
+ciekawsze, „nie złożyła od trzech lat". Nie pokrywa kwot.
+
+Stąd podział:
+
+- `registry_org_financials` ma kolumny `revenue` i `net_result`, wypełniane
+  wartością null. Włączenie planu Biznes uzupełni dane, nie wymusi migracji.
+- Interfejs pokazuje przy kwotach „brak danych" i wyjaśnia dlaczego. Nigdy nie
+  pokazuje zera, bo zero to konkretna informacja finansowa, a my jej nie mamy.
+
+Pole `zaOkresOdDo` w odpisie jest tekstem swobodnym i występuje w co najmniej
+trzech wariantach zapisu, więc parser nie zakłada struktury, tylko wyciąga dwie
+pierwsze daty z tekstu. Sprawdzone na 50 wzmiankach czterech podmiotów, w tym
+fundacji bez kapitału i bez PKD.
+
 ## Ograniczenia, o których trzeba pamiętać
 
 - Brak powiązań historycznych. Spółka, z której polityk wyszedł rok temu, nie
   pojawi się, a dziennikarz o nią zapyta. To jest luka do zamknięcia
-  abonamentem premium, jeśli pilot pokaże, że jest potrzebna.
+  abonamentem premium, jeśli pilot pokaże, że jest potrzebna. Konsekwencja
+  uboczna: każde powiązanie, które widzimy, jest z definicji aktualne, więc
+  `date_end` jest zawsze puste, a `is_current` zawsze prawdziwe.
+- Brak kwot w sprawozdaniach finansowych (patrz sekcja wyżej).
 - Brak daty urodzenia oznacza brak twardego rozróżnienia imienników.
 - Regulamin API Rejestr.io (`rejestr.io/regulamin/api`) nie był analizowany pod
   kątem prawa do trwałego cache'owania i redystrybucji danych. Przed

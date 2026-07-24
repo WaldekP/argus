@@ -95,3 +95,114 @@ export function describeLatestEntry(extract: KrsExtract): string {
   if (!number && !date) return "Nowy wpis w KRS. Brak danych o szczegółach.";
   return `Wpis nr ${number ?? "brak danych"} z dnia ${date ?? "brak danych"}.`;
 }
+
+// ---------------------------------------------------------------------------
+// Wyciąganie szczegółów podmiotu z odpisu (wszystko darmowe)
+// ---------------------------------------------------------------------------
+
+// Daty w odpisie są w formacie DD.MM.RRRR, baza chce RRRR-MM-DD.
+function toIsoDate(value: string | undefined | null): string | null {
+  if (!value) return null;
+  const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(value.trim());
+  if (!match) return null;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+// Kwoty w odpisie mają polski separator dziesiętny: "46580831,00".
+function toNumber(value: string | undefined | null): number | null {
+  if (!value) return null;
+  const normalized = value.replace(/\s/g, "").replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export interface FinancialFiling {
+  period_start: string;
+  period_end: string;
+  filed_on: string | null;
+}
+
+// Okres w polu zaOkresOdDo jest tekstem swobodnym i w praktyce występuje
+// w kilku wariantach zapisu, np.:
+//   "OD 01.01.2025 DO 31.12.2025"
+//   "ZA OKRES OD 01.01.2000 R. - 31.12.2000 R., ZŁOŻONO DNIA"
+//   "01. 01. 2001r. - 31. 12. 2001r."
+// Dlatego nie parsujemy struktury, tylko wyciągamy dwie pierwsze daty.
+const DATE_IN_TEXT = /(\d{2})[.\s]*(\d{2})[.\s]*(\d{4})/g;
+
+export function parseFinancialFilings(extract: KrsExtract): FinancialFiling[] {
+  const dzial3 = (extract.odpis?.dane?.dzial3 ?? {}) as Record<string, unknown>;
+  const mentions = (dzial3.wzmiankiOZlozonychDokumentach ?? {}) as Record<string, unknown>;
+  const rows = mentions.wzmiankaOZlozeniuRocznegoSprawozdaniaFinansowego;
+  if (!Array.isArray(rows)) return [];
+
+  const filings: FinancialFiling[] = [];
+  for (const row of rows as { dataZlozenia?: string; zaOkresOdDo?: string }[]) {
+    const dates = [...(row.zaOkresOdDo ?? "").matchAll(DATE_IN_TEXT)];
+    if (dates.length < 2) continue;
+    const [start, end] = dates;
+    filings.push({
+      period_start: `${start[3]}-${start[2]}-${start[1]}`,
+      period_end: `${end[3]}-${end[2]}-${end[1]}`,
+      filed_on: toIsoDate(row.dataZlozenia),
+    });
+  }
+  // Najnowszy okres pierwszy: interfejs pokazuje ostatnie sprawozdanie.
+  return filings.sort((a, b) => b.period_end.localeCompare(a.period_end));
+}
+
+export interface OrgDetails {
+  capital_amount: number | null;
+  capital_currency: string | null;
+  registered_on: string | null;
+  last_entry_on: string | null;
+  last_entry_number: number | null;
+  pkd_all: { code: string; description: string; main: boolean }[];
+  legal_form: string | null;
+  name_full: string | null;
+  filings: FinancialFiling[];
+}
+
+function pkdCode(entry: Record<string, unknown>): string {
+  const parts = [entry.kodDzial, entry.kodKlasa, entry.kodPodklasa]
+    .filter((p) => typeof p === "string" && p);
+  if (parts.length < 3) return String(entry.kodDzial ?? "");
+  return `${parts[0]}.${parts[1]}.${parts[2]}`;
+}
+
+export function parseOrgDetails(extract: KrsExtract): OrgDetails {
+  const odpis = extract.odpis;
+  const header = odpis?.naglowekA ?? odpis?.naglowekP ?? {};
+  const dzial1 = (odpis?.dane?.dzial1 ?? {}) as Record<string, unknown>;
+  const dzial3 = (odpis?.dane?.dzial3 ?? {}) as Record<string, unknown>;
+  const entity = (dzial1.danePodmiotu ?? {}) as Record<string, unknown>;
+  const capital = ((dzial1.kapital ?? {}) as Record<string, unknown>)
+    .wysokoscKapitaluZakladowego as { wartosc?: string; waluta?: string } | undefined;
+  const activity = (dzial3.przedmiotDzialalnosci ?? {}) as Record<string, unknown>;
+
+  const pkd: OrgDetails["pkd_all"] = [];
+  for (const [key, main] of [
+    ["przedmiotPrzewazajacejDzialalnosci", true],
+    ["przedmiotPozostalejDzialalnosci", false],
+  ] as const) {
+    for (const entry of (activity[key] as Record<string, unknown>[] ?? [])) {
+      pkd.push({
+        code: pkdCode(entry),
+        description: String(entry.opis ?? "brak danych"),
+        main,
+      });
+    }
+  }
+
+  return {
+    capital_amount: toNumber(capital?.wartosc),
+    capital_currency: capital?.waluta ?? null,
+    registered_on: toIsoDate(header.dataRejestracjiWKRS),
+    last_entry_on: toIsoDate(header.dataOstatniegoWpisu),
+    last_entry_number: header.numerOstatniegoWpisu ?? null,
+    pkd_all: pkd,
+    legal_form: typeof entity.formaPrawna === "string" ? entity.formaPrawna : null,
+    name_full: typeof entity.nazwa === "string" ? entity.nazwa : null,
+    filings: parseFinancialFilings(extract),
+  };
+}

@@ -9,11 +9,13 @@
  * Kontrakt: docs/kontrakt-rejestr-krs.md
  */
 
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/primary-button';
 import { FormTextInput } from '@/components/form-text-input';
+import { RegistryConnectionCard } from '@/components/registry-connection-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, Radius, Spacing } from '@/constants/theme';
@@ -25,6 +27,7 @@ import {
   type PersonCandidate,
   refreshConnections,
   type RegistryConnection,
+  type RegistryLimits,
   type RegistrySubject,
   searchPerson,
   unlinkSubject,
@@ -42,13 +45,29 @@ function formatDate(value: string | null): string {
   return value.split('-').reverse().join('.');
 }
 
+/**
+ * Powiązania zgrupowane po spółce, kolejność zachowana.
+ * Jedna osoba bywa w tej samej spółce w kilku rolach, a to jedna karta.
+ */
+function groupByOrg(connections: RegistryConnection[]): [string, RegistryConnection[]][] {
+  const groups = new Map<string, RegistryConnection[]>();
+  for (const connection of connections) {
+    const existing = groups.get(connection.org_krs);
+    if (existing) existing.push(connection);
+    else groups.set(connection.org_krs, [connection]);
+  }
+  return [...groups.entries()];
+}
+
 export function RegistryConnections({ defaultQuery = '', subjectId = null }: Props) {
   const theme = useTheme();
+  const router = useRouter();
   const [query, setQuery] = useState(defaultQuery);
   const [candidates, setCandidates] = useState<PersonCandidate[] | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
   const [subject, setSubject] = useState<RegistrySubject | null>(null);
   const [connections, setConnections] = useState<RegistryConnection[]>([]);
+  const [limits, setLimits] = useState<RegistryLimits | null>(null);
   const [syncedAt, setSyncedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,6 +77,7 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
     const result = await getConnections(id);
     setConnections(result.connections);
     setSyncedAt(result.synced_at);
+    setLimits(result.limits);
   }, []);
 
   // Przy wejściu sprawdzamy, czy tożsamość jest już potwierdzona.
@@ -126,6 +146,7 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
       const result = await refreshConnections(subject.id);
       setConnections(result.connections);
       setSyncedAt(result.synced_at);
+      setLimits(result.limits);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -240,25 +261,20 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
               Brak aktualnych powiązań kapitałowych w KRS.
             </ThemedText>
           ) : (
-            connections.map((connection) => (
-              <View
-                key={`${connection.org_krs}-${connection.role_type}`}
-                style={[styles.row, { borderColor: theme.border }]}>
-                <ThemedText style={styles.rowTitle}>{connection.name}</ThemedText>
-                <ThemedText type="small" themeColor="accentLight">
-                  {connection.role_label}, od {formatDate(connection.date_start)}
-                </ThemedText>
-                {connection.branch ? (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    Branża: {connection.branch}
-                  </ThemedText>
-                ) : null}
-                <ThemedText type="small" themeColor="textSecondary">
-                  KRS {connection.org_krs}
-                </ThemedText>
-              </View>
+            groupByOrg(connections).map(([krs, group]) => (
+              <RegistryConnectionCard
+                key={krs}
+                connections={group}
+                onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
+              />
             ))
           )}
+
+          {limits && connections.length > 0 ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {limits.note}
+            </ThemedText>
+          ) : null}
 
           <PrimaryButton
             title="Odśwież dane z rejestru"

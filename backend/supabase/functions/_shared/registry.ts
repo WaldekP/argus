@@ -10,7 +10,12 @@ import {
   orgToRow,
   type RioOrg,
 } from "./rejestrio.ts";
-import { describeLatestEntry, getCurrentExtract, getDailyBulletin } from "./krs-open.ts";
+import {
+  describeLatestEntry,
+  getCurrentExtract,
+  getDailyBulletin,
+  parseOrgDetails,
+} from "./krs-open.ts";
 
 // Po ilu dniach uznajemy zapisane powiązania za nieświeże. Wpisy w KRS zmieniają
 // się rzadko, a każde odświeżenie kosztuje, więc domyślnie miesiąc.
@@ -34,6 +39,72 @@ export async function upsertOrg(
     .upsert(row, { onConflict: "krs" });
   if (error) throw new Error(`Zapis organizacji: ${error.message}`);
   return row.krs;
+}
+
+// Po ilu dniach odświeżamy szczegóły z darmowego API MS. Krócej niż powiązania,
+// bo to nic nie kosztuje, a sprawozdanie finansowe dochodzi raz w roku.
+export const ORG_DETAILS_TTL_DAYS = 7;
+
+// Uzupełnia organizację o dane z DARMOWEGO otwartego API KRS: kapitał zakładowy,
+// datę rejestracji, pełne PKD i historię złożonych sprawozdań finansowych.
+// Rejestr.io tych danych nie da bez abonamentu, a tu są za darmo.
+//
+// Nie rzuca wyjątkiem: brak wzbogacenia ma zubożyć kartę spółki, a nie wywrócić
+// operację, w której środku jesteśmy.
+export async function enrichOrgFromOpenKrs(
+  supabase: SupabaseClient,
+  krs: string,
+  force = false,
+): Promise<boolean> {
+  if (!force) {
+    const { data } = await supabase
+      .from("registry_orgs")
+      .select("enriched_at")
+      .eq("krs", krs)
+      .maybeSingle();
+    if (data && !isStale(data.enriched_at, ORG_DETAILS_TTL_DAYS)) return false;
+  }
+
+  try {
+    const found = await getCurrentExtract(krs);
+    if (!found) return false;
+    const details = parseOrgDetails(found.extract);
+
+    const { error } = await supabase
+      .from("registry_orgs")
+      .update({
+        capital_amount: details.capital_amount,
+        capital_currency: details.capital_currency,
+        registered_on: details.registered_on,
+        last_entry_on: details.last_entry_on,
+        last_entry_number: details.last_entry_number,
+        pkd_all: details.pkd_all,
+        enriched_at: new Date().toISOString(),
+      })
+      .eq("krs", krs);
+    if (error) throw new Error(error.message);
+
+    if (details.filings.length > 0) {
+      const { error: filingsError } = await supabase
+        .from("registry_org_financials")
+        .upsert(
+          details.filings.map((filing) => ({
+            org_krs: krs,
+            period_start: filing.period_start,
+            period_end: filing.period_end,
+            filed_on: filing.filed_on,
+            source: "krs_open",
+            synced_at: new Date().toISOString(),
+          })),
+          { onConflict: "org_krs,period_start,period_end" },
+        );
+      if (filingsError) throw new Error(filingsError.message);
+    }
+    return true;
+  } catch (err) {
+    console.error(`enrichOrgFromOpenKrs ${krs}:`, err);
+    return false;
+  }
 }
 
 // Pobiera z płatnego API aktualne powiązania osoby i zapisuje je w cache'u.
@@ -61,6 +132,8 @@ export async function syncPersonConnections(
   for (const org of orgs) {
     const krs = await upsertOrg(supabase, org);
     if (!krs) continue;
+    // Wzbogacenie z darmowego API: kapitał, PKD, sprawozdania. Zero kosztu.
+    await enrichOrgFromOpenKrs(supabase, krs);
     for (const link of org.krs_powiazania_kwerendowane ?? []) {
       rows.push({
         person_id: personId,
