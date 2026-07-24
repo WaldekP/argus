@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PrimaryButton } from '@/components/primary-button';
+import { RegistryConnections } from '@/components/registry-connections';
 import { ScreenPlaceholder } from '@/components/screen-placeholder';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -17,6 +18,7 @@ export default function ProfileScreen() {
   const session = useAuthStore((state) => state.session);
   const onboardingStatus = useOnboardingStore((state) => state.status);
   const onboardingSkipped = useOnboardingStore((state) => state.skipped);
+  const profile = useOnboardingStore((state) => state.profile);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -55,6 +57,11 @@ export default function ProfileScreen() {
             <PrimaryButton title="Wróć do onboardingu" onPress={handleResumeOnboarding} />
           </ThemedView>
         ) : null}
+
+        <RegistryConnections
+          defaultQuery={typeof profile?.full_name === 'string' ? profile.full_name : ''}
+          subjectId={typeof profile?.id === 'string' ? profile.id : null}
+        />
 
         {session?.user.email ? (
           <ThemedText type="small" themeColor="textSecondary">
