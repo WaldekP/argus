@@ -121,6 +121,19 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 - Logi dostępu do danych tenanta w tabeli `access_logs`.
 - Klucze: lokalny `.env` (nigdy nie commitować) trzyma `CLAUDE_API_KEY` i klucze publiczne Expo (`EXPO_PUBLIC_*`). Sekrety Edge Functions (klucz Claude, service_role) ustawiane przez `supabase secrets set` — nigdy w kodzie klienta.
 
+## Konfiguracja pilotażu (decyzje usera, 2026-07-24)
+
+- **Onboarding wyłączony na ten moment**: profil polityka ustawiony na sztywno w bazie
+  (`onboarding_status='done'`), apka wchodzi prosto do zakładek. Ekrany onboardingu
+  zostają w kodzie (powrót przez Profil), nie kierować do nich domyślnie.
+- **Polityk tenanta pilotażowego: Ryszard Petru** (mp_id 286, klub Centrum, okręg
+  Warszawa). Dane sejmowe zaimportowane, strategia zapisana w `politician_profiles`
+  (`goals`/`values`/`boundaries`): budowa nowej partii wolnościowo-liberalnej.
+- **Elektoraty docelowe** (tabela `segments`, wstrzykiwane do generatora przekazu):
+  wolnościowcy z Konfederacji nieakceptujący konserwatyzmu światopoglądowego (mobilize),
+  sieroty po Trzeciej Drodze (mobilize), rozczarowani Koalicją Obywatelską (persuade).
+  Boundaries: bez pogardy wobec wyborców tych formacji — to potencjalny elektorat.
+
 ## Postęp (TASK 0–10 z briefu, sekcja 9)
 
 - [x] TASK 0 — szkielet: Expo + backend/supabase + Colors.ts + auth (ekrany gotowe; wymaga konfiguracji `.env` z kluczami Supabase)
