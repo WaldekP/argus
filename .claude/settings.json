@@ -107,8 +107,24 @@
       "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"targets_search\",\"query\":\"Berkowicz\"}')",
       "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"targets_search\",\"query\":\"Cichoń\"}')",
       "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"create\",\"topic\":\"kwota wolna od podatku\",\"target\":{\"type\":\"mps\",\"mp_ids\":[16,49]}}')",
-      "Bash(xargs git log --oneline -1)",
-      "Bash(git commit -m ' *)"
+      "Bash(python3 -c \"import reportlab; print\\('reportlab OK'\\)\")",
+      "Bash(curl -s \"https://api.sejm.gov.pl/sejm/term10/proceedings/62/2026-07-16/transcripts\")",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/loop.sh analyze_step 2f8e2ac7-4db6-4fcb-bddd-1bb9e4e46af9 40)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"get\",\"analysis_id\":\"2f8e2ac7-4db6-4fcb-bddd-1bb9e4e46af9\"}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"create\",\"topic\":\"kwota wolna od podatku\",\"target\":{\"type\":\"mps\",\"mp_ids\":[422,312]}}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/loop.sh collect_step 704e0a13-7993-4dd3-8b6f-c2b7c713a70b 200)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"create\",\"topic\":\"kwota wolna od podatku\",\"target\":{\"type\":\"club\",\"club\":\"Konfederacja\"}}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/loop.sh analyze_step 704e0a13-7993-4dd3-8b6f-c2b7c713a70b 40)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"create\",\"topic\":\"wysokość podatków, nowe podatki i obciążenia podatkowe\",\"target\":{\"type\":\"mps\",\"mp_ids\":[422]}}')",
+      "Bash(time /private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/loop.sh collect_step 3bda408e-6cef-4f59-826b-a0838cdafd36 60)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"add_document\",\"analysis_id\":\"704e0a13-7993-4dd3-8b6f-c2b7c713a70b\",\"filename\":\"analiza.docx\",\"mime\":\"application/vnd.openxmlformats-officedocument.wordprocessingml.document\",\"text\":\"cokolwiek\"}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"add_document\",\"analysis_id\":\"704e0a13-7993-4dd3-8b6f-c2b7c713a70b\",\"filename\":\"notatka.txt\",\"mime\":\"text/plain\"}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"delete\",\"analysis_id\":\"7a93ea3e-344c-4b99-861e-dfd065d57af5\"}')",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"list\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/loop.sh analyze_step 3bda408e-6cef-4f59-826b-a0838cdafd36 30)",
+      "Bash(/private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/call.sh '{\"operation\":\"reanalyze\",\"analysis_id\":\"3bda408e-6cef-4f59-826b-a0838cdafd36\"}')",
+      "Bash(git commit -m 'Analizy niespójności: argus-analysis + ekrany + dokumenty PDF/TXT/MD *)"
     ],
     "additionalDirectories": [
       "/Users/waldemarpieniak/Documents/Programowanie/argus/briefy"

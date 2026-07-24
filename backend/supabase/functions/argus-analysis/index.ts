@@ -82,7 +82,15 @@ interface CollectState {
 
 interface RetrievalEvidence {
   statements: { id: string; date: string }[];
-  votes: { voting_id: string; date: string; title: string; vote: string }[];
+  votes: {
+    voting_id: string;
+    date: string;
+    title: string;
+    vote: string;
+    // numer posiedzenia/glosowania — rozroznia glosowania o tym samym tytule
+    sitting?: number;
+    voting_no?: number;
+  }[];
 }
 
 interface AnalyzeState {
@@ -267,6 +275,25 @@ async function logAccess(
 function normalizeForMatch(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
+
+// Linia glosowania do promptu. Numer posiedzenia/glosowania rozroznia
+// ODREBNE glosowania o identycznym tytule (poprawki, wnioski, calosc ustawy).
+function voteLine(
+  v: RetrievalEvidence["votes"][number],
+  index: number,
+): string {
+  const no = v.sitting !== undefined && v.voting_no !== undefined
+    ? ` (glosowanie ${v.sitting}/${v.voting_no})`
+    : "";
+  return `${index + 1}. [${v.date}]${no} ${v.title.slice(0, 260)} — glos: ${
+    VOTE_LABEL[v.vote] ?? v.vote
+  }`;
+}
+
+const VOTES_BLOCK_NOTE =
+  "Uwaga: kazda pozycja to ODREBNE glosowanie, w ktorym ta osoba oddala " +
+  "wskazany glos. Ta sama ustawa moze miec wiele glosowan tego samego dnia " +
+  "(poprawki, wnioski mniejszosci, calosc projektu).";
 
 // ---------------------------------------------------------------------------
 // targets_search
@@ -668,7 +695,7 @@ async function runRetrievalForMp(
   // Glosy posla + tytuly glosowan (najnowsze kandydaty do rankingu).
   const { data: voteRows, error: votesError } = await supabase
     .from("sejm_mp_votes")
-    .select("voting_id, vote, sejm_votings (id, date, title)")
+    .select("voting_id, vote, sejm_votings (id, date, title, sitting, voting_no)")
     .eq("mp_id", mpId)
     .limit(600);
   if (votesError) throw new Error(`Odczyt sejm_mp_votes: ${votesError.message}`);
@@ -676,7 +703,13 @@ async function runRetrievalForMp(
   const candidates = (voteRows ?? [])
     .map((row) => {
       const v = row.sejm_votings as unknown as
-        | { id: string; date: string; title: string }
+        | {
+          id: string;
+          date: string;
+          title: string;
+          sitting: number;
+          voting_no: number;
+        }
         | null;
       if (!v) return null;
       return {
@@ -684,6 +717,8 @@ async function runRetrievalForMp(
         date: String(v.date),
         title: String(v.title ?? ""),
         vote: String(row.vote),
+        sitting: v.sitting,
+        voting_no: v.voting_no,
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null)
@@ -748,12 +783,7 @@ async function runFindingsForMp(
       .join("\n\n")
     : "(brak wypowiedzi w temacie)";
   const voteBlock = evidence.votes.length > 0
-    ? evidence.votes
-      .map((v, i) =>
-        `${i + 1}. [${v.date}] ${v.title.slice(0, 260)} — glos: ${
-          VOTE_LABEL[v.vote] ?? v.vote
-        }`
-      )
+    ? [VOTES_BLOCK_NOTE, ...evidence.votes.map((v, i) => voteLine(v, i))]
       .join("\n")
     : "(brak glosowan w temacie)";
 
@@ -860,17 +890,13 @@ async function runDocumentReview(
       .filter((s): s is NonNullable<typeof s> => Boolean(s))
       .map((s) => `- [${s.date}] ${s.text.slice(0, 1500)}`)
       .join("\n");
-    const votes = ev.votes
-      .map((v) =>
-        `- [${v.date}] ${v.title.slice(0, 260)} — glos: ${VOTE_LABEL[v.vote] ?? v.vote}`
-      )
-      .join("\n");
+    const votes = ev.votes.map((v, i) => voteLine(v, i)).join("\n");
     blocks.push(
       [
         `### ${name}`,
-        "Wypowiedzi sejmowe:",
+        `Wypowiedzi sejmowe (wypowiedzi osoby: ${name}):`,
         stmts || "(brak wypowiedzi w temacie)",
-        "Glosowania w temacie:",
+        `Glosowania w temacie (glosy oddane przez: ${name}). ${VOTES_BLOCK_NOTE}`,
         votes || "(brak glosowan w temacie)",
       ].join("\n"),
     );

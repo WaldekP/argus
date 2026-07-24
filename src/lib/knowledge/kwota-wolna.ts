@@ -1,7 +1,9 @@
 /**
  * Korpus: kwota wolna od podatku.
  *
- * Treść pochodzi z docs/kwota-wolna/ (90 źródeł, każda liczba z przypisem).
+ * Treść pochodzi z docs/kwota-wolna/ (90 źródeł, każda liczba z przypisem),
+ * połączona z briefem 16 (deep research z weryfikacją adwersaryjną, 44 źródła).
+ * Wersja scalona i rozstrzygnięcia konfliktów: briefy/17-brief-kwota-wolna-polaczony.md.
  * Rekomendacja odpowiada na pytanie postawione wprost przez użytkownika
  * pilotażowego: podnieść własny temat czy poprzeć cudzy.
  */
@@ -12,37 +14,59 @@ export const kwotaWolna: Temat = {
   slug: 'kwota-wolna',
   nazwa: 'Kwota wolna od podatku',
   zajawka: 'Obietnica 60 tys. zł, niezrealizowana od trzech lat. Temat wraca przed wyborami.',
-  aktualizacja: '23 lipca 2026',
-  korpus: 'docs/kwota-wolna/',
-  liczbaZrodel: 90,
-  doWeryfikacji: 15,
+  aktualizacja: '24 lipca 2026',
+  korpus: 'docs/kwota-wolna/ + briefy/17-brief-kwota-wolna-polaczony.md',
+  liczbaZrodel: 134,
+  doWeryfikacji: 18,
 
   rekomendacja: {
     pytanie: 'Poprzeć podniesienie kwoty wolnej czy trzymać się składki zdrowotnej?',
     odpowiedz:
       'Trzymać składkę zdrowotną jako temat własny, a kwotę wolną poprzeć warunkowo i rozliczyć z terminu.',
     uzasadnienie: [
-      'Składka zdrowotna ma wyższe i twardsze poparcie: 72,8 proc. wobec 39,9 proc. dla kwoty wolnej pytanej z kosztem. To dwa różne badania i różne pytania, więc nie są wprost porównywalne, ale kierunek jest jednoznaczny.',
-      'Kwota wolna jest zajęta. Obiecał ją Tusk, projekty składali Konfederacja, PiS i PSL. Wchodząc w nią, stajemy się piątym głosem w chórze zamiast właścicielem tematu.',
-      'Kwota wolna daje gotową linię ataku bez potrzeby jej przejmowania: termin „pierwsze 100 dni” padł w Tarnowie 9 września 2023 i minął w marcu 2024.',
+      'Asymetria kosztów wynosi około 10:1. Obniżka składki to około 4,6 mld zł rocznie, kwota wolna 60 tys. zł to 45-56 mld zł rocznie. Rząd sam przyznał, że na kwotę wolną nie ma przestrzeni fiskalnej.',
+      'Składka to jedyna reforma z dowodem wykonalności: przeszła Sejm (4.04.2025, 213:190) i Senat, padła dopiero na wecie prezydenta Dudy. Po wecie składka minimalna wzrosła w 2026 r. o 37,3 proc., więc problem jest świeży i realny.',
+      'W głosowaniu 4.04.2025 żaden poseł Konfederacji nie zagłosował za obniżką składki (12 wstrzymało się, 4 nieobecnych). Temat daje jednocześnie linię ataku na partię, która ze składki zrobiła sztandar.',
+      'Kwota wolna jest zajęta. Obiecał ją Tusk, projekty składali Konfederacja, PiS i PSL. Linia rozliczeniowa jest gotowa bez przejmowania tematu: termin „pierwsze 100 dni” padł w Tarnowie 9 września 2023 i minął w marcu 2024.',
       'Poprzednia podwyżka pokazuje, że sama korzyść nie kupuje poparcia. Kwota wolna wzrosła prawie czterokrotnie, a tylko 22 proc. Polaków uznało, że zyskało.',
     ],
     ryzyko: [
-      'Jeśli rząd faktycznie wprowadzi 60 tys. zł, poparcie warunkowe zostanie odczytane jako dołączenie do cudzego sukcesu.',
-      'Składka zdrowotna ma węższego adresata: przedsiębiorcy, nie 19,7 mln podatników. Przy szerokim elektoracie kwota wolna dotyka więcej osób.',
-      'Nie istnieje badanie stawiające oba tematy obok siebie w jednym pytaniu. Porównanie 72,8 do 39,9 proc. jest poszlaką, nie dowodem.',
+      'Jeśli rząd faktycznie wprowadzi 60 tys. zł, poparcie warunkowe zostanie odczytane jako dołączenie do cudzego sukcesu. Presja koalicyjna rośnie: Kosiniak-Kamysz 22.07.2026 zadeklarował realizację jeszcze w tej kadencji.',
+      'Składka zdrowotna ma węższego adresata: 2,45 mln przedsiębiorców JDG, nie ogół podatników PIT. Przy szerokim elektoracie kwota wolna dotyka więcej osób.',
+      'Poparcie dla obniżki składki jest umiarkowane, nie przytłaczające: 46,4 proc. za (SW Research, kwiecień 2025). Wcześniej cytowany sondaż z wynikiem 72,8 proc. nie przeszedł weryfikacji i nie wolno go używać.',
+      'Weto i deklaracja toruńska (zapowiedź wetowania każdej podwyżki podatków i składek) betonują status quo. Reforma składki może być niewykonalna do końca kadencji prezydenta.',
     ],
   },
 
   kluczoweLiczby: [
     {
       wartosc: '300 zł',
-      opis: 'Maksymalna miesięczna korzyść z podniesienia do 60 tys. zł. Pełna już od ok. 7,5 tys. zł brutto.',
+      opis: 'Maksymalna miesięczna korzyść z podniesienia do 60 tys. zł. Pełna od ok. 7,5 tys. zł brutto. Przy wspólnym rozliczeniu małżonków 600 zł, przy płacy minimalnej ok. 168 zł.',
       doPublikacji: true,
     },
     {
-      wartosc: '55,9 mld zł',
-      opis: 'Koszt reformy w 2026 r. według Ministerstwa Finansów, z odpowiedzi na interpelację.',
+      wartosc: '45-56 mld zł',
+      opis: 'Roczny koszt kwoty wolnej 60 tys. zł. Widełki: CenEA 45 mld, szacunki MF do 56 mld. Podawać widełki, nie pojedynczą liczbę.',
+      doPublikacji: true,
+    },
+    {
+      wartosc: '10:1',
+      opis: 'Asymetria kosztów: obniżka składki zdrowotnej (ok. 4,6 mld zł rocznie, 2,45 mln JDG) jest około dziesięciokrotnie tańsza od kwoty wolnej 60 tys. zł.',
+      doPublikacji: true,
+    },
+    {
+      wartosc: '+37,3 proc.',
+      opis: 'Wzrost minimalnej składki zdrowotnej w 2026 r. po wecie: z 314,96 do 432,54 zł miesięcznie. Przedsiębiorcy płacą więcej niż rok temu.',
+      doPublikacji: true,
+    },
+    {
+      wartosc: '0 głosów za',
+      opis: 'Konfederacja w głosowaniu 4.04.2025 nad obniżką składki zdrowotnej: nikt za, 12 wstrzymało się, 4 nieobecnych. Ustawa przeszła 213:190.',
+      doPublikacji: true,
+    },
+    {
+      wartosc: '189 mld zł',
+      opis: 'Wycena FOR dziury w propozycjach wyborczych Konfederacji z 2023 r. Datować uczciwie na kampanię 2023, celować w brak własnej wyceny.',
       doPublikacji: true,
     },
     {
@@ -73,6 +97,7 @@ export const kwotaWolna: Temat = {
     'Około 30 proc. badanych nie ma zdania i ten odsetek powtarza się w każdym pomiarze. Temat jest abstrakcyjny, dopóki nie pokaże się kwoty w złotówkach.',
     'Polacy chcą jednocześnie niższych podatków dla siebie i wysokiego poziomu usług publicznych. 77 proc. popiera opiekuńcze funkcje państwa, 87 proc. uważa, że podatki są za wysokie wobec tego, co państwo daje.',
     'Poparcie dla progresji spadło z 77 proc. w 1998 r. do 51 proc. w 2025 r. Kwota wolna jest jednym z niewielu rozwiązań akceptowanych przez obie strony tego sporu, choć z różnych powodów.',
+    'Poparcie dla obniżki składki zdrowotnej jest umiarkowane: 46,4 proc. za, 29,4 przeciw (SW Research, kwiecień 2025). Popularna liczba 72,8 proc. pochodzi z sondażu, który nie przeszedł weryfikacji, i nie wolno jej cytować.',
   ],
 
   badania: [
@@ -107,19 +132,40 @@ export const kwotaWolna: Temat = {
       pytanie:
         'Czy rząd powinien obniżyć składkę zdrowotną dla osób prowadzących jednoosobową działalność gospodarczą?',
       wyniki: [
-        { etykieta: 'Zdecydowanie tak', procent: 31.5, kluczowy: true },
-        { etykieta: 'Raczej tak', procent: 41.3, kluczowy: true },
+        { etykieta: 'Zdecydowanie tak', procent: 31.5 },
+        { etykieta: 'Raczej tak', procent: 41.3 },
         { etykieta: 'Raczej nie', procent: 7.4 },
         { etykieta: 'Zdecydowanie nie', procent: 4.7 },
         { etykieta: 'Nie mam zdania', procent: 15.1 },
       ],
       jakCzytac:
-        'Temat konkurencyjny wobec kwoty wolnej. Łącznie 72,8 proc. poparcia przy 12,1 proc. sprzeciwu. Pytanie nie zawiera kosztu, więc porównanie z 39,9 proc. dla kwoty wolnej jest poszlaką, nie dowodem przewagi.',
+        'SONDAŻ OBALONY. Nie przeszedł adwersaryjnej weryfikacji (2 z 3 głosów przeciw) w deep researchu z lipca 2026. Nie cytować publicznie w żadnej formie. Zweryfikowany pomiar poparcia dla obniżki składki to SW Research z kwietnia 2025: 46,4 proc. za.',
       zrodlo: {
         tytul: 'Sondaż: 72,8 proc. Polaków za obniżką składki zdrowotnej dla przedsiębiorców',
         url: 'https://www.rp.pl/polityka/art41506491-sondaz-duze-poparcie-dla-obnizki-skladki-zdrowotnej-dla-przedsiebiorcow',
         wydawca: 'Rzeczpospolita',
         data: '27 listopada 2024',
+      },
+    },
+    {
+      id: 'sw-skladka-2025',
+      instytut: 'SW Research',
+      zleceniodawca: 'Rzeczpospolita (rp.pl)',
+      termin: '23-24 kwietnia 2025',
+      proba: '800 ankiet, CAWI, panel',
+      pytanie: 'Czy rząd powinien obniżyć składkę zdrowotną dla przedsiębiorców?',
+      wyniki: [
+        { etykieta: 'Tak', procent: 46.4, kluczowy: true },
+        { etykieta: 'Nie', procent: 29.4 },
+        { etykieta: 'Nie mam zdania', procent: 24.2 },
+      ],
+      jakCzytac:
+        'Jedyny zweryfikowany pomiar poparcia dla obniżki składki (status 3-0, pewność średnia z uwagi na metodologię panelową). Poparcie umiarkowane, nie przytłaczające. Zastępuje obalony sondaż z wynikiem 72,8 proc. Link do pełnej publikacji do uzupełnienia, lista URL w materiałach deep researchu wskazanych w briefie 16.',
+      zrodlo: {
+        tytul: 'Sondaż SW Research dla rp.pl o obniżce składki zdrowotnej',
+        url: 'https://www.rp.pl',
+        wydawca: 'Rzeczpospolita',
+        data: 'kwiecień 2025',
       },
     },
     {
@@ -176,9 +222,9 @@ export const kwotaWolna: Temat = {
       funkcja: 'premier',
       ugrupowanie: 'Koalicja Obywatelska',
       stanowisko:
-        'Obietnica podtrzymana formalnie, odkładana od trzech lat. Uzasadnienia zmieniały się cztery razy.',
+        'Obietnica podtrzymana formalnie, odkładana od trzech lat. Uzasadnienia zmieniały się cztery razy. Ministrowie finansów przyznają brak przestrzeni fiskalnej, realizacja mało prawdopodobna nawet od 2027 r.',
       slabyPunkt:
-        'Termin „pierwsze 100 dni” padł publicznie z konkretną kwotą i adresatem. Minął w marcu 2024 r.',
+        'Termin „pierwsze 100 dni” padł publicznie z konkretną kwotą i adresatem. Minął w marcu 2024 r. Presję podbija koalicjant: Kosiniak-Kamysz 22.07.2026 deklaruje realizację jeszcze w tej kadencji i czeka na ofertę ministra finansów.',
       wypowiedzi: [
         {
           id: 'tusk-tarnow',
@@ -272,9 +318,9 @@ export const kwotaWolna: Temat = {
       funkcja: 'poseł, lider Nowej Nadziei',
       ugrupowanie: 'Konfederacja',
       stanowisko:
-        'Kwota wolna powiązana z płacą minimalną jako krok do uproszczenia i obniżenia podatków.',
+        'Kwota wolna powiązana z płacą minimalną jako krok do uproszczenia i obniżenia podatków. W 2024 r. postuluje niższą stałą składkę zdrowotną zamiast wcześniejszej likwidacji.',
       slabyPunkt:
-        'Odciął się od wadliwego projektu własnego klubu słowami, że go nie czytał i nie widział na oczy.',
+        'Odciął się od wadliwego projektu własnego klubu słowami, że go nie czytał. W głosowaniu 4.04.2025 nie poparł jedynej realnej obniżki składki zdrowotnej (Konfederacja: 0 za). Deklaracja toruńska podpisana na jego kanale betonuje system, na który narzeka.',
       wypowiedzi: [
         {
           id: 'mentzen-projekt',
@@ -314,8 +360,9 @@ export const kwotaWolna: Temat = {
       funkcja: 'wicemarszałek Sejmu',
       ugrupowanie: 'Konfederacja',
       stanowisko:
-        'Projekty ustaw jako test dla koalicji, nie jako realna próba uchwalenia przepisów.',
-      slabyPunkt: 'Powiedział wprost, że celem jest korzyść polityczna niezależnie od wyniku.',
+        'Projekty ustaw jako test dla koalicji, nie jako realna próba uchwalenia przepisów. Własna propozycja: bon zdrowotny z obowiązkowym zapisem i koszykiem gwarantowanym.',
+      slabyPunkt:
+        'Powiedział wprost, że celem jest korzyść polityczna niezależnie od wyniku. W głosowaniu 4.04.2025 nad obniżką składki wstrzymał się razem z klubem.',
       wypowiedzi: [
         {
           id: 'bosak-zyskamy',
@@ -409,7 +456,7 @@ export const kwotaWolna: Temat = {
       coDziala: [
         'Mechanizm zamiast kwoty: indeksacja do płacy minimalnej rozwiązuje problem zamrożenia na stałe.',
         'Cicha podwyżka podatków przez bezczynność: odsetek niepłacących PIT spadł z 43 do 33 proc. w dwa lata.',
-        'Składka zdrowotna jako temat wspólny, z twardszym poparciem (72,8 proc.) i wyraźnym adresatem.',
+        'Składka zdrowotna jako temat wspólny: po wecie wzrosła w 2026 r. o 37,3 proc., a Konfederacja w głosowaniu 4.04.2025 nie dała ani jednego głosu za obniżką. Kosztuje 10 razy mniej niż kwota wolna.',
       ],
       czegoUnikac: [
         'Ramy „pomoc najuboższym”. Ta grupa słyszy w niej redystrybucję.',
@@ -443,9 +490,13 @@ export const kwotaWolna: Temat = {
   ],
 
   luki: [
-    'Nie istnieje badanie stawiające kwotę wolną i składkę zdrowotną obok siebie w jednym pytaniu. Porównanie 72,8 do 39,9 proc. zestawia dwa różne pomiary o różnej konstrukcji.',
-    'Brak przekroju elektoratowego dla sondażu SW Research. Publikacje podają tylko płeć i wiek.',
-    'Brak wypowiedzi z 2026 r. Najnowszy zebrany cytat pochodzi z 30 lipca 2025.',
+    'Nie istnieje badanie stawiające kwotę wolną i składkę zdrowotną obok siebie w jednym pytaniu. Nie porównywać sondaży o różnej konstrukcji.',
+    'Sondaż IBRiS 72,8 proc. za obniżką składki nie przeszedł adwersaryjnej weryfikacji. W korpusie zostaje wyłącznie jako ostrzeżenie, nie do cytowania.',
+    'Wypowiedź Kosiniaka-Kamysza z 22.07.2026 i sondaż SW Research z kwietnia 2025 wymagają uzupełnienia pełnych przypisów URL. Listy źródeł w materiałach deep researchu wskazanych w briefie 16.',
+    'Wątek Petru vs Mentzen (debaty i konfrontacje 2024-2026) nie ma ani jednego zweryfikowanego ustalenia. Zweryfikować przed cytowaniem.',
+    'Trop Wprost o złamaniu deklaracji toruńskiej przez Nawrockiego jest niezweryfikowany. Nie używać bez sprawdzenia.',
+    'Brak sondaży z 2026 r., w tym preferencji kwota wolna wobec składki zadanej wprost.',
+    'Brak przekroju elektoratowego dla sondażu SW Research z września 2025. Publikacje podają tylko płeć i wiek.',
     'Playbooki komunikacyjne opierają się na danych CBOS o poglądach elektoratów, ale sam podział na trzy segmenty jest decyzją strategiczną, nie wynikiem badania.',
   ],
 };

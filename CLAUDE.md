@@ -138,6 +138,21 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
   sieroty po Trzeciej Drodze (mobilize), rozczarowani Koalicją Obywatelską (persuade).
   Boundaries: bez pogardy wobec wyborców tych formacji — to potencjalny elektorat.
 
+## Analizy niespójności (feature poza briefem, 2026-07-24)
+
+Kontrakt: `docs/kontrakt-analizy.md`. Edge Function `argus-analysis`: temat + cel
+(1-5 posłów albo klub → 5 najaktywniejszych) → porcjowane zbieranie wystąpień
+i głosowań z API Sejmu do tabel globalnych (`sejm_statements` z dedupem po hashu,
+`sejm_mp_votes`) → ustalenia z dosłownymi cytatami (walidowane w kodzie przeciw
+źródłom — niedosłowny cytat odrzuca ustalenie) i wagą 1-3. Dokumenty usera
+(PDF przez `npm:unpdf`, TXT, MD) → werdykty twierdzeń: potwierdzone / sprzeczne /
+brak danych. Wejście: karta na ekranie Dziś. Brak niespójności to poprawny wynik.
+
+**UWAGA, historia migracji rozjechana**: zdalna baza ma migracje z innych sesji
+(registry/mentions), których nie ma w tym repo — `supabase db push` odmawia.
+Migracja analiz nałożona przez Management API + wpis do `schema_migrations`.
+Do uporządkowania (`supabase db pull` w repo z kompletem migracji).
+
 ## Postęp (TASK 0–10 z briefu, sekcja 9)
 
 - [x] TASK 0 — szkielet: Expo + backend/supabase + Colors.ts + auth (ekrany gotowe; wymaga konfiguracji `.env` z kluczami Supabase)
