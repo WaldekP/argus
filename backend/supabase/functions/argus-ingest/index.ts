@@ -1,6 +1,7 @@
 // argus-ingest — ingest danych globalnych (cron / service only).
 // Operacje: sejm_sync (nowe glosowania globalne od ostatniego znanego
-// posiedzenia), registry_scan (zmiany w KRS dla obserwowanych podmiotow).
+// posiedzenia), registry_scan (zmiany w KRS dla obserwowanych podmiotow),
+// mentions_sync (wzmianki z Google News dla hasel wszystkich tenantow).
 // rss_sync i journalist_refresh dojda w pozniejszych taskach.
 //
 // Zabezpieczenie: wymaga naglowka `x-argus-cron: <CRON_SECRET>` ALBO tokena
@@ -11,6 +12,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/types.ts";
 import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
+import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -62,6 +64,24 @@ Deno.serve(async (req) => {
               .slice(0, 10);
         const result = await scanBulletin(supabase, day);
         return jsonResponse({ ok: true, data: result });
+      }
+      // Wzmianki z Google News dla hasel wszystkich tenantow. Jeden przebieg
+      // bierze najdawniej odswiezane hasla, wiec czestszy cron = swiezsze dane
+      // przy tej samej porcji pracy na wywolanie.
+      case "mentions_sync": {
+        const limit = typeof body?.limit === "number" && body.limit > 0
+          ? Math.min(Math.trunc(body.limit), MAX_TOPICS_PER_RUN)
+          : MAX_TOPICS_PER_RUN;
+        const results = await syncAllTenants(supabase, limit);
+        return jsonResponse({
+          ok: true,
+          data: {
+            topics: results.length,
+            inserted: results.reduce((sum, item) => sum + item.inserted, 0),
+            failed: results.filter((item) => item.error !== null).length,
+            results,
+          },
+        });
       }
       default:
         return jsonResponse(

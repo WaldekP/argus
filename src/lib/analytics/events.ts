@@ -23,4 +23,9 @@ export type AnalyticsEvent =
   /** Tematyczne bazy wiedzy: wejście w temat, sekcję i kartę polityka. */
   | 'topic_opened'
   | 'topic_section_viewed'
-  | 'topic_politician_viewed';
+  | 'topic_politician_viewed'
+  /** Wzmianki prasowe w briefie porannym: hasła, odświeżenie, wejście w artykuł. */
+  | 'watch_term_added'
+  | 'watch_term_removed'
+  | 'mentions_synced'
+  | 'mention_opened';

@@ -1,7 +1,8 @@
 // argus-onboarding — onboarding polityka (TASK 3, kontrakt docs/kontrakt-task-2-3.md).
-// Operacje: search_mp, import_sejm_data, get_status, interview_turn,
-// generate_style_profile, update_style_profile, finalize_style,
-// suggest_segments, finalize, debug_search (weryfikacja wyszukiwania wektorowego).
+// Operacje: search_mp, import_sejm_data, get_status, mp_details, list_statements,
+// get_statement, interview_turn, generate_style_profile, update_style_profile,
+// finalize_style, suggest_segments, finalize, debug_search (weryfikacja
+// wyszukiwania wektorowego).
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
@@ -551,6 +552,111 @@ async function opGetStatus(supabase: SupabaseClient, tenantId: string) {
   };
 }
 
+// Pelna karta posla z API Sejmu. Danych nie kopiujemy do bazy: sa publiczne,
+// zmieniaja sie (klub, wygasniecie mandatu) i zawsze maja byc aktualne.
+async function opMpDetails(supabase: SupabaseClient, tenantId: string) {
+  const profile = await requireProfile(supabase, tenantId);
+  const mpId = typeof profile.mp_id === "number" ? profile.mp_id : null;
+  if (mpId === null) {
+    throw new HttpError(400, "Profil nie ma powiazanego mandatu poselskiego");
+  }
+  const mp = await getMp(mpId);
+  if (!mp) {
+    throw new HttpError(404, "API Sejmu nie zna posla o tym identyfikatorze");
+  }
+  return {
+    mp: {
+      mp_id: mp.id,
+      full_name: mp.firstLastName,
+      first_name: mp.firstName ?? null,
+      second_name: mp.secondName ?? null,
+      last_name: mp.lastName ?? null,
+      active: mp.active,
+      inactive_cause: mp.inactiveCause ?? null,
+      waiver_desc: mp.waiverDesc ?? null,
+      club: mp.club ?? null,
+      district_name: mp.districtName ?? null,
+      district_num: mp.districtNum ?? null,
+      voivodeship: mp.voivodeship ?? null,
+      number_of_votes: mp.numberOfVotes ?? null,
+      profession: mp.profession ?? null,
+      education_level: mp.educationLevel ?? null,
+      birth_date: mp.birthDate ?? null,
+      birth_location: mp.birthLocation ?? null,
+      email: mp.email ?? null,
+    },
+  };
+}
+
+const STATEMENTS_PAGE_MAX = 50;
+const STATEMENT_EXCERPT_CHARS = 320;
+
+// Lista wystapien sejmowych tenanta (najnowsze pierwsze), z fragmentem tekstu.
+// Pelna tresc dociaga get_statement, zeby lista nie ciagnela megabajtow.
+async function opListStatements(
+  supabase: SupabaseClient,
+  tenantId: string,
+  body: { limit?: unknown; offset?: unknown },
+) {
+  const limit = Math.min(
+    Math.max(Number(body.limit) || 20, 1),
+    STATEMENTS_PAGE_MAX,
+  );
+  const offset = Math.max(Number(body.offset) || 0, 0);
+
+  const { data, error, count } = await supabase
+    .from("statements")
+    .select("id, date, url, text", { count: "exact" })
+    .eq("tenant_id", tenantId)
+    .eq("source", "sejm")
+    .order("date", { ascending: false })
+    .order("url", { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) throw new Error(`Odczyt wystapien: ${error.message}`);
+
+  const statements = (data ?? []).map((row) => {
+    const text = (row.text ?? "") as string;
+    return {
+      id: row.id as string,
+      date: row.date as string | null,
+      url: row.url as string | null,
+      excerpt: text.slice(0, STATEMENT_EXCERPT_CHARS),
+      /** Czy fragment jest urwany (UI pokazuje wtedy "Rozwin"). */
+      truncated: text.length > STATEMENT_EXCERPT_CHARS,
+      char_count: text.length,
+    };
+  });
+
+  return {
+    statements,
+    total: count ?? statements.length,
+    limit,
+    offset,
+    has_more: offset + statements.length < (count ?? 0),
+  };
+}
+
+// Pelna tresc jednego wystapienia. RLS pilnuje tenanta, filtr jest dodatkowy.
+async function opGetStatement(
+  supabase: SupabaseClient,
+  tenantId: string,
+  body: { id?: unknown },
+) {
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!id) {
+    throw new HttpError(400, "Brak identyfikatora wystapienia (id)");
+  }
+  const { data, error } = await supabase
+    .from("statements")
+    .select("id, date, url, text")
+    .eq("tenant_id", tenantId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(`Odczyt wystapienia: ${error.message}`);
+  if (!data) throw new HttpError(404, "Nie znaleziono wystapienia");
+  return { statement: data };
+}
+
 async function opInterviewTurn(
   supabase: SupabaseClient,
   tenantId: string,
@@ -900,6 +1006,21 @@ Deno.serve(async (req) => {
         return jsonResponse({
           ok: true,
           data: await opGetStatus(supabase, tenantId),
+        });
+      case "mp_details":
+        return jsonResponse({
+          ok: true,
+          data: await opMpDetails(supabase, tenantId),
+        });
+      case "list_statements":
+        return jsonResponse({
+          ok: true,
+          data: await opListStatements(supabase, tenantId, body),
+        });
+      case "get_statement":
+        return jsonResponse({
+          ok: true,
+          data: await opGetStatement(supabase, tenantId, body),
         });
       case "interview_turn":
         return jsonResponse({

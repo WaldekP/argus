@@ -51,6 +51,33 @@ od zera. Błąd pojedynczego kroku można bezpiecznie ponowić tym samym wywoła
 Req: `{ operation: "get_status" }`
 Res data: `{ has_profile: boolean, onboarding_status: "not_started"|"importing"|"interview"|"style"|"segments"|"done", profile: {...}|null, counts: { votes: number, statements: number } }`
 
+### `mp_details` — pełna karta posła z API Sejmu (ekran Profil)
+
+Req: `{ operation: "mp_details" }`
+Res data: `{ mp: { mp_id, full_name, first_name, second_name, last_name, active, inactive_cause, waiver_desc, club, district_name, district_num, voivodeship, number_of_votes, profession, education_level, birth_date, birth_location, email } }`
+Wszystkie pola poza `mp_id`, `full_name` i `active` mogą być `null`. `inactive_cause`
+i `waiver_desc` wypełnia API Sejmu tylko dla wygaszonych mandatów.
+Dane pobierane na żywo z `GET /sejm/term10/MP/{id}` przy każdym wywołaniu: klub
+i status mandatu zmieniają się w trakcie kadencji, więc nie kopiujemy ich do bazy.
+Błąd 400, gdy profil tenanta nie ma `mp_id` (polityk spoza Sejmu).
+
+Zdjęcie posła NIE jest częścią tej odpowiedzi. Klient składa adres sam
+(`src/lib/sejm-photo.ts`) z `mp_id`, bo API Sejmu odbija CORS dla dowolnego
+origin. Zdjęcie pokazujemy wyłącznie na karcie mandatu w zakładce Profil.
+
+### `list_statements` — lista wystąpień sejmowych
+
+Req: `{ operation: "list_statements", limit?: number (1-50, domyślnie 20), offset?: number }`
+Res data: `{ statements: [{ id, date, url, excerpt, truncated, char_count }], total, limit, offset, has_more }`
+Tylko wystąpienia tenanta ze źródła `sejm`, od najnowszych. `excerpt` to pierwsze
+320 znaków; pełną treść dociąga `get_statement`, żeby lista nie ciągnęła megabajtów.
+
+### `get_statement` — pełna treść wystąpienia
+
+Req: `{ operation: "get_statement", id: string }`
+Res data: `{ statement: { id, date, url, text } }`
+Błąd 404, gdy wystąpienie nie należy do tenanta albo nie istnieje.
+
 ### `interview_turn` — wywiad założycielski z AI
 
 Req: `{ operation: "interview_turn", answer?: string }` (bez `answer` = pierwsze pytanie / wznowienie)

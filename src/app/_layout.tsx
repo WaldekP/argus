@@ -82,6 +82,7 @@ export default function RootLayout() {
         <Stack.Screen name="spolka/[krs]" />
         <Stack.Screen name="content/new" />
         <Stack.Screen name="content/[id]" />
+        <Stack.Screen name="wystapienia" />
       </Stack>
     </ThemeProvider>
   );
