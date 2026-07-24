@@ -101,7 +101,11 @@ async function request<T>(
   }
 
   await logCall(ctx, path, response.status, durationMs, null);
-  if (paid) balanceCache = null; // saldo się zmieniło, wymuś ponowny odczyt
+  // Cache salda celowo NIE jest tu unieważniany. Odczyt salda jest darmowy, ale
+  // kosztuje rundę sieciową przed każdym płatnym wywołaniem, a przy pobieraniu
+  // sprawozdań dla dziesięciu spółek to podwaja czas operacji. Próg 5 zł działa
+  // jako bezpiecznik przed pętlą, nie jako księgowość, więc minuta opóźnienia
+  // w odczycie salda jest bez znaczenia.
   return JSON.parse(text) as T;
 }
 
