@@ -19,7 +19,6 @@ pytanie decyzyjne: jak Petru ma się wobec niego ustawić, skoro celuje w elekto
 | `kwota-wolna-12x` | Kwota wolna = 12× płaca minimalna | Przejąć mechanizm indeksacji, wypunktować wpadkę legislacyjną |
 | `pit-liniowy` | Likwidacja II progu, PIT liniowy 12% | Nie przejmować, przejąć hasło prostoty, atakować regresywność |
 | `podatek-belki` | Zwolnienie lokat i obligacji z podatku Belki | Wejść od strony oszczędzających, rozliczyć rząd z obietnicy |
-| `likwidacja-15-podatkow` | Likwidacja 15 podatków | Wybrać 2-3 dokuczliwe, nie kopiować hasła |
 | `dobrowolny-zus` | Dobrowolny ZUS dla przedsiębiorców | Nie popierać, przejąć problem bez pułapki emerytalnej |
 | `uproszczenia-przedsiebiorcy` | Uproszczenia podatkowe dla przedsiębiorców | Zająć najmocniej, Konfederacja ma hasło bez treści |
 
@@ -43,9 +42,9 @@ Konfederacji i wyłapywać jej niespójności.
    tylko 20 proc. (CBOS 43/2025). Radykalny program „likwidacji podatków i ZUS” wyprzedza poglądy
    własnej bazy poza samą stawką liniową. To najważniejszy wniosek dla całej strategii.
 2. **Postulaty różnią się bezpieczeństwem.** Od najbezpieczniejszego do najbardziej ryzykownego:
-   uproszczenia (konsensus 78 proc.) → podatek Belki (67,5 proc. za likwidacją) → likwidacja
-   15 podatków (tanie, ale hasłowe) → kwota wolna 12× (dobra idea, zła realizacja) → PIT liniowy
-   (mniejszościowy, kosztowny) → dobrowolny ZUS (0 z 25 ekonomistów za, ubóstwo emerytalne).
+   uproszczenia (konsensus 78 proc.) → podatek Belki (67,5 proc. za likwidacją) → kwota wolna 12×
+   (dobra idea, zła realizacja) → PIT liniowy (mniejszościowy, kosztowny) → dobrowolny ZUS
+   (0 z 25 ekonomistów za, ubóstwo emerytalne).
 3. **Cały pakiet jest niedopięty fiskalnie.** FOR szacuje koszt programu na ok. 182 mld zł,
    CenEA na ok. 86 mld zł ubytku rocznie. Ciężar leży w PIT liniowym (60,5 mld) i kwocie wolnej.
 
@@ -60,7 +59,7 @@ Konfederacji i wyłapywać jej niespójności.
 ## Pliki źródłowe
 
 - [01_kwota_wolna_12x_pit_liniowy.md](01_kwota_wolna_12x_pit_liniowy.md)
-- [02_podatek_belki_likwidacja_15.md](02_podatek_belki_likwidacja_15.md)
+- [02_podatek_belki.md](02_podatek_belki.md)
 - [03_dobrowolny_zus_uproszczenia.md](03_dobrowolny_zus_uproszczenia.md)
 - [04_cbos_i_sondaze.md](04_cbos_i_sondaze.md)
 - [05_cytaty_politykow.md](05_cytaty_politykow.md)
@@ -68,8 +67,6 @@ Konfederacji i wyłapywać jej niespójności.
 ## Luki całej bazy
 
 - Brak świeżego, reprezentatywnego sondażu ogółu wprost o dobrowolnym ZUS.
-- Pełna lista 15 podatków pochodzi z jednego źródła (inFakt), niezweryfikowana wobec oryginalnego
-  PDF programu Konfederacji.
 - Szacunki kosztów (FOR 182 mld, CenEA 86 mld) pochodzą z relacji medialnych, nie z odczytanych
   raportów pierwotnych.
 - Status legislacyjny projektów Konfederacji (skierowane do I czytania w komisjach) wymaga

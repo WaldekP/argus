@@ -1,4 +1,4 @@
-# 02. Podatek Belki i likwidacja 15 podatków
+# 02. Podatek Belki
 
 Stan na 24 lipca 2026. Materiał z deep researchu.
 
@@ -29,32 +29,16 @@ o ok. 1,5 mld wyższe niż prognozy rządowe.
 Seria niedotrzymanych terminów (100 dni, marzec 2025, kwiecień 2025). Domański: przepisy najwcześniej
 od 2026, w budżecie 2026 podatek pobierany na starych zasadach.
 
-## Likwidacja 15 podatków
+## Koszt całego pakietu (kontekst)
 
-### Lista (za inFakt, `[do weryfikacji]` wobec oryginalnego PDF)
-PCC od nieruchomości, podatek cukrowy, opłata zapasowa, opłata emisyjna, opłata mocowa, opłata
-przejściowa, opłata reprograficzna, opłata wodna, podatek tonażowy, podatek od spadków, podatek od
-środków transportowych, opłata targowa, opłata uzdrowiskowa, opłata miejscowa, podatek od psa.
+Zachowane jako tło dla pozostałych postulatów, bo dotyczy programu jako całości:
 
-Klub Jagielloński potwierdza istnienie postulatu, nie wymienia z nazwy. WP i Dziennik.pl wymieniają
-część. Pełną 15-punktową listę podaje tylko inFakt.
-
-### Waga fiskalna
-Brak danych zbiorczych — żadne źródło nie sumuje wpływów. W większości drobne daniny (targowa,
-uzdrowiskowa, od psa) lub zaszyte w cenach (mocowa, przejściowa). Likwidacja jest fiskalnie tania;
-ciężar kosztowy programu leży w PIT liniowym i kwocie wolnej. Część danin (targowa, uzdrowiskowa,
-miejscowa) to dochody samorządów.
-
-### Koszt całego pakietu
 - FOR: ok. 189 mld zł suma obietnic (PIT liniowy >60 mld, kwota wolna ~33 mld).
-- CenEA: ok. 86 mld zł ubytku rocznie (netto).
-Rozbieżność wynika z różnych metodologii `[do weryfikacji co do uzgodnienia]`.
-
-### Krytyka
-- Mentzen odrzuca wyliczenia FOR: „To zostało źle policzone, nie uwzględniło naszych propozycji
-  w ustawie o VAT”; jego bilans „wychodził mniej więcej na zero”.
-- Małgorzata Starczewska-Krzysztoszek (UW): program „pokazuje, że partia najwyraźniej niewiele
-  rozumie z gospodarki”.
+- CenEA: ok. 86 mld zł ubytku rocznie (netto). Rozbieżność wynika z różnych metodologii
+  `[do weryfikacji co do uzgodnienia]`.
+- Mentzen odrzuca wyliczenia FOR: „To zostało źle policzone”; jego bilans „wychodził mniej więcej
+  na zero”. Małgorzata Starczewska-Krzysztoszek (UW): program „pokazuje, że partia najwyraźniej
+  niewiele rozumie z gospodarki”.
 
 ## Sondaż o podatku Belki
 UCE Research/SYNO Poland, wrzesień 2022, CAWI, N=1034, reprezentatywna. Za likwidacją 67,5%,
@@ -70,8 +54,5 @@ Inwestorzy indywidualni (SII OBI 2025): wolą reformę niż likwidację `[do wer
 - stockwatch.pl (Domański: ograniczony nie zlikwidowany): https://www.stockwatch.pl/wiadomosci/minister-finansow-podatek-belki-zostanie-ograniczony-ale-nie-zlikwidowany,prawo-i-podatki,353816
 - bizblog spidersweb (kronika terminów): https://bizblog.spidersweb.pl/reforma-podatku-belki-tusk-obietnice
 - money.pl (sondaż 67,5%): https://www.money.pl/podatki/wiekszosc-polakow-chce-likwidacji-podatku-belki-6808075249351168a.html
-- inFakt (lista 15): https://www.infakt.pl/blog/wybory-2023-konfederacja/
-- Klub Jagielloński: https://klubjagiellonski.pl/2023/10/12/pigulka-programowa-konfederacja/
-- money.pl (FOR 189 mld, Mentzen): https://www.money.pl/gospodarka/kosztowne-propozycje-konfederacji-mentzen-odpowiada-6938315993262720a.html
+- money.pl (FOR 189 mld, Mentzen, kontekst pakietu): https://www.money.pl/gospodarka/kosztowne-propozycje-konfederacji-mentzen-odpowiada-6938315993262720a.html
 - rp.pl (Starczewska-Krzysztoszek, CenEA 86 mld): https://www.rp.pl/gospodarka/art39199101-program-konfederacji-wedlug-ekspertow-chyba-niewiele-rozumie-z-gospodarki
-- Program Konfederacji (PDF, nie sparsowany): https://konfederacja.pl/app/uploads/Konfederacja_WiN_Program_2023-1.pdf

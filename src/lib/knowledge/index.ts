@@ -12,7 +12,6 @@ import { kwotaWolna } from './topics/kwota-wolna';
 import { kwotaWolna12x } from './topics/kwota-wolna-12x';
 import { pitLiniowy } from './topics/pit-liniowy';
 import { podatekBelki } from './topics/podatek-belki';
-import { likwidacja15 } from './topics/likwidacja-15-podatkow';
 import { dobrowolnyZus } from './topics/dobrowolny-zus';
 import { uproszczenia } from './topics/uproszczenia-przedsiebiorcy';
 
@@ -25,7 +24,6 @@ export const tematy: Temat[] = [
   kwotaWolna12x,
   pitLiniowy,
   podatekBelki,
-  likwidacja15,
   dobrowolnyZus,
   uproszczenia,
 ];

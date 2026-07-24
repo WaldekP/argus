@@ -53,8 +53,8 @@ katalog z `README.md` (rola, mapa dokumentów, zasady pracy, audyt źródeł).
 
 - `docs/kwota-wolna/` — kwota wolna od podatku: finanse i budżet, sondaże, elektoraty,
   benchmarking CEE i UE, seria badań CBOS, cytaty Konfederacji, Tuska i Polski 2050.
-- `docs/konfederacja-podatki/` — program podatkowy Konfederacji 2023 (6 postulatów): kwota wolna
-  12×, PIT liniowy 12%, podatek Belki, likwidacja 15 podatków, dobrowolny ZUS, uproszczenia.
+- `docs/konfederacja-podatki/` — program podatkowy Konfederacji 2023 (5 postulatów): kwota wolna
+  12×, PIT liniowy 12%, podatek Belki, dobrowolny ZUS, uproszczenia dla przedsiębiorców.
   Rekomendacje dwuwarstwowe (co podchwycić / gdzie uderzyć).
 
 Zasada: przed odpowiedzią na pytanie merytoryczne z danego tematu przeszukaj korpus, nie
