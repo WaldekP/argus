@@ -199,6 +199,12 @@ export default function ContentDraftScreen() {
     try {
       await setDraftStatus(draft.id, status);
       setDraft((current) => (current ? { ...current, status } : current));
+      // Decyzja zapisana: wracamy do listy przekazów, tam widać nowy status.
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/content');
+      }
     } catch (saveError) {
       setStatusError(
         saveError instanceof Error ? saveError.message : 'Nie udało się zapisać decyzji.'

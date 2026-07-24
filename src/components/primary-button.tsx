@@ -24,6 +24,8 @@ export function PrimaryButton({
   const theme = useTheme();
   const isPrimary = variant === 'primary';
   const blocked = disabled || loading;
+  // Wyłączony przycisk musi wyraźnie różnić się od aktywnego (nie samo opacity).
+  const showDisabled = disabled && !loading;
 
   return (
     <Pressable
@@ -35,13 +37,18 @@ export function PrimaryButton({
         isPrimary
           ? { backgroundColor: theme.cta }
           : { backgroundColor: theme.backgroundElement, borderWidth: 1, borderColor: theme.border },
-        (pressed || blocked) && styles.dimmed,
+        showDisabled && {
+          backgroundColor: theme.backgroundSelected,
+          borderWidth: 1,
+          borderColor: theme.border,
+        },
+        (pressed || loading) && styles.dimmed,
       ]}>
       {loading ? (
         <ActivityIndicator color={isPrimary ? theme.onAccent : theme.text} />
       ) : (
         <ThemedText
-          themeColor={isPrimary ? 'onAccent' : 'text'}
+          themeColor={showDisabled ? 'textSecondary' : isPrimary ? 'onAccent' : 'text'}
           style={styles.label}>
           {title}
         </ThemedText>
