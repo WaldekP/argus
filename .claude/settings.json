@@ -76,7 +76,13 @@
       "Bash(python3 /private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/e2e.py none)",
       "Bash(python3 /private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/e2e.py finalize)",
       "Bash(grep -n \"const styleProfile = await model.invoke\\\\|const result = await model.invoke\\\\|await updateProfile\\(supabase, tenantId, { style_profile: styleProfile }\\)\\\\|return { segments: result.segments }\" /Users/waldemarpieniak/Documents/Programowanie/argus/argus_app/backend/supabase/functions/argus-onboarding/index.ts)",
-      "Bash(git commit -m 'TASK 2+3: ingest Sejmu z embeddingami i pełny onboarding *)"
+      "Bash(git commit -m 'TASK 2+3: ingest Sejmu z embeddingami i pełny onboarding *)",
+      "Bash(awk '{print $2, $10, $11, $12, $13}')",
+      "Bash(python3 /private/tmp/claude-501/-Users-waldemarpieniak-Documents-Programowanie-argus-argus-app/ee4b45da-515c-448a-9596-f92b0e95ac1c/scratchpad/e2e.py keys)",
+      "Bash(pkill -f 'expo start --offline --port 8123')",
+      "Bash(git commit -m 'Import Sejmu: do 3 prób pojedynczego kroku \\(wolne API transcripts\\) *)",
+      "Bash(echo \"LINT_EXIT=$?\")",
+      "Bash(git commit -m 'TASK 7: generator przekazu — argus-content, ekrany, strażnik spójności lite *)"
     ],
     "additionalDirectories": [
       "/Users/waldemarpieniak/Documents/Programowanie/argus/briefy"

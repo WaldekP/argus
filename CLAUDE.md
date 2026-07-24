@@ -129,8 +129,8 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 - [x] TASK 3 — onboarding (import, wywiad AI, profil stylu, segmenty). **Żaden krok onboardingu nie jest obowiązkowy** (decyzja usera 2026-07-23): każdy ekran ma link pominięcia, całość można pominąć z ekranu startowego (trwała flaga na urządzeniu, powrót z zakładki Profil). Odpowiedzi AI normalizowane po stronie klienta (`normalizeStyleProfile`, `normalizeSegment`). Prompty: źródło w `.md`, ale bundlowane jako moduł TS (`_shared/prompts/index.ts`) — deploy nie pakuje luźnych plików.
 - [ ] TASK 4 — seed bazy mediów + ekrany media/journalist/outlet
 - [ ] TASK 5 — brief przedwywiadowy (pipeline + ekrany + push)
-- [ ] TASK 6 — strażnik spójności
-- [ ] TASK 7 — generator przekazu + segmenty
+- [ ] TASK 6 — strażnik spójności (pełny; wersja lite działa w generatorze przekazu)
+- [x] TASK 7 — generator przekazu (wyciągnięty przed TASK 4-6 na życzenie usera). Edge Function `argus-content` (kontrakt: `docs/kontrakt-task-7.md`): draft → porcjowana generacja wariantów per segment × kanał (Sonnet, styl + wartości z profilu; max 2 warianty na wywołanie), na końcu kontrola spójności lite (embedding tematu → `match_statements` → Haiku ocenia sprzeczności → `consistency_alerts`). Limity kanałów: X twardo ≤ 280 znaków, reszta promptem. Ekrany: lista draftów, formularz (segmenty opcjonalne — tryb ogólny), widok wariantów z kopiowaniem i regeneracją. Segmenty z danych PKW/GUS — nadal otwarte (obecnie suggest AI z onboardingu)
 - [ ] TASK 8 — tryb ćwiczenia
 - [ ] TASK 9 — brief poranny lite
 - [ ] TASK 10 — polish (states, PostHog komplet, eksport/usunięcie, E2E)
