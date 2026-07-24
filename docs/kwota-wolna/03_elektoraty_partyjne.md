@@ -57,7 +57,22 @@ obniżania podatków”
 
 ### Prawo i Sprawiedliwość
 
-Popiera podniesienie i traktuje temat jako narzędzie rozliczania KO ze słowa. W debacie
+Autor podwyżki do 30 tys. zł w Polskim Ładzie, dziś rozlicza KO z niezrealizowanej obietnicy
+60 tys. Mateusz Morawiecki prezentował swoją reformę jako „prawdziwą rewolucję podatkową dla
+18 mln Polaków”
+([Wprost Biznes](https://biznes.wprost.pl/finanse-i-inwestycje/podatki/10447575/polski-lad-kwota-wolna-od-podatku-do-30-tys-zl.html)),
+a 4 lipca 2022 r. w TVP Info mówił: „Wprowadziliśmy najwyższą kwotę wolną od podatku”.
+
+Redakcja Konkret24 wykazała, że to nieprawda: według prezentacji Ministerstwa Finansów z 2021 r.
+Polska była 13. wśród 24 krajów europejskich stosujących kwotę wolną; wyżej były między innymi
+Cypr (19 500 EUR), Finlandia (18 600 EUR) i Hiszpania (12 450 EUR). Dr Sławomir Dudek z FOR
+komentował, że kwota wolna stała się w Polsce „politycznym fetyszem”
+([Konkret24, 13 VII 2022](https://konkret24.tvn24.pl/polityka/morawiecki-kwota-wolna-od-podatku-najwyzsza-w-europie-eksperci-tlumacza-trick-marketingowy-ra1111523-ls5791478)).
+
+To najlepiej udokumentowany przykład na to, że wszystkie strony sporu operują tą liczbą
+marketingowo. Przydatny, gdy trzeba wyjść poza licytację na wysokość kwoty.
+
+W bieżącej kadencji PiS popiera podniesienie i traktuje temat jako narzędzie rozliczania KO ze słowa. W debacie
 9 maja 2024 r. Zbigniew Kuźmiuk przyznał jednak wprost: „To rozsadza system finansów publicznych”,
 argumentując, że skoro Tusk to obiecywał, rząd powinien znać koszty.
 
