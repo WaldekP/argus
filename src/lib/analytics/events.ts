@@ -31,4 +31,9 @@ export type AnalyticsEvent =
   | 'topic_created'
   | 'topic_viewed'
   | 'topic_document_added'
-  | 'topic_question_asked';
+  | 'topic_question_asked'
+  /** Wzmianki prasowe w briefie porannym: hasła, odświeżenie, wejście w artykuł. */
+  | 'watch_term_added'
+  | 'watch_term_removed'
+  | 'mentions_synced'
+  | 'mention_opened';

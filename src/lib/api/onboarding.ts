@@ -34,6 +34,46 @@ export type PoliticianProfile = Record<string, unknown> & {
   style_profile?: StyleProfile | null;
 };
 
+/** Dane mandatu wyciągnięte z luźnego profilu, gotowe do pokazania w UI. */
+export type MpIdentity = {
+  /** Identyfikator w API Sejmu albo null dla polityka spoza Sejmu. */
+  mp_id: number | null;
+  full_name: string;
+  club: string | null;
+  district_name: string | null;
+  district_num: number | null;
+  voivodeship: string | null;
+};
+
+/**
+ * Odczyt danych mandatu z profilu. Backend trzyma okręg w polu `district`
+ * (jsonb), więc UI nie powinno sięgać po surowe klucze w wielu miejscach.
+ * Zwraca null, gdy profilu nie ma albo nie zna nawet nazwiska.
+ */
+export function readMpIdentity(profile: PoliticianProfile | null): MpIdentity | null {
+  if (!profile) {
+    return null;
+  }
+  const fullName = typeof profile.full_name === 'string' ? profile.full_name.trim() : '';
+  if (!fullName) {
+    return null;
+  }
+  const district = (profile.district ?? {}) as Record<string, unknown>;
+  const asText = (value: unknown): string | null =>
+    typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+  const asNumber = (value: unknown): number | null =>
+    typeof value === 'number' && Number.isFinite(value) ? value : null;
+
+  return {
+    mp_id: asNumber(profile.mp_id),
+    full_name: fullName,
+    club: asText(district.club),
+    district_name: asText(district.name),
+    district_num: asNumber(district.num),
+    voivodeship: asText(district.voivodeship),
+  };
+}
+
 /** Liczby zaimportowanych rekordów (operation: import_sejm_data). */
 export type ImportCounts = {
   votings: number;
@@ -118,10 +158,64 @@ export type Segment = {
   };
 };
 
+/** Pełna karta posła z API Sejmu (operation: mp_details). */
+export type MpDetails = {
+  mp_id: number;
+  full_name: string;
+  first_name: string | null;
+  second_name: string | null;
+  last_name: string | null;
+  active: boolean;
+  /** Powód wygaszenia mandatu, tylko gdy active jest false. */
+  inactive_cause: string | null;
+  waiver_desc: string | null;
+  club: string | null;
+  district_name: string | null;
+  district_num: number | null;
+  voivodeship: string | null;
+  /** Liczba głosów oddanych na posła w wyborach. */
+  number_of_votes: number | null;
+  profession: string | null;
+  education_level: string | null;
+  birth_date: string | null;
+  birth_location: string | null;
+  email: string | null;
+};
+
+/** Wystąpienie sejmowe na liście (operation: list_statements). */
+export type StatementListItem = {
+  id: string;
+  date: string | null;
+  /** Adres stenogramu w API Sejmu. */
+  url: string | null;
+  excerpt: string;
+  truncated: boolean;
+  char_count: number;
+};
+
+export type StatementsPage = {
+  statements: StatementListItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+};
+
+/** Pełna treść wystąpienia (operation: get_statement). */
+export type StatementFull = {
+  id: string;
+  date: string | null;
+  url: string | null;
+  text: string;
+};
+
 type OnboardingOperation =
   | 'search_mp'
   | 'import_sejm_data'
   | 'get_status'
+  | 'mp_details'
+  | 'list_statements'
+  | 'get_statement'
   | 'interview_turn'
   | 'generate_style_profile'
   | 'update_style_profile'
@@ -255,6 +349,32 @@ export async function runSejmImport(
 /** Stan onboardingu, profil i liczniki danych. */
 export function getStatus(): Promise<StatusResult> {
   return callOnboarding<StatusResult>('get_status');
+}
+
+/**
+ * Pełna karta posła prosto z API Sejmu. Danych nie trzymamy w bazie, bo klub
+ * i status mandatu zmieniają się w trakcie kadencji.
+ */
+export async function getMpDetails(): Promise<MpDetails> {
+  const data = await callOnboarding<{ mp: MpDetails }>('mp_details');
+  return data.mp;
+}
+
+/** Strona listy wystąpień sejmowych, od najnowszych. */
+export function listStatements(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<StatementsPage> {
+  return callOnboarding<StatementsPage>('list_statements', {
+    limit: params?.limit,
+    offset: params?.offset,
+  });
+}
+
+/** Pełna treść jednego wystąpienia. */
+export async function getStatement(id: string): Promise<StatementFull> {
+  const data = await callOnboarding<{ statement: StatementFull }>('get_statement', { id });
+  return data.statement;
 }
 
 /** Krok wywiadu. Bez `answer` zwraca pierwsze pytanie lub wznawia wywiad. */

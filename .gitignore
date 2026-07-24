@@ -51,3 +51,9 @@ example
 
 # Local Netlify folder
 .netlify
+
+# Zrzuty robocze z portalu otwartych danych (rozpoznanie zrodel).
+# Material pomocniczy, nie kod. senat.xml to prawie 6 MB, nie ma po co
+# trzymac tego w historii repo.
+ds.json
+senat.xml

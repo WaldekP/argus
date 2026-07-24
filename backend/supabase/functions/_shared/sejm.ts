@@ -22,6 +22,9 @@ export interface SejmMp {
   id: number;
   firstLastName: string;
   lastFirstName: string;
+  firstName?: string;
+  secondName?: string;
+  lastName?: string;
   club?: string;
   districtName?: string;
   districtNum?: number;
@@ -31,6 +34,17 @@ export interface SejmMp {
   // Data urodzenia (RRRR-MM-DD). Rozstrzyga dopasowanie posla do osoby z KRS,
   // ktora Rejestr.io zwraca z ta sama dana.
   birthDate?: string;
+  birthLocation?: string;
+  educationLevel?: string;
+  email?: string;
+  // Liczba glosow oddanych na posla w wyborach.
+  numberOfVotes?: number;
+  // Odmiana imienia i nazwiska (przydatna w generatorze przekazu).
+  accusativeName?: string;
+  genitiveName?: string;
+  // Wypelnione tylko dla wygaszonych mandatow (active=false).
+  inactiveCause?: string;
+  waiverDesc?: string;
 }
 
 export interface MpSearchResult {

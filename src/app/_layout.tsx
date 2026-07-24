@@ -87,6 +87,7 @@ export default function RootLayout() {
         <Stack.Screen name="analysis/[id]" />
         <Stack.Screen name="topics/new" />
         <Stack.Screen name="topics/[id]" />
+        <Stack.Screen name="wystapienia" />
       </Stack>
     </ThemeProvider>
   );
