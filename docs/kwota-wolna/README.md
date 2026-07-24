@@ -92,8 +92,10 @@ Materiał nadający się na krótką formę, uszeregowany od najmocniejszego:
 6. **Zamrożona kwota wolna to cicha podwyżka podatków.** Odsetek niepłacących PIT spadł z 43 do
    33 proc. w dwa lata; Brytyjczycy mają na to nazwę: fiscal drag
    ([01](01_finanse_i_budzet.md) punkt 4, [04](04_benchmarking_cee_ue.md)).
-5. **Cytat Bosaka „cokolwiek się nie stanie, zyskamy”** przy sporze o intencje wnioskodawców
+7. **Cytat Bosaka „cokolwiek się nie stanie, zyskamy”** przy sporze o intencje wnioskodawców
    ([06](06_konfederacja_nowa_nadzieja.md) punkt 3).
+8. **Morawiecki: „Wprowadziliśmy najwyższą kwotę wolną od podatku”**, a według danych własnego
+   ministerstwa Polska była 13. na 24 kraje ([03](03_elektoraty_partyjne.md), sekcja PiS).
 
 Twarde zasady dla treści publikowanych:
 
@@ -153,7 +155,7 @@ Znaczników `[do weryfikacji]` jest obecnie piętnaście: pięć w pliku 01, po 
 po jednym w plikach 04, 06 i 07, trzy w pliku 08. Żaden z nich nie nadaje się do cytowania
 publicznie bez dotarcia do źródła pierwotnego.
 
-Baza liczy 87 unikalnych źródeł.
+Baza liczy 90 unikalnych źródeł.
 
 ## Luki całej bazy
 

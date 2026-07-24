@@ -28,6 +28,9 @@ export interface SejmMp {
   voivodeship?: string;
   active: boolean;
   profession?: string;
+  // Data urodzenia (RRRR-MM-DD). Rozstrzyga dopasowanie posla do osoby z KRS,
+  // ktora Rejestr.io zwraca z ta sama dana.
+  birthDate?: string;
 }
 
 export interface MpSearchResult {
@@ -107,7 +110,7 @@ async function fetchHtml(path: string): Promise<string | null> {
 
 let mpListCache: SejmMp[] | null = null;
 
-async function getMpList(): Promise<SejmMp[]> {
+export async function getMpList(): Promise<SejmMp[]> {
   if (!mpListCache) {
     const list = await fetchJson<SejmMp[]>("/MP");
     mpListCache = list ?? [];

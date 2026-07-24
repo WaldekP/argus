@@ -75,6 +75,38 @@ Przekroje:
 5. Pytanie dotyczy „priorytetu rządu”, a nie samej kwoty 60 tys. zł. Nie podpisuj tych 39,9 proc.
    pod tezą o poparciu dla konkretnej kwoty.
 
+### Temat konkurencyjny: składka zdrowotna (IBRiS 2024)
+
+Ten sam wyborca ma do wyboru kilka obniżek obciążeń. Kwota wolna nie konkuruje z niczym w próżni.
+
+| Parametr | Wartość |
+| --- | --- |
+| Instytut | IBRiS |
+| Zleceniodawca | Rzeczpospolita |
+| Publikacja | 27 listopada 2024 r. |
+| Próba | nie podano w publikacji |
+
+Pytanie: czy rząd powinien obniżyć składkę zdrowotną dla osób prowadzących jednoosobową
+działalność gospodarczą?
+
+| Odpowiedź | Odsetek |
+| --- | --- |
+| Zdecydowanie tak | 31,5 proc. |
+| Raczej tak | 41,3 proc. |
+| Raczej nie | 7,4 proc. |
+| Zdecydowanie nie | 4,7 proc. |
+| Nie mam zdania | 15,1 proc. |
+
+Łącznie 72,8 proc. poparcia przy 12,1 proc. sprzeciwu.
+
+Źródło: [Rzeczpospolita, 27 XI 2024](https://www.rp.pl/polityka/art41506491-sondaz-duze-poparcie-dla-obnizki-skladki-zdrowotnej-dla-przedsiebiorcow).
+
+**Jak tego nie nadużyć.** Zestawienie 72,8 proc. dla składki z 39,9 proc. dla kwoty wolnej to
+porównanie dwóch różnych badań, dwóch instytutów i dwóch konstrukcji pytania: pytanie o składkę
+nie zawiera kosztu, pytanie o kwotę wolną zawiera. Kierunek jest wyraźny, ale to poszlaka, nie
+dowód przewagi. Badania stawiającego oba tematy obok siebie w jednym pytaniu nie ma i to jest
+najważniejsza rzecz, którą warto zamówić.
+
 ### CBOS: podniesienie do 30 tys. zł, przed reformą i po niej
 
 Dwa najważniejsze pomiary omówione są szczegółowo w pliku
@@ -175,6 +207,9 @@ Przekrój, który warto mieć w głowie przed wywiadem:
   z września 2025 r. (punkt 1). Nadal brakuje wersji z konkretną kwotą kosztu w pytaniu
   („jeśli kosztuje to 56 mld zł rocznie”) zamiast ogólnego „kosztem deficytu”.
 - Brak przekroju elektoratowego dla sondażu SW Research. Publikacje podają tylko płeć i wiek.
+- Brak badania stawiającego kwotę wolną, składkę zdrowotną i drugi próg podatkowy obok siebie
+  w jednym pytaniu, z wymuszonym wyborem priorytetu. To jedyny sposób, żeby rozstrzygnąć,
+  który temat opłaca się prowadzić. Rekomendacja: zamówić własne.
 - Brak danych o rozpoznawalności samego pojęcia kwoty wolnej i o tym, ile osób poprawnie szacuje
   własną korzyść. Wcześniejsze badania pokazywały niską świadomość podatkową (21 proc. Polaków
   uważało, że nie płaci żadnych podatków), ale źródło jest stare i nie zostało zweryfikowane.

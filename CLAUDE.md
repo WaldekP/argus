@@ -67,7 +67,11 @@ odpowiadaj z pamięci modelu. Liczby oznaczone `[do weryfikacji]` nie nadają si
 
 ## Edge Functions — konwencja
 
-Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+
+### Rejestr sądowy (KRS)
+
+Kontrakt: `docs/kontrakt-rejestr-krs.md`. Dwa źródła rozdzielone kosztem: otwarte API Ministerstwa Sprawiedliwości (darmowe, wykrywa zmiany, ale maskuje dane osób fizycznych) i Rejestr.io (płatne z salda w PLN, daje nazwiska i sieć powiązań). Klucz: sekret `REJESTRIO_API_KEY`, nigdy na kliencie. Zasada nadrzędna: tożsamość osoby potwierdza człowiek, bo wyszukiwanie po nazwisku zwraca imienników bez pola rozróżniającego.
 
 ### Zasady promptów
 
@@ -145,7 +149,7 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 - [ ] TASK 6 — strażnik spójności (pełny; wersja lite działa w generatorze przekazu)
 - [x] TASK 7 — generator przekazu (wyciągnięty przed TASK 4-6 na życzenie usera). Edge Function `argus-content` (kontrakt: `docs/kontrakt-task-7.md`): draft → porcjowana generacja wariantów per segment × kanał (Sonnet, styl + wartości z profilu; max 2 warianty na wywołanie), na końcu kontrola spójności lite (embedding tematu → `match_statements` → Haiku ocenia sprzeczności → `consistency_alerts`). Limity kanałów: X twardo ≤ 280 znaków, reszta promptem. Ekrany: lista draftów, formularz (segmenty opcjonalne — tryb ogólny), widok wariantów z kopiowaniem i regeneracją. Segmenty z danych PKW/GUS — nadal otwarte (obecnie suggest AI z onboardingu)
 - [ ] TASK 8 — tryb ćwiczenia
-- [ ] TASK 9 — brief poranny lite
+- [ ] TASK 9 — brief poranny lite. Częściowo: wzmianki prasowe z **Bing News RSS** (darmowe, bez klucza; Google News zapasowo, bo odpowiada 503 na ruch z centrów danych) pod hasła tenanta, ekrany `brief-poranny/` w zakładce Dziś. Płatny monitoring mediów (Brand24 i podobne) świadomie odrzucony, uzasadnienie w `docs/kontrakt-wzmianki.md`. Klasyfikacja tonu przez Haiku odłożona, kolumny w bazie czekają puste.
 - [ ] TASK 10 — polish (states, PostHog komplet, eksport/usunięcie, E2E)
 
 ## Definition of Done MVP

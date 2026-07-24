@@ -1,6 +1,7 @@
 // argus-ingest — ingest danych globalnych (cron / service only).
 // Operacje: sejm_sync (nowe glosowania globalne od ostatniego znanego
-// posiedzenia). rss_sync i journalist_refresh dojda w pozniejszych taskach.
+// posiedzenia), registry_scan (zmiany w KRS dla obserwowanych podmiotow).
+// rss_sync i journalist_refresh dojda w pozniejszych taskach.
 //
 // Zabezpieczenie: wymaga naglowka `x-argus-cron: <CRON_SECRET>` ALBO tokena
 // service_role w Authorization. Zwykly user dostaje 403.
@@ -9,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse } from "../_shared/types.ts";
 import { syncSejmVotings } from "../_shared/sejm.ts";
+import { scanBulletin } from "../_shared/registry.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -46,6 +48,19 @@ Deno.serve(async (req) => {
     switch (operation) {
       case "sejm_sync": {
         const result = await syncSejmVotings(supabase);
+        return jsonResponse({ ok: true, data: result });
+      }
+      // Darmowe wykrywanie zmian w KRS: biuletyn dzienny otwartego API MS
+      // porownany z lista obserwowanych podmiotow. Zero kosztu w Rejestr.io.
+      // Domyslnie wczoraj, bo biuletyn za biezacy dzien jest niepelny.
+      case "registry_scan": {
+        const day =
+          typeof body?.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.day)
+            ? body.day
+            : new Date(Date.now() - 24 * 60 * 60 * 1000)
+              .toISOString()
+              .slice(0, 10);
+        const result = await scanBulletin(supabase, day);
         return jsonResponse({ ok: true, data: result });
       }
       default:

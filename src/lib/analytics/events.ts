@@ -22,4 +22,8 @@ export type AnalyticsEvent =
   | 'media_searched'
   | 'analysis_created'
   | 'analysis_viewed'
-  | 'analysis_document_added';
+  | 'analysis_document_added'
+  /** Tematyczne bazy wiedzy: wejście w temat, sekcję i kartę polityka. */
+  | 'topic_opened'
+  | 'topic_section_viewed'
+  | 'topic_politician_viewed';
