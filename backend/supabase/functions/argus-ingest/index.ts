@@ -13,6 +13,7 @@ import { jsonResponse } from "../_shared/types.ts";
 import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
+import { refreshOnet } from "../_shared/media/refresh.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -82,6 +83,19 @@ Deno.serve(async (req) => {
             results,
           },
         });
+      }
+      // Odswiezenie bazy dziennikarzy ze stron autorow (na razie Onet).
+      // Porcjowane przez maxAuthors, bo crawl chodzi po wielu stronach.
+      case "journalist_refresh": {
+        const maxAuthors =
+          typeof body?.maxAuthors === "number" && body.maxAuthors > 0
+            ? Math.min(Math.trunc(body.maxAuthors), 200)
+            : 60;
+        const sections = Array.isArray(body?.sections)
+          ? body.sections.filter((s: unknown) => typeof s === "string")
+          : undefined;
+        const result = await refreshOnet(supabase, { sections, maxAuthors });
+        return jsonResponse({ ok: true, data: result });
       }
       default:
         return jsonResponse(
