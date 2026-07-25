@@ -46,7 +46,8 @@ Uzasadnienie Mentzena: drugi próg 32% i tak jest omijany (najbogatsi przechodz�
 z działalności lub ryczałt), więc jego likwidacja porządkuje system.
 
 ### Koszt
-- FOR: ok. 60,5 mld zł (sam liniowy PIT 12%). Cały program Konfederacji wg FOR: 182,1 mld zł
+- FOR: ok. 60,5 mld zł (sam liniowy PIT 12%). Cały program Konfederacji wg relacji TVN24
+  z analizy FOR: 182,1 mld zł (money.pl podaje 189 mld; rozbieżność `[do weryfikacji]`)
   (liniowy PIT 60,5 mld + kwota wolna 33 mld + nowe stawki VAT 47 mld).
 - Punkt odniesienia: obniżka pierwszej stawki z 17% do 12% (Polski Ład 2.0, VII 2022) kosztowała
   ok. 15 mld zł rocznie, ale dotyczyła tylko pierwszego progu.

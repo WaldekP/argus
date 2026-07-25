@@ -27,9 +27,10 @@ export const podatekBelki: Temat = {
       'Porównanie z zagranicą daje mocną amunicję: Niemcy, Wielka Brytania, Francja i USA chronią drobnego ciułacza prostą kwotą wolną albo kontem preferencyjnym.',
     ],
     ryzyko: [
+      'Sejm przyjął OKI niemal jednomyślnie (427 za, 5 przeciw), więc frontalny atak na ustawę uderza także we własne zaplecze polityczne większości ugrupowań. Bezpieczna jest krytyka konstrukcji limitów, nie samej ustawy.',
+      'Ustawa jest dopiero w Senacie. Data 1 stycznia 2027 i szczegóły mogą się jeszcze zmienić, więc każdą wypowiedź trzeba osadzić w aktualnym stanie procesu legislacyjnego.',
       'Pełne zwolnienie lokat i obligacji bez limitu (wersja Konfederacji) premiuje też najzamożniejszych. Sami inwestorzy indywidualni wolą reformę niż całkowitą likwidację.',
-      'To rekordowe źródło dochodu (10,6 mld zł w 2024). Obietnica dalszych zwolnień bez wskazania, skąd wziąć pieniądze, jest łatwa do skontrowania.',
-      'Rząd już działa, więc licytowanie się na „szybciej i więcej” może brzmieć jak spóźniona konkurencja.',
+      'To rekordowe źródło dochodu (10,6 mld zł w 2024). Postulat wyrównania limitów do 100 tys. zł nie ma policzonego kosztu.',
     ],
     podchwycic: [
       'Rama „podatek od oszczędzania”: przy oprocentowaniu niższym od inflacji to de facto podatek od realnej straty. Trafia do zwykłego posiadacza lokaty, nie do inwestora.',
@@ -65,8 +66,8 @@ export const podatekBelki: Temat = {
       doPublikacji: true,
     },
     {
-      wartosc: '1 stycznia 2027',
-      opis: 'Wejście w życie ustawy o OKI, uchwalonej przez Sejm 3 lipca 2026.',
+      wartosc: '427 : 5',
+      opis: 'Głosowanie nad ustawą o OKI w Sejmie 3 lipca 2026. Niemal jednomyślne. Ustawa jest w Senacie; planowane wejście to 1 stycznia 2027.',
       doPublikacji: true,
     },
   ],
@@ -266,6 +267,8 @@ export const podatekBelki: Temat = {
   luki: [
     'Brak trzeciego reprezentatywnego sondażu ogólnopolskiego o podatku Belki z pełną metodologią. Nie podawać liczb z pamięci.',
     'Dokładna data i próba badania UCE Research do potwierdzenia u źródła (w obiegu jako 2022, cytowane też w 2024).',
+    'Dwie różne edycje badania SII: OBI 2024 (54 proc. wskazań Belki jako bariery, pełna metodologia) i OBI 2025 (inwestorzy wolą reformę niż likwidację; strona blokuje pobranie, dokładne odsetki nieznane). Nie mieszać edycji.',
+    'Postulat wyrównania limitów OKI do 100 tys. zł dla oszczędności nie ma policzonego kosztu dla budżetu.',
     'Dane MF o wpływach pochodzą ze źródeł wtórnych; do publikacji sięgnąć do komunikatów Ministerstwa Finansów.',
     'Doniesienia o poparciu prezydenta Nawrockiego dla likwidacji podatku Belki pochodzą ze źródła publicystycznego, do weryfikacji.',
   ],

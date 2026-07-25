@@ -45,8 +45,9 @@ Konfederacji i wyłapywać jej niespójności.
    uproszczenia (konsensus 78 proc.) → podatek Belki (67,5 proc. za likwidacją) → kwota wolna 12×
    (dobra idea, zła realizacja) → PIT liniowy (mniejszościowy, kosztowny) → dobrowolny ZUS
    (0 z 25 ekonomistów za, ubóstwo emerytalne).
-3. **Cały pakiet jest niedopięty fiskalnie.** FOR szacuje koszt programu na ok. 182 mld zł,
-   CenEA na ok. 86 mld zł ubytku rocznie. Ciężar leży w PIT liniowym (60,5 mld) i kwocie wolnej.
+3. **Cały pakiet jest niedopięty fiskalnie.** Relacje z analiz FOR podają koszt programu w widełkach
+   182-189 mld zł (TVN24: 182,1; money.pl: 189), CenEA ok. 86 mld zł ubytku rocznie. Ciężar leży
+   w PIT liniowym (60,5 mld) i kwocie wolnej.
 
 ## Zasady pracy z bazą wiedzy
 
@@ -64,10 +65,34 @@ Konfederacji i wyłapywać jej niespójności.
 - [04_cbos_i_sondaze.md](04_cbos_i_sondaze.md)
 - [05_cytaty_politykow.md](05_cytaty_politykow.md)
 
+## Audyt źródeł i wniosków (25 lipca 2026)
+
+Pełny przegląd: weryfikacja twierdzeń nośnych u źródeł, spójność między modułami a korpusem,
+ocena zasadności rekomendacji. Wyniki:
+
+| Ustalenie | Status po audycie |
+| --- | --- |
+| Ustawa o OKI (3 VII 2026, limity 100/25 tys.) | **Potwierdzona w 6+ redakcjach.** Korekta: głosowanie 427:5, ustawa w Senacie, data 1 I 2027 warunkowa. Rekomendacja o Belce uzupełniona o ryzyko ataku na niemal jednomyślną ustawę |
+| Koszt programu Konfederacji wg FOR | **Rozbieżność relacji:** 182,1 mld (TVN24) vs 189 mld (money.pl); jednej oficjalnej kwoty nie potwierdzono. Prezentować jako widełki `[do weryfikacji]` |
+| Trend CBOS progresja/liniowy | **Dwie różne serie pomiarowe** (binarna 1998-2016: 77/17, 66/24; skala 7-pkt od 1997: 72/18, 65/25). Kierunek zgodny, liczb nie mieszać. Ostrzeżenie dopisane do kwota-wolna/05 |
+| Atrybucja 51/35 proc. | Skorygowana z „CBOS 2023” na „CBOS 2025” (w 2023 było 50/35) |
+| Dotacja budżetu do FUS 2024 | Uzgodniona: 65 mld = wykonanie, 72,7 mld = plan ustawy budżetowej. Oba opisane |
+| „5 krajów regionu” przy liniowym PIT | Doprecyzowane: 4 kraje regionu (SK, LV, LT, CZ) oraz Rosja |
+| Wycofanie się Słowacji z liniowego (2013) | Potwierdzone (LSE); rdzeń argumentu przeciw liniowemu stoi |
+| Dobrowolny ZUS bez odpowiednika w krajach rozwiniętych | Potwierdzone wielostronnie (OECD PaG, IRS, modele DE/NL); Niemcy i Holandia rozszerzają obowiązek |
+| Estonia 50h vs Polska 334h | Kierunkowo pewne; wartość 334h wymaga podawania z rokiem (metodologia Paying Taxes wygaszona po 2020) |
+| Sondaże SII | Dwie edycje rozdzielone: OBI 2024 (54 proc., pełna metodologia) vs OBI 2025 (strona 403, odsetki nieznane) |
+
+Ograniczenie transparentności: pola `liczbaZrodel` w modułach (28-54) liczą bibliografie zebrane
+przez agentów badawczych; w repo zmaterializowany jest wybór najmocniejszych źródeł (pliki 01-06),
+a pełne listy pozostają w transkryptach sesji badawczej. Przy cytowaniu liczby źródeł na zewnątrz
+mówić o „bazie badawczej”, nie o plikach w repo.
+
 ## Luki całej bazy
 
 - Brak świeżego, reprezentatywnego sondażu ogółu wprost o dobrowolnym ZUS.
-- Szacunki kosztów (FOR 182 mld, CenEA 86 mld) pochodzą z relacji medialnych, nie z odczytanych
-  raportów pierwotnych.
+- Szacunki kosztów pochodzą z relacji medialnych, nie z odczytanych raportów pierwotnych.
+  Relacje rozjeżdżają się co do kwoty FOR: 182,1 mld zł (TVN24) vs 189 mld zł (money.pl);
+  jednej oficjalnej łącznej kwoty FOR nie udało się potwierdzić `[do weryfikacji]`.
 - Status legislacyjny projektów Konfederacji (skierowane do I czytania w komisjach) wymaga
   potwierdzenia na stronach Sejmu.

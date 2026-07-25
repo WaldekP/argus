@@ -55,7 +55,7 @@ export const dobrowolnyZus: Temat = {
     },
     {
       wartosc: '65 mld zł',
-      opis: 'Dotacja budżetu do FUS w 2024 r. Fundusz jest już deficytowy przed jakąkolwiek dobrowolnością.',
+      opis: 'Dotacja budżetu do FUS w 2024 r. (wykonanie; plan ustawy budżetowej zakładał 72,7 mld). Fundusz jest deficytowy przed jakąkolwiek dobrowolnością.',
       doPublikacji: true,
     },
     {

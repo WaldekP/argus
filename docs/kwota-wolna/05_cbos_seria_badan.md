@@ -169,6 +169,15 @@ tę konstrukcję pytania zamiast pytać o abstrakcyjną kwotę roczną.
 | 2023 | ok. 50 proc. | rekord w historii badań CBOS | [43/2025, opis trendu](https://cbos.pl/SPISKOM.POL/2025/K_043_25.PDF) |
 | 2025 | 51 proc. | 35 proc. | [43/2025](https://cbos.pl/SPISKOM.POL/2025/K_043_25.PDF) |
 
+**Ostrzeżenie metodologiczne (audyt 25 VII 2026): powyższa tabela miesza dwa różne instrumenty
+pomiarowe.** Komunikaty z lat 1998–2016 zadają pytanie binarne („które stwierdzenie jest bliższe
+Pana(i) poglądom”), a tabela trendu w komunikacie 43/2025 opiera się na skali 7-punktowej
+mierzonej od 1997 r. i podaje inne wartości dla zbliżonych okresów: V 1997 = 72/18,
+III 2016 = 65/25 (wobec 77/17 i 66/24 z pytań binarnych). Kierunek trendu jest w obu seriach
+identyczny (progresja traci, liniowy zyskuje), ale liczb z obu serii nie wolno zestawiać w jednym
+zdaniu, bo rozbieżność jest gotowym zarzutem dla fact-checkera. W wypowiedzi publicznej używaj
+jednej serii naraz i mów, o którą chodzi.
+
 To jedna z najbardziej wyrazistych zmian opinii publicznej w Polsce ostatnich dwóch dekad:
 poparcie dla progresji spadło o 26 punktów procentowych, poparcie dla podatku liniowego wzrosło
 o 18 punktów. Kwota wolna jest jednym z niewielu rozwiązań, które obie strony tego sporu

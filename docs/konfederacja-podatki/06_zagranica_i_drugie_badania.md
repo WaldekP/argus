@@ -48,10 +48,17 @@ IBS/Sawulski https://ibs.org.pl/wp-content/uploads/2022/12/IBS_Policy_Paper_01_2
 - SII, Ogólnopolskie Badanie Inwestorów 2024, 2 IX - 3 XI 2024, N=4374: 54 proc. wskazało podatek
   Belki jako największą słabość polskiego rynku kapitałowego. To inwestorzy, nie ogół.
 
-### Aktualizacja legislacyjna
-- Sejm uchwalił ustawę o OKI 3 lipca 2026, wejście 1 stycznia 2027: zwolnienie lokat i obligacji
-  do 25 tys. zł, akcji i funduszy do 100 tys. zł, plus nowy podatek od wartości aktywów ponad limit
-  (ok. 0,85-1 proc.). Asymetria na niekorzyść drobnego ciułacza.
+### Aktualizacja legislacyjna (zweryfikowana w audycie 25 VII 2026)
+- Sejm uchwalił ustawę o OKI 3 lipca 2026 głosami 427:5 (1 wstrzymujący). Zwolnienie lokat
+  i obligacji do 25 tys. zł, akcji i funduszy do 100 tys. zł, plus nowy podatek od wartości
+  aktywów ponad limit (ok. 0,85-1 proc.). Asymetria na niekorzyść drobnego ciułacza.
+- **Proces niezakończony: ustawa jest w Senacie.** Data 1 stycznia 2027 jest warunkowa.
+  Głosowanie było niemal jednomyślne, więc frontalny atak na samą ustawę jest ryzykowny;
+  bezpieczna jest krytyka konstrukcji limitów.
+  Potwierdzenie w wielu redakcjach: [Bankier](https://www.bankier.pl/smart/sejm-uchwalil-ustawe-o-osobistych-kontach-inwestycyjnych),
+  [bank.pl (Senat)](https://bank.pl/uchwalona-przez-sejm-ustawa-o-osobistych-kontach-inwestycyjnych-oki-trafila-do-senatu/),
+  [prawo.pl](https://www.prawo.pl/podatki/sejm-uchwalil-ustawe-o-osobistych-kontach-inwestycyjnych-oki,1544096.html),
+  [strefainwestorow](https://strefainwestorow.pl/finanse/oki-ustawa-sejm).
 
 Źródła kluczowe: Tax Foundation https://taxfoundation.org/data/all/eu/capital-gains-tax-rates-in-europe-2024/ ,
 N26 (Sparerpauschbetrag) https://n26.com/en-de/blog/capital-gains-tax ,

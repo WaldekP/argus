@@ -22,7 +22,7 @@ export const pitLiniowy: Temat = {
       'Nie przejmować. Przejąć hasło prostoty, ale zaatakować liniowość jako ulgę dla najbogatszych wbrew trendowi całego regionu.',
     uzasadnienie: [
       'To jedyny postulat gospodarczy, który realnie spaja i wyróżnia elektorat Konfederacji, więc wejście w niego wprost oznacza granie na jego boisku i jego zasadami.',
-      'Liniowy PIT jest w skali kraju rozwiązaniem mniejszościowym: popiera go 35 proc. Polaków wobec 51 proc. za progresją (CBOS 2023).',
+      'Liniowy PIT jest w skali kraju rozwiązaniem mniejszościowym: popiera go 35 proc. Polaków wobec 51 proc. za progresją (CBOS 2025).',
       'Region idzie w przeciwną stronę: od 2013 r. z liniowego wycofały się Słowacja, Łotwa, Litwa, Czechy i Rosja. To fakt, nie opinia, i rozbraja narrację, że „cała Europa Środkowa upraszcza”.',
       'Regresywność jest tu twardym, policzalnym argumentem: gros korzyści z likwidacji drugiego progu trafia do ok. 10 proc. najlepiej zarabiających (FOR).',
     ],
@@ -37,15 +37,15 @@ export const pitLiniowy: Temat = {
     ],
     zaatakowac: [
       'Trend regionalny: Słowacja porzuciła liniowy w 2013 r. właśnie z powodu rozczarowujących dochodów i regresywności. Czechy, Łotwa, Litwa i Rosja poszły tą samą drogą. Konfederacja proponuje to, z czego sąsiedzi zrezygnowali.',
-      'Koszt: sam liniowy PIT 12% to ok. 60,5 mld zł ubytku rocznie (FOR), a cały pakiet Konfederacji to ok. 182 mld zł. To nie mieści się w żadnym realnym budżecie.',
+      'Koszt: sam liniowy PIT 12% to ok. 60,5 mld zł ubytku rocznie (FOR), a cały pakiet Konfederacji to według relacji z analiz FOR rząd 180-190 mld zł. To nie mieści się w żadnym realnym budżecie.',
       'Regresywność: im więcej zarabiasz, tym więcej zyskujesz. W UE liniowy utrzymują tylko cztery kraje o wyraźnie niższych wydatkach socjalnych (Bułgaria, Rumunia, Węgry, Estonia). Żaden duży kraj Zachodu.',
     ],
   },
 
   kluczoweLiczby: [
     {
-      wartosc: '5 krajów',
-      opis: 'Tyle krajów regionu wycofało się z liniowego PIT od 2013 r.: Słowacja, Łotwa, Litwa, Czechy, Rosja.',
+      wartosc: '4 + Rosja',
+      opis: 'Od 2013 r. z liniowego PIT wycofały się cztery kraje regionu (Słowacja, Łotwa, Litwa, Czechy) oraz Rosja.',
       doPublikacji: true,
     },
     {
@@ -55,7 +55,7 @@ export const pitLiniowy: Temat = {
     },
     {
       wartosc: '35% / 51%',
-      opis: 'Poparcie dla podatku liniowego wobec progresji w skali kraju (CBOS 2023). Liniowy jest mniejszościowy.',
+      opis: 'Poparcie dla podatku liniowego wobec progresji w skali kraju (CBOS 2025). Liniowy jest mniejszościowy.',
       doPublikacji: true,
     },
     {
@@ -66,7 +66,7 @@ export const pitLiniowy: Temat = {
   ],
 
   syntezaOpinii: [
-    'Podatek liniowy popiera 35 proc. Polaków, progresję 51 proc. (CBOS 2023). Ale poparcie dla liniowego rośnie nieprzerwanie od 1997 r., gdy wynosiło 18 proc.',
+    'Podatek liniowy popiera 35 proc. Polaków, progresję 51 proc. (CBOS 2025). Ale poparcie dla liniowego rośnie nieprzerwanie od 1997 r., gdy wynosiło 18 proc.',
     'Elektorat Konfederacji to jedyny, w którym zwolennicy liniowego (50 proc.) przeważają nad zwolennikami progresji (39 proc.). To jego znak rozpoznawczy.',
     'Poparcie jest silnie zależne od sposobu zadania pytania. Badanie Maison (ZPP): przy pytaniu bez wyjaśnienia liniowy popiera 20 proc., ale z konkretnym przykładem kwotowym poparcie skacze do 60 proc. To pole do framingu po obu stronach.',
     'Uwaga strategiczna: baza Konfederacji nie jest spójnie wolnorynkowa. 68 proc. jej wyborców chce państwa opiekuńczego, 57 proc. chce utrzymania własności państwowej. Radykalna liniowość wyprzedza poglądy własnego elektoratu poza samą stawką.',
