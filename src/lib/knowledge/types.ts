@@ -66,6 +66,17 @@ export type Badanie = {
   zrodlo: Zrodlo;
 };
 
+/** Porównanie z jednym krajem: jak temat rozwiązano za granicą. */
+export type PorownanieZagraniczne = {
+  /** Kraj albo region, np. "Słowacja", "Niemcy", "Wielka Brytania". */
+  kraj: string;
+  /** Co robią i jakie liczby. */
+  opis: string;
+  /** Wniosek dla polskiej debaty. */
+  wniosek?: string;
+  zrodlo: Zrodlo;
+};
+
 /** Grupa odbiorców z gotowym playbookiem komunikacyjnym. */
 export type SegmentOdbiorcow = {
   id: string;
@@ -120,6 +131,8 @@ export type Temat = {
   kluczoweLiczby: KluczowaLiczba[];
   /** Badania z wykresem słupkowym. Opcjonalne: nie każdy temat ma czysty sondaż. */
   badania?: Badanie[];
+  /** Porównania z zagranicą. Każdy temat powinien mieć odniesienie do świata. */
+  zagranica?: PorownanieZagraniczne[];
   /** Synteza opinii społecznej w kilku zdaniach. */
   syntezaOpinii: string[];
   politycy: Polityk[];

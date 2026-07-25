@@ -249,6 +249,36 @@ export default function TopicScreen() {
                 <SourceLink zrodlo={badanie.zrodlo} />
               </View>
             ))}
+
+            {temat.zagranica?.length ? (
+              <View style={styles.section}>
+                <SectionHeading
+                  kicker="Zagranica"
+                  title="Jak jest za granicą"
+                  lead="Punkt odniesienia ze świata: czy postulat ma odpowiednik i z jakim skutkiem."
+                />
+                {temat.zagranica.map((kraj) => (
+                  <View
+                    key={kraj.kraj}
+                    style={[
+                      styles.card,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                    ]}>
+                    <ThemedText style={styles.cardTitle}>{kraj.kraj}</ThemedText>
+                    <ThemedText type="small">{kraj.opis}</ThemedText>
+                    {kraj.wniosek ? (
+                      <View style={[styles.weakSpot, { borderLeftColor: theme.teal }]}>
+                        <ThemedText themeColor="teal" style={styles.kicker}>
+                          Wniosek
+                        </ThemedText>
+                        <ThemedText type="small">{kraj.wniosek}</ThemedText>
+                      </View>
+                    ) : null}
+                    <SourceLink zrodlo={kraj.zrodlo} />
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
         ) : null}
 

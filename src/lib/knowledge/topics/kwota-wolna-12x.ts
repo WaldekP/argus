@@ -12,9 +12,9 @@ export const kwotaWolna12x: Temat = {
   nazwa: 'Kwota wolna = 12× płaca minimalna',
   zajawka:
     'Wersja Konfederacji: kwota wolna zindeksowana do płacy minimalnej. Dobry mechanizm, kompromitujące wykonanie.',
-  aktualizacja: '24 lipca 2026',
+  aktualizacja: '25 lipca 2026',
   korpus: 'docs/konfederacja-podatki/',
-  liczbaZrodel: 14,
+  liczbaZrodel: 28,
   doWeryfikacji: 3,
 
   rekomendacja: {
@@ -62,12 +62,81 @@ export const kwotaWolna12x: Temat = {
       opis: 'Głosowanie 20 III 2024: Sejm odrzucił wniosek Konfederacji o przyspieszenie prac. Za byli PiS i Konfederacja.',
       doPublikacji: true,
     },
+    {
+      wartosc: '11 z 27',
+      opis: 'Tyle europejskich krajów OECD indeksuje kwotę wolną i progi automatycznie co roku. Polska tego nie robi.',
+      doPublikacji: true,
+    },
   ],
 
   syntezaOpinii: [
     'Podniesienie kwoty wolnej jest popularne jako hasło, ale poparcie topnieje, gdy w pytaniu pojawia się cena. Szczegóły w temacie „Kwota wolna od podatku”.',
     'Sam pomysł indeksacji do płacy minimalnej nie był osobno badany sondażowo. Brak danych.',
     'Elektorat Konfederacji, do którego ten postulat jest adresowany, to w 52 proc. „aspirujący liberałowie” CBOS, wyróżniani poparciem dla niskich, prostych podatków.',
+  ],
+
+  badania: [
+    {
+      id: 'sw-2025-priorytet',
+      instytut: 'SW Research',
+      zleceniodawca: 'Onet',
+      termin: '2-3 września 2025',
+      proba: '830 ankiet, CAWI, panel SW Panel',
+      pytanie:
+        'Czy podniesienie kwoty wolnej od podatku powinno być priorytetem rządu, nawet kosztem zwiększenia deficytu budżetowego?',
+      wyniki: [
+        { etykieta: 'Tak', procent: 39.9, kluczowy: true },
+        { etykieta: 'Nie', procent: 29.2 },
+        { etykieta: 'Trudno powiedzieć', procent: 31 },
+      ],
+      jakCzytac:
+        'Badanie z ceną w pytaniu. Poparcie dla podnoszenia kwoty wolnej topnieje z 79 proc. (pytanie bez kosztu) do 39,9 proc., gdy w pytaniu pojawia się deficyt. Pełna analiza w temacie „Kwota wolna od podatku”. Sam mechanizm indeksacji 12× nie był badany osobno.',
+      zrodlo: {
+        tytul: 'Co z kwotą wolną od podatku? Wiemy, co sądzą Polacy',
+        url: 'https://polskieradio24.pl/artykul/3575612,co-z-kwota-wolna-od-podatku-wiemy-co-sadza-polacy',
+        wydawca: 'Polskie Radio 24',
+        data: '6 września 2025',
+      },
+    },
+  ],
+
+  zagranica: [
+    {
+      kraj: 'Niemcy',
+      opis: 'Grundfreibetrag (kwota wolna) ma podstawę konstytucyjną: państwo nie może opodatkować minimum egzystencji. Jest podnoszony niemal co roku na podstawie rządowego raportu o minimum socjalnym: 11 784 EUR (2024), 12 096 EUR (2025), 12 348 EUR (2026).',
+      wniosek:
+        'Niemcy realizują dokładnie to, co proponuje mechanizm Konfederacji: automatyczną, coroczną waloryzację kwoty wolnej, żeby inflacja nie wciągała ludzi w opodatkowanie minimum. To dowód, że indeksacja jest standardem, nie ekstrawagancją.',
+      zrodlo: {
+        tytul: 'Grundfreibetrag 2026: 12 348 EUR',
+        url: 'https://norman.finance/de/en/blog/basic-tax-free-allowance-germany',
+        wydawca: 'Norman Finance',
+        data: '2026',
+      },
+    },
+    {
+      kraj: 'Wielka Brytania (przestroga)',
+      opis: 'Progi podatkowe zamrożone od 2022 r., pierwotnie do 2028, potem do 2030/31. Skutek: budżet zyska ok. 42,9 mld GBP do 2027/28 bez ani jednej ustawy podnoszącej stawki, a blisko 4 mln osób dodatkowo zacznie płacić PIT tylko przez zamrożenie.',
+      wniosek:
+        'To najlepiej policzony przykład „cichej podwyżki podatków” (fiscal drag). Polska kwota wolna zamrożona na 30 tys. zł od 2022 r. działa tak samo. Indeksacja 12× jest mechanizmem, który to zjawisko wyłącza.',
+      zrodlo: {
+        tytul: 'Fiscal drag: an explainer',
+        url: 'https://commonslibrary.parliament.uk/research-briefings/cbp-9687/',
+        wydawca: 'House of Commons Library',
+        data: '2024',
+      },
+    },
+    {
+      kraj: 'OECD (indeksacja)',
+      opis: 'Automatyczną coroczną indeksację kwoty wolnej i progów PIT stosuje 11 z 27 europejskich krajów OECD (m.in. Belgia, Dania, Francja, Holandia, Skandynawia, Słowacja). 14 krajów, w tym Polska, nie indeksuje regularnie.',
+      wniosek:
+        'Polska jest w grupie krajów, które pozwalają inflacji po cichu podnosić realne opodatkowanie. Powiązanie z płacą minimalną wprowadziłoby automatyzm, który u części sąsiadów jest normą.',
+      zrodlo: {
+        tytul: 'Income Tax Inflation Adjustments in Europe',
+        url: 'https://taxfoundation.org/data/all/eu/income-tax-inflation-adjustments-europe/',
+        wydawca: 'Tax Foundation',
+        data: '2024',
+      },
+    },
   ],
 
   politycy: [
