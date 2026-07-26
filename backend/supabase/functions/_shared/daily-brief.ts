@@ -368,32 +368,19 @@ export async function generateForTenant(
 
 // ---------------------------------------------------------------------------
 // Pomysły na tweety (X) z briefu dnia — efemeryczne, bez zapisu do bazy.
+// To pomysły (temat + w co uderzyć), nie gotowe wpisy: gotowy tweet pisze
+// człowiek, tu dostaje kąt i punkt zapalny.
 // ---------------------------------------------------------------------------
-
-/** Twardy limit X: liczymy w punktach kodowych, nie w jednostkach UTF-16. */
-const X_HARD_LIMIT = 280;
-
-function charLength(text: string): number {
-  return [...text].length;
-}
-
-/** Przycięcie awaryjne na granicy słowa, gdy model nie zmieścił się w limicie. */
-function hardTrimX(text: string): string {
-  const chars = [...text];
-  if (chars.length <= X_HARD_LIMIT) return text;
-  let cut = chars.slice(0, X_HARD_LIMIT - 1).join("");
-  const lastSpace = cut.lastIndexOf(" ");
-  if (lastSpace > X_HARD_LIMIT / 2) cut = cut.slice(0, lastSpace);
-  return `${cut}…`;
-}
 
 const tweetsSchema = z.object({
   tweets: z
     .array(
       z.object({
-        tekst: z.string().describe("Gotowy wpis na X, twardo do 280 znaków."),
         wydarzenie: z.string().describe("Etykieta wydarzenia z przeglądu."),
-        kat: z.string().describe("Strategia wpisu w jednym zdaniu."),
+        temat: z.string().describe("O czym miałby być wpis: teza albo hasło."),
+        w_co_uderzyc: z
+          .string()
+          .describe("Punkt zapalny i kąt uderzenia, 1-2 zdania."),
       }),
     )
     .describe("Około 5 zróżnicowanych pomysłów na wpisy."),
@@ -403,8 +390,8 @@ export type TweetIdea = z.infer<typeof tweetsSchema>["tweets"][number];
 
 /**
  * Pomysły na tweety z dzisiejszego (albo wskazanego) briefu dnia. Bierze
- * gotowe wydarzenia z `daily_briefs` i styl polityka, zwraca listę wpisów
- * przyciętych do limitu X. Nie zapisuje niczego: to pomysły do skopiowania.
+ * gotowe wydarzenia z `daily_briefs` i profil polityka, zwraca pomysły:
+ * o czym napisać i w co uderzyć. Nic nie zapisuje.
  */
 export async function generateTweetsForTenant(
   supabase: SupabaseClient,
@@ -460,14 +447,7 @@ export async function generateTweetsForTenant(
     ["human", human],
   ]);
 
-  // Limit X egzekwujemy po stronie kodu: prompt bywa nadgorliwy, a wpis powyżej
-  // 280 znaków jest bezużyteczny.
-  const tweets = (result.tweets ?? []).map((tweet) => ({
-    ...tweet,
-    tekst: charLength(tweet.tekst) > X_HARD_LIMIT ? hardTrimX(tweet.tekst) : tweet.tekst,
-  }));
-
-  return { tweets, brief_date: briefDate };
+  return { tweets: result.tweets ?? [], brief_date: briefDate };
 }
 
 /**

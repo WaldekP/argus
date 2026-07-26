@@ -49,13 +49,14 @@ export type DailyBriefSummary = {
   generated_at: string | null;
 };
 
-/** Pomysł na wpis na X wygenerowany z briefu dnia. */
+/** Pomysł na wpis na X z briefu dnia: temat i kąt, nie gotowy tweet. */
 export type TweetIdea = {
-  tekst: string;
-  /** Etykieta wydarzenia z przeglądu, którego dotyczy wpis. */
+  /** Etykieta wydarzenia z przeglądu, na którym opiera się pomysł. */
   wydarzenie: string;
-  /** Strategia wpisu w jednym zdaniu. */
-  kat: string;
+  /** O czym miałby być wpis: teza albo hasło przewodnie. */
+  temat: string;
+  /** Punkt zapalny i kąt uderzenia. */
+  w_co_uderzyc: string;
 };
 
 type BriefOperation = 'generate' | 'get' | 'list' | 'tweets';

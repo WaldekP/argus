@@ -371,7 +371,7 @@ export default function MorningBriefScreen() {
             {tweets === null ? (
               <View style={styles.briefEmpty}>
                 <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-                  Zamień dzisiejszy przegląd na gotowe wpisy na X w Twoim stylu.
+                  Z dzisiejszego przeglądu podpowiem, o czym napisać na X i w co uderzyć.
                 </ThemedText>
                 <PrimaryButton
                   title={tweetsLoading ? 'Generuję...' : 'Pomysły na tweety'}
@@ -392,22 +392,21 @@ export default function MorningBriefScreen() {
                   <ThemedText type="small" themeColor="teal" style={styles.tweetEvent}>
                     {tweet.wydarzenie}
                   </ThemedText>
-                  <ThemedText>{tweet.tekst}</ThemedText>
+                  <ThemedText style={styles.tweetTopic}>{tweet.temat}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    <ThemedText type="smallBold">W co uderzyć: </ThemedText>
+                    {tweet.w_co_uderzyc}
+                  </ThemedText>
                   <View style={styles.tweetFooter}>
-                    <ThemedText
-                      type="small"
-                      themeColor="textSecondary"
-                      style={styles.tweetMeta}
-                      numberOfLines={2}>
-                      {[...tweet.tekst].length}/280 · {tweet.kat}
-                    </ThemedText>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel="Kopiuj wpis"
-                      onPress={() => handleCopyTweet(index, tweet.tekst)}
+                      accessibilityLabel="Kopiuj pomysł"
+                      onPress={() =>
+                        handleCopyTweet(index, `${tweet.temat}\n\nW co uderzyć: ${tweet.w_co_uderzyc}`)
+                      }
                       hitSlop={8}>
                       <ThemedText type="small" themeColor="accentLight">
-                        {copiedTweet === index ? 'Skopiowano' : 'Kopiuj'}
+                        {copiedTweet === index ? 'Skopiowano' : 'Kopiuj pomysł'}
                       </ThemedText>
                     </Pressable>
                   </View>
@@ -594,14 +593,14 @@ const styles = StyleSheet.create({
   tweetEvent: {
     fontFamily: FontFamily.sansSemiBold,
   },
+  tweetTopic: {
+    fontFamily: FontFamily.sansSemiBold,
+  },
   tweetFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     gap: Spacing.two,
-  },
-  tweetMeta: {
-    flexShrink: 1,
   },
   actions: {
     flexDirection: 'row',
