@@ -17,6 +17,7 @@ import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import {
   generateForAllTenants,
   generateForTenant,
+  generateTweetsForTenant,
   today,
 } from "../_shared/daily-brief.ts";
 
@@ -113,6 +114,11 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, data: await opList(supabase, tenantId) });
       case "generate": {
         const result = await generateForTenant(supabase, tenantId, today());
+        return jsonResponse({ ok: true, data: result });
+      }
+      case "tweets": {
+        const date = optionalDate(body.date) ?? today();
+        const result = await generateTweetsForTenant(supabase, tenantId, date);
         return jsonResponse({ ok: true, data: result });
       }
       default:

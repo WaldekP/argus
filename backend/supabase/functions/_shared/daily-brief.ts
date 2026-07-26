@@ -366,6 +366,110 @@ export async function generateForTenant(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Pomysły na tweety (X) z briefu dnia — efemeryczne, bez zapisu do bazy.
+// ---------------------------------------------------------------------------
+
+/** Twardy limit X: liczymy w punktach kodowych, nie w jednostkach UTF-16. */
+const X_HARD_LIMIT = 280;
+
+function charLength(text: string): number {
+  return [...text].length;
+}
+
+/** Przycięcie awaryjne na granicy słowa, gdy model nie zmieścił się w limicie. */
+function hardTrimX(text: string): string {
+  const chars = [...text];
+  if (chars.length <= X_HARD_LIMIT) return text;
+  let cut = chars.slice(0, X_HARD_LIMIT - 1).join("");
+  const lastSpace = cut.lastIndexOf(" ");
+  if (lastSpace > X_HARD_LIMIT / 2) cut = cut.slice(0, lastSpace);
+  return `${cut}…`;
+}
+
+const tweetsSchema = z.object({
+  tweets: z
+    .array(
+      z.object({
+        tekst: z.string().describe("Gotowy wpis na X, twardo do 280 znaków."),
+        wydarzenie: z.string().describe("Etykieta wydarzenia z przeglądu."),
+        kat: z.string().describe("Strategia wpisu w jednym zdaniu."),
+      }),
+    )
+    .describe("Około 5 zróżnicowanych pomysłów na wpisy."),
+});
+
+export type TweetIdea = z.infer<typeof tweetsSchema>["tweets"][number];
+
+/**
+ * Pomysły na tweety z dzisiejszego (albo wskazanego) briefu dnia. Bierze
+ * gotowe wydarzenia z `daily_briefs` i styl polityka, zwraca listę wpisów
+ * przyciętych do limitu X. Nie zapisuje niczego: to pomysły do skopiowania.
+ */
+export async function generateTweetsForTenant(
+  supabase: SupabaseClient,
+  tenantId: string,
+  briefDate: string = today(),
+): Promise<{ tweets: TweetIdea[]; brief_date: string }> {
+  const { data: brief } = await supabase
+    .from("daily_briefs")
+    .select("items, status")
+    .eq("tenant_id", tenantId)
+    .eq("brief_date", briefDate)
+    .maybeSingle();
+
+  const items = (brief?.items ?? []) as BriefItem[];
+  if (!brief || brief.status !== "ready" || items.length === 0) {
+    return { tweets: [], brief_date: briefDate };
+  }
+
+  const { data: profile } = await supabase
+    .from("politician_profiles")
+    .select("full_name, style_profile, values, boundaries")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const human = [
+    `Polityk: ${profile?.full_name ?? "brak danych"}`,
+    "",
+    "Profil stylu językowego (naśladuj):",
+    JSON.stringify(profile?.style_profile ?? {}, null, 2),
+    "",
+    "Wartości i osie poglądów:",
+    JSON.stringify(profile?.values ?? {}, null, 2),
+    "",
+    "Granice (czego nie robi, kogo nie atakuje):",
+    JSON.stringify(profile?.boundaries ?? {}, null, 2),
+    "",
+    "Przegląd dnia (wydarzenia, na które można zareagować):",
+    ...items.map(
+      (it, i) =>
+        `[${i + 1}] ${it.naglowek}\n    ${it.streszczenie}\n    kąt strategiczny: ${it.znaczenie_dla_ciebie}`,
+    ),
+    "",
+    "Zaproponuj około 5 zróżnicowanych wpisów na X zgodnie z instrukcją systemową.",
+  ].join("\n");
+
+  const system = loadPrompt("morning-brief-tweets");
+  const model = (await getGenerationModel()).withStructuredOutput(tweetsSchema, {
+    name: "brief_tweets",
+  });
+
+  const result = await model.invoke([
+    ["system", system],
+    ["human", human],
+  ]);
+
+  // Limit X egzekwujemy po stronie kodu: prompt bywa nadgorliwy, a wpis powyżej
+  // 280 znaków jest bezużyteczny.
+  const tweets = (result.tweets ?? []).map((tweet) => ({
+    ...tweet,
+    tekst: charLength(tweet.tekst) > X_HARD_LIMIT ? hardTrimX(tweet.tekst) : tweet.tekst,
+  }));
+
+  return { tweets, brief_date: briefDate };
+}
+
 /**
  * Przebieg cronowy: brief na dziś dla wszystkich tenantów, które mają profil.
  * Sekwencyjnie — każdy tenant to osobne pobranie prasy i wywołanie Sonnet.

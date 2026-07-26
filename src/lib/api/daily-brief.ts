@@ -49,7 +49,16 @@ export type DailyBriefSummary = {
   generated_at: string | null;
 };
 
-type BriefOperation = 'generate' | 'get' | 'list';
+/** Pomysł na wpis na X wygenerowany z briefu dnia. */
+export type TweetIdea = {
+  tekst: string;
+  /** Etykieta wydarzenia z przeglądu, którego dotyczy wpis. */
+  wydarzenie: string;
+  /** Strategia wpisu w jednym zdaniu. */
+  kat: string;
+};
+
+type BriefOperation = 'generate' | 'get' | 'list' | 'tweets';
 
 const call = edgeClient<BriefOperation>('argus-morning-brief');
 
@@ -74,4 +83,12 @@ export function generateDailyBrief(): Promise<{
   error: string | null;
 }> {
   return call('generate', undefined, LONG_TIMEOUT_MS);
+}
+
+/**
+ * Pomysły na tweety (X) z dzisiejszego briefu dnia. Efemeryczne — nie są
+ * zapisywane, generują się na żądanie. Synteza Sonnet, stąd długi timeout.
+ */
+export function generateBriefTweets(): Promise<{ tweets: TweetIdea[]; brief_date: string }> {
+  return call('tweets', undefined, LONG_TIMEOUT_MS);
 }

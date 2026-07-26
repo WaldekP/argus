@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -27,9 +28,11 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import {
+  generateBriefTweets,
   generateDailyBrief,
   getDailyBrief,
   type DailyBrief,
+  type TweetIdea,
 } from '@/lib/api/daily-brief';
 import {
   listMentions,
@@ -70,6 +73,12 @@ export default function MorningBriefScreen() {
   const [briefLoading, setBriefLoading] = useState(true);
   const [briefGenerating, setBriefGenerating] = useState(false);
   const [briefError, setBriefError] = useState<string | null>(null);
+
+  // Pomysły na tweety (X) z briefu: efemeryczne, generowane na żądanie.
+  const [tweets, setTweets] = useState<TweetIdea[] | null>(null);
+  const [tweetsLoading, setTweetsLoading] = useState(false);
+  const [tweetsError, setTweetsError] = useState<string | null>(null);
+  const [copiedTweet, setCopiedTweet] = useState<number | null>(null);
 
   // Samo pobranie, bez dotykania stanu: dzięki temu efekt montujący ekran
   // zapisuje stan dopiero w callbacku, a nie synchronicznie w swoim ciele.
@@ -140,6 +149,27 @@ export default function MorningBriefScreen() {
     } finally {
       setBriefGenerating(false);
     }
+  }, []);
+
+  const handleGenerateTweets = useCallback(async () => {
+    setTweetsLoading(true);
+    setTweetsError(null);
+    try {
+      const result = await generateBriefTweets();
+      track('brief_tweets_generated', { count: result.tweets.length });
+      setTweets(result.tweets);
+    } catch (err) {
+      setTweetsError(err instanceof Error ? err.message : 'Nie udało się wygenerować tweetów.');
+    } finally {
+      setTweetsLoading(false);
+    }
+  }, []);
+
+  const handleCopyTweet = useCallback(async (index: number, text: string) => {
+    await Clipboard.setStringAsync(text);
+    track('brief_tweet_copied');
+    setCopiedTweet(index);
+    setTimeout(() => setCopiedTweet((current) => (current === index ? null : current)), 1500);
   }, []);
 
   const handleSync = useCallback(async () => {
@@ -311,6 +341,82 @@ export default function MorningBriefScreen() {
           )}
         </View>
 
+        {brief?.status === 'ready' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleRow}>
+              <ThemedText style={styles.sectionTitle}>Pomysły na tweety</ThemedText>
+              {tweets ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Wygeneruj nowe tweety"
+                  onPress={handleGenerateTweets}
+                  disabled={tweetsLoading}>
+                  {tweetsLoading ? (
+                    <ActivityIndicator size="small" color={theme.accent} />
+                  ) : (
+                    <ThemedText type="small" themeColor="accentLight">
+                      Nowe
+                    </ThemedText>
+                  )}
+                </Pressable>
+              ) : null}
+            </View>
+
+            {tweetsError ? (
+              <View style={[styles.alert, { borderLeftColor: theme.error }]}>
+                <ThemedText type="small">{tweetsError}</ThemedText>
+              </View>
+            ) : null}
+
+            {tweets === null ? (
+              <View style={styles.briefEmpty}>
+                <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
+                  Zamień dzisiejszy przegląd na gotowe wpisy na X w Twoim stylu.
+                </ThemedText>
+                <PrimaryButton
+                  title={tweetsLoading ? 'Generuję...' : 'Pomysły na tweety'}
+                  onPress={handleGenerateTweets}
+                  disabled={tweetsLoading}
+                />
+              </View>
+            ) : tweets.length === 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                Brak pomysłów: dzisiejszy przegląd jest pusty.
+              </ThemedText>
+            ) : (
+              tweets.map((tweet, index) => (
+                <ThemedView
+                  key={`${tweet.wydarzenie}-${index}`}
+                  type="backgroundElement"
+                  style={[styles.tweetCard, { borderColor: theme.border }]}>
+                  <ThemedText type="small" themeColor="teal" style={styles.tweetEvent}>
+                    {tweet.wydarzenie}
+                  </ThemedText>
+                  <ThemedText>{tweet.tekst}</ThemedText>
+                  <View style={styles.tweetFooter}>
+                    <ThemedText
+                      type="small"
+                      themeColor="textSecondary"
+                      style={styles.tweetMeta}
+                      numberOfLines={2}>
+                      {[...tweet.tekst].length}/280 · {tweet.kat}
+                    </ThemedText>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel="Kopiuj wpis"
+                      onPress={() => handleCopyTweet(index, tweet.tekst)}
+                      hitSlop={8}>
+                      <ThemedText type="small" themeColor="accentLight">
+                        {copiedTweet === index ? 'Skopiowano' : 'Kopiuj'}
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </ThemedView>
+              ))
+            )}
+          </View>
+        ) : null}
+
         <ThemedText style={styles.sectionTitle}>Wzmianki o Tobie</ThemedText>
 
         {error ? (
@@ -478,6 +584,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.three,
     paddingVertical: Spacing.four,
+  },
+  tweetCard: {
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  tweetEvent: {
+    fontFamily: FontFamily.sansSemiBold,
+  },
+  tweetFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  tweetMeta: {
+    flexShrink: 1,
   },
   actions: {
     flexDirection: 'row',
