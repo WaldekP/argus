@@ -92,6 +92,17 @@ export async function signUp(email: string, password: string): Promise<AuthResul
   return { error: error ? toPolishAuthError(error) : null };
 }
 
+/**
+ * Logowanie Google. ŚWIADOMIE NIEUŻYWANE, nie usuwać jako martwy kod.
+ *
+ * CLAUDE.md: "Google OAuth odłożony na później, nie dodawać przycisku bez
+ * decyzji usera". Kod jest gotowy i przetestowany na obu platformach, czeka na
+ * tę decyzję. Utrzymuje też zależności `expo-linking` i `expo-web-browser`
+ * w package.json, które poza tą funkcją nie mają w `src/` innych odbiorców.
+ *
+ * Włączenie = dodanie przycisku na ekranach (auth)/login i (auth)/register
+ * plus konfiguracja providera Google w panelu Supabase.
+ */
 export async function signInWithGoogle(): Promise<AuthResult> {
   if (Platform.OS === 'web') {
     // Na web Supabase sam przekierowuje i odczytuje sesję z URL.

@@ -10,7 +10,7 @@
  * z płatnym API idzie przez Edge Function.
  */
 
-import { supabase } from '@/lib/supabase';
+import { edgeClient } from '@/lib/api/client';
 
 /** Do czego przypinamy tożsamość z rejestru. */
 export type RegistrySubjectType = 'politician' | 'journalist' | 'outlet' | 'other';
@@ -209,23 +209,24 @@ export type OrgSearchItem = {
   removed: boolean;
 };
 
-async function call<T>(operation: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('argus-registry', {
-    body: { operation, ...payload },
-  });
+type RegistryOperation =
+  | 'balance'
+  | 'check_conflicts'
+  | 'company_context'
+  | 'get_connections'
+  | 'get_org_details'
+  | 'link_org'
+  | 'link_person'
+  | 'list_events'
+  | 'list_subjects'
+  | 'mark_event_seen'
+  | 'refresh_connections'
+  | 'search_org'
+  | 'search_person'
+  | 'unlink';
 
-  if (error) {
-    // Supabase pakuje treść błędu funkcji w kontekst odpowiedzi.
-    const context = (error as { context?: Response }).context;
-    if (context) {
-      const body = await context.json().catch(() => null);
-      if (body?.error) throw new Error(body.error);
-    }
-    throw new Error(error.message);
-  }
-  if (!data?.ok) throw new Error(data?.error ?? 'Nieznany błąd rejestru.');
-  return data.data as T;
-}
+/** Klient tej domeny: transport w @/lib/api/client. */
+const call = edgeClient<RegistryOperation>('argus-registry');
 
 /** Stan konta w płatnym API. Wywołanie darmowe. */
 export function getRegistryBalance() {

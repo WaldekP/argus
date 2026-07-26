@@ -1,0 +1,75 @@
+name: Kontrola jakości
+
+# Bramka przed wdrożeniem. Push na main uruchamia deploy Edge Functions
+# (deploy-functions.yml) i deploy weba na Netlify, a żaden z nich nie
+# sprawdza typów: Metro i esbuild tylko zdejmują typy, `supabase functions
+# deploy` też nie typechecku­je. Bez tego workflow błąd typu jechał na
+# produkcję bez jednego ostrzeżenia.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend (typy, lint, testy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Zainstaluj zależności
+        run: npm ci
+
+      - name: Typy (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Testy jednostkowe
+        run: npm test
+
+  backend:
+    name: Edge Functions (typy Deno)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Funkcje importują zależności przez specyfikatory npm:, więc Deno
+      # potrzebuje katalogu node_modules. Lock jest jednorazowy, nie trafia
+      # do repo (patrz .gitignore).
+      - name: Typy Edge Functions
+        run: deno check --node-modules-dir=auto backend/supabase/functions/*/index.ts
+
+  prompts:
+    name: Prompty zgodne ze źródłem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # _shared/prompts/index.ts jest generowany z plików .md przez
+      # build-prompts.sh. Edycja .md bez regeneracji wdrażała stary prompt
+      # bez żadnego sygnału, więc pilnujemy tego tutaj.
+      - name: Zregeneruj i porównaj
+        run: |
+          bash backend/scripts/build-prompts.sh
+          if ! git diff --quiet -- backend/supabase/functions/_shared/prompts/index.ts; then
+            echo "::error::prompts/index.ts nie zgadza sie ze zrodlami .md. Uruchom backend/scripts/build-prompts.sh i zacommituj wynik."
+            git diff -- backend/supabase/functions/_shared/prompts/index.ts
+            exit 1
+          fi

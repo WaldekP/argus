@@ -10,7 +10,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/types.ts";
+import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { syncTenant, type TopicSyncResult } from "../_shared/mentions.ts";
 
 /** Ile hasel moze miec jeden tenant. Chroni przed zajezdzeniem crona. */
@@ -375,11 +375,6 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) {
       return jsonResponse({ ok: false, error: err.message }, err.status);
     }
-    console.error("argus-mentions error:", err);
-    const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse(
-      { ok: false, error: `Wystapil blad. Sprobuj ponownie pozniej. (${detail})` },
-      500,
-    );
+    return serverErrorResponse("argus-mentions", err);
   }
 });

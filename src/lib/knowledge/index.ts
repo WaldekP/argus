@@ -14,10 +14,19 @@ import { pitLiniowy } from './topics/pit-liniowy';
 import { podatekBelki } from './topics/podatek-belki';
 import { dobrowolnyZus } from './topics/dobrowolny-zus';
 import { uproszczenia } from './topics/uproszczenia-przedsiebiorcy';
+import { skladkaZdrowotna } from './topics/skladka-zdrowotna';
+import { konsolidacjaFiskalna } from './topics/konsolidacja-fiskalna';
+import { transfery800plus } from './topics/transfery-800plus';
+import { euro } from './topics/euro';
+import { obronnosc } from './topics/obronnosc';
+import { klimatEnergia } from './topics/klimat-energia';
 
 /**
- * Kolejność: kwota wolna (istniejący), potem sześć punktów programu
- * podatkowego Konfederacji z 2023 r. w kolejności z planu wyborczego.
+ * Kolejność na liście. Najpierw kwota wolna i pięć punktów programu
+ * podatkowego Konfederacji 2023 (korpus docs/konfederacja-podatki/), potem
+ * sześć tematów z planu wyborczego dla Petru (korpus docs/plan-wyborczy-petru/):
+ * składka zdrowotna, konsolidacja fiskalna, transfery i 800+, euro, obronność,
+ * klimat i energia.
  */
 export const tematy: Temat[] = [
   kwotaWolna,
@@ -26,6 +35,12 @@ export const tematy: Temat[] = [
   podatekBelki,
   dobrowolnyZus,
   uproszczenia,
+  skladkaZdrowotna,
+  konsolidacjaFiskalna,
+  transfery800plus,
+  euro,
+  obronnosc,
+  klimatEnergia,
 ];
 
 export function znajdzTemat(slug: string): Temat | undefined {

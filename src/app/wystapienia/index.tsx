@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -22,6 +22,7 @@ import {
   type StatementListItem,
 } from '@/lib/api/onboarding';
 import { formatDate, polishPlural } from '@/lib/format';
+import { openExternalUrl } from '@/lib/open-url';
 
 const PAGE_SIZE = 20;
 
@@ -73,7 +74,7 @@ function StatementRow({ statement, expanded, fullText, loadingFull, onToggle }: 
         {statement.url ? (
           <Pressable
             accessibilityRole="link"
-            onPress={() => void Linking.openURL(statement.url as string)}
+            onPress={() => void openExternalUrl(statement.url as string)}
             style={styles.rowAction}>
             <Ionicons name="open-outline" size={16} color={theme.textSecondary} />
             <ThemedText type="small" themeColor="textSecondary">

@@ -22,7 +22,7 @@ export const kwotaWolna: Temat = {
   rekomendacja: {
     pytanie: 'Poprzeć podniesienie kwoty wolnej czy trzymać się składki zdrowotnej?',
     odpowiedz:
-      'Trzymać składkę zdrowotną jako temat własny, a kwotę wolną poprzeć warunkowo i rozliczyć z terminu.',
+      'Trzymać składkę zdrowotną jako temat własny, kwotę wolną poprzeć warunkowo i rozliczyć z terminu, a jako propozycję własną postawić automatyczną waloryzację kwoty wolnej zamiast licytacji na 60 tys.',
     uzasadnienie: [
       'Asymetria kosztów wynosi około 10:1. Obniżka składki to około 4,6 mld zł rocznie, kwota wolna 60 tys. zł to 45-56 mld zł rocznie. Rząd sam przyznał, że na kwotę wolną nie ma przestrzeni fiskalnej.',
       'Składka to jedyna reforma z dowodem wykonalności: przeszła Sejm (4.04.2025, 213:190) i Senat, padła dopiero na wecie prezydenta Dudy. Po wecie składka minimalna wzrosła w 2026 r. o 37,3 proc., więc problem jest świeży i realny.',
@@ -35,6 +35,16 @@ export const kwotaWolna: Temat = {
       'Składka zdrowotna ma węższego adresata: 2,45 mln przedsiębiorców JDG, nie ogół podatników PIT. Przy szerokim elektoracie kwota wolna dotyka więcej osób.',
       'Poparcie dla obniżki składki jest umiarkowane, nie przytłaczające: 46,4 proc. za (SW Research, kwiecień 2025). Wcześniej cytowany sondaż z wynikiem 72,8 proc. nie przeszedł weryfikacji i nie wolno go używać.',
       'Weto i deklaracja toruńska (zapowiedź wetowania każdej podwyżki podatków i składek) betonują status quo. Reforma składki może być niewykonalna do końca kadencji prezydenta.',
+    ],
+    podchwycic: [
+      'Automatyczna waloryzacja kwoty wolnej zamiast skoku do 60 tys.: powiązanie z płacą minimalną i coroczna indeksacja, tańsze i policzalne, a rozwiązuje realny problem zamrożenia kwoty od 2022 r.',
+      'Benchmark europejski jako amunicja: 11 z 27 krajów OECD w Europie indeksuje kwotę wolną i progi automatycznie co roku, Polska nie. Postulat jest do sprawdzenia, nie licytacyjny.',
+      'Komunikacja wyłącznie w złotówkach miesięcznych i w konstrukcji „od jakich zarobków w ogóle nie powinno się płacić podatku”, nie w abstrakcyjnych kwotach rocznych, bo skok z 8 do 30 tys. w 2022 r. nie kupił wdzięczności.',
+    ],
+    zaatakowac: [
+      'Rozliczenie terminu obietnicy: 60 tys. zł na „pierwsze 100 dni” padło w Tarnowie 9 września 2023 r., termin minął w marcu 2024 r., a rząd sam przyznał brak przestrzeni fiskalnej. Gotowa linia bez przejmowania tematu.',
+      'Brak wyceny u Konfederacji: partia zrobiła z kwoty wolnej sztandar, ale jej pakiet z 2023 r. FOR wycenił na dziurę rzędu 189 mld zł, bez własnego rachunku.',
+      'Skok do 60 tys. zł kosztuje 45-56 mld zł rocznie przy zerowej przestrzeni fiskalnej, więc licytacja nominalna to obietnica bez pokrycia. Waloryzacja jest odpowiedzią policzalną.',
     ],
   },
 

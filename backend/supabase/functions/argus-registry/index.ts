@@ -1,7 +1,10 @@
 // argus-registry — powiązania z Krajowego Rejestru Sądowego.
 // Operacje: balance, search_person, link_person, list_subjects, unlink,
 // get_connections, refresh_connections, search_org, get_org_details, link_org,
-// list_events, mark_event_seen, check_conflicts, scan_changes.
+// list_events, mark_event_seen, check_conflicts.
+//
+// Skan biuletynu KRS jest WYŁĄCZNIE w argus-ingest (registry_scan): działa na
+// obserwacjach wszystkich tenantów, więc nie może być operacją użytkownika.
 //
 // Dwa źródła danych, świadomie rozdzielone kosztem:
 //   - otwarte API KRS (darmowe) wykrywa, że coś się zmieniło,
@@ -16,7 +19,7 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/types.ts";
+import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import {
   type CallContext,
   getBalance,
@@ -32,7 +35,6 @@ import {
   findPotentialConflicts,
   findRelatedVotes,
   isStale,
-  scanBulletin,
   syncFinancials,
   syncOrgPeople,
   syncPersonConnections,
@@ -99,10 +101,13 @@ async function logAccess(
 // wyczerpane środki nie objawiały się jako tajemniczy błąd.
 async function opBalance(ctx: CallContext) {
   const balance = await getBalance(ctx);
+  // Licznik MUSI być zawężony do tenanta: bez tego pokazywaliśmy liczbę
+  // wywołań wszystkich biur razem (wyciek międzytenantowy i mylne dane w UI).
   const { count } = await ctx.supabase
     .from("registry_api_calls")
     .select("id", { count: "exact", head: true })
-    .eq("provider", "rejestrio");
+    .eq("provider", "rejestrio")
+    .eq("tenant_id", ctx.tenantId);
   return { balance_pln: balance, calls_total: count ?? 0 };
 }
 
@@ -421,10 +426,12 @@ async function loadLatestFilings(
 
   const { data, error } = await supabase
     .from("registry_org_financials")
+    // Lista kolumn MUSI być jednym literałem. supabase-js wyprowadza typ
+    // wiersza z treści selecta na poziomie typów, a sklejany string jest dla
+    // niego nieczytelny: typ degradował się wtedy do GenericStringError
+    // i każdy odczyt pola był błędem kompilacji.
     .select(
-      "org_krs, period_start, period_end, filed_on, revenue, revenue_label, " +
-        "revenue_prev, net_result, net_result_label, net_result_prev, currency, " +
-        "has_json, source",
+      "org_krs, period_start, period_end, filed_on, revenue, revenue_label, revenue_prev, net_result, net_result_label, net_result_prev, currency, has_json, source",
     )
     .in("org_krs", krsList)
     .order("period_end", { ascending: false });
@@ -825,17 +832,14 @@ async function opCheckConflicts(
   };
 }
 
-// Ręczne uruchomienie darmowego skanu biuletynu (normalnie robi to cron
-// w argus-ingest). Nie zużywa środków z konta Rejestr.io.
-async function opScanChanges(
-  supabase: SupabaseClient,
-  body: { day?: unknown },
-) {
-  const day = typeof body.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.day)
-    ? body.day
-    : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  return await scanBulletin(supabase, day);
-}
+// Skan biuletynu KRS mieszka WYŁĄCZNIE w argus-ingest (operacja
+// registry_scan, autoryzowana sekretem crona albo kluczem serwisowym).
+//
+// Nie wystawiamy go tutaj: scanBulletin czyta registry_watches wszystkich
+// tenantów i zapisuje registry_events pod ich tenant_id, więc wystawiony
+// w funkcji użytkownika dawał dowolnemu zalogowanemu userowi zapis do danych
+// obcego biura (i możliwość wyczerpania limitu API Ministerstwa
+// Sprawiedliwości, ok. 100 zapytań na 15 minut z jednego IP).
 
 // ---------------------------------------------------------------------------
 // Router
@@ -914,8 +918,6 @@ Deno.serve(async (req) => {
           ok: true,
           data: await opCheckConflicts(supabase, tenantId, body),
         });
-      case "scan_changes":
-        return jsonResponse({ ok: true, data: await opScanChanges(supabase, body) });
       default:
         return jsonResponse(
           { ok: false, error: `Nieznana operacja: ${body?.operation}` },
@@ -926,11 +928,6 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) {
       return jsonResponse({ ok: false, error: err.message }, err.status);
     }
-    console.error("argus-registry error:", err);
-    const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse(
-      { ok: false, error: `Wystąpił błąd. Spróbuj ponownie później. (${detail})` },
-      500,
-    );
+    return serverErrorResponse("argus-registry", err);
   }
 });

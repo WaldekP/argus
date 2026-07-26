@@ -15,7 +15,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/types.ts";
+import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import {
   getClassificationModel,
   getGenerationModel,
@@ -1265,11 +1265,6 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) {
       return jsonResponse({ ok: false, error: err.message }, err.status);
     }
-    console.error("argus-analysis error:", err);
-    const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse(
-      { ok: false, error: `Wystapil blad. Sprobuj ponownie pozniej. (${detail})` },
-      500,
-    );
+    return serverErrorResponse("argus-analysis", err);
   }
 });

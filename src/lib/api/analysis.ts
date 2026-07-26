@@ -8,7 +8,7 @@
  * Odpowiedź: { ok: true, data } albo { ok: false, error }.
  */
 
-import { supabase } from '@/lib/supabase';
+import { edgeClient, GENERIC_ERROR } from '@/lib/api/client';
 
 /** Status analizy w cyklu życia: zbieranie, analiza, wynik albo błąd. */
 export type AnalysisStatus = 'collecting' | 'analyzing' | 'ready' | 'error';
@@ -172,7 +172,6 @@ type AnalysisOperation =
   | 'list'
   | 'delete';
 
-const DEFAULT_TIMEOUT_MS = 60_000;
 /** Kroki pętli wołają API Sejmu albo model, dajemy zapas czasu. */
 const STEP_TIMEOUT_MS = 120_000;
 /** Ekstrakcja tekstu z PDF po stronie backendu bywa wolna. */
@@ -182,76 +181,13 @@ const LOOP_MAX_STEPS = 400;
 /** Pojedynczy krok pętli próbujemy maksymalnie 3 razy (kroki idempotentne). */
 const STEP_MAX_ATTEMPTS = 3;
 
-const GENERIC_ERROR = 'Coś poszło nie tak. Spróbuj ponownie za chwilę.';
-const NETWORK_ERROR = 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.';
-const TIMEOUT_ERROR = 'Operacja trwała zbyt długo. Spróbuj ponownie.';
-const SESSION_ERROR = 'Sesja wygasła. Zaloguj się ponownie.';
 
 /**
  * Bazowe wywołanie Edge Function. Zwraca `data` z odpowiedzi albo rzuca
  * Error z komunikatem po polsku (gotowym do pokazania w UI).
  */
-async function callAnalysis<T>(
-  operation: AnalysisOperation,
-  payload?: Record<string, unknown>,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
-): Promise<T> {
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const anonKey =
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_KEY;
-  if (!supabaseUrl || !anonKey) {
-    throw new Error(GENERIC_ERROR);
-  }
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) {
-    throw new Error(SESSION_ERROR);
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let response: Response;
-  try {
-    response = await fetch(`${supabaseUrl}/functions/v1/argus-analysis`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: anonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ operation, ...payload }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(TIMEOUT_ERROR);
-    }
-    throw new Error(NETWORK_ERROR);
-  } finally {
-    clearTimeout(timer);
-  }
-
-  let body: { ok?: boolean; data?: T; error?: string } | null = null;
-  try {
-    body = (await response.json()) as { ok?: boolean; data?: T; error?: string };
-  } catch {
-    body = null;
-  }
-
-  if (!body || body.ok !== true) {
-    if (body?.error && typeof body.error === 'string') {
-      throw new Error(body.error);
-    }
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(SESSION_ERROR);
-    }
-    throw new Error(GENERIC_ERROR);
-  }
-
-  return body.data as T;
-}
+/** Klient tej domeny: transport w @/lib/api/client, tu tylko lista operacji. */
+const callAnalysis = edgeClient<AnalysisOperation>('argus-analysis');
 
 const asText = (value: unknown): string => (typeof value === 'string' ? value : '');
 

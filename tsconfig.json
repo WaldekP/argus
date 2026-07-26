@@ -19,6 +19,11 @@
   ],
   "exclude": [
     "node_modules",
-    "backend"
+    "backend",
+    "tools",
+    "dist",
+    "scripts",
+    "test",
+    "**/*.test.ts"
   ]
 }

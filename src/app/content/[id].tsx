@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DraftStatusChip } from '@/components/draft-status-chip';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -224,13 +225,12 @@ export default function ContentDraftScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
+        <BackLink />
 
         {loading ? (
           <View style={styles.centerBox}>
@@ -429,12 +429,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
-  },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
   },
   centerBox: {
     alignItems: 'center',

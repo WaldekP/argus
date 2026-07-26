@@ -59,7 +59,17 @@ function groupByOrg(connections: RegistryConnection[]): [string, RegistryConnect
 export function RegistryConnections({ defaultQuery = '', subjectId = null }: Props) {
   const theme = useTheme();
   const router = useRouter();
-  const [query, setQuery] = useState(defaultQuery);
+  // Profil polityka dojeżdża asynchronicznie ze store'u, więc przy pierwszym
+  // renderze `defaultQuery` jest pusty. Trzymanie go w useState zamrażało tę
+  // pustkę na zawsze: pole zostawało puste, a przycisk "Szukaj w KRS" wymaga
+  // dwóch słów, czyli był trwale nieaktywny.
+  //
+  // Dlatego w stanie siedzi wyłącznie to, co wpisał użytkownik (null = jeszcze
+  // nie dotknął pola), a wartość pokazywana jest wyliczana. Bez efektu
+  // synchronizującego, który tylko kopiowałby props do stanu.
+  const [queryOverride, setQueryOverride] = useState<string | null>(null);
+  const query = queryOverride ?? defaultQuery;
+
   const [candidates, setCandidates] = useState<PersonCandidate[] | null>(null);
   const [ambiguous, setAmbiguous] = useState(false);
   const [subject, setSubject] = useState<RegistrySubject | null>(null);
@@ -190,7 +200,7 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
           <FormTextInput
             label="Imię i nazwisko"
             value={query}
-            onChangeText={setQuery}
+            onChangeText={setQueryOverride}
             placeholder="Jan Kowalski"
             autoCapitalize="words"
           />

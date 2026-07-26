@@ -6,6 +6,9 @@
 // the LLM (e.g. Sejm import steps, embeddings) must not pay its memory cost.
 // Edge Function workers have tight resource limits (WORKER_RESOURCE_LIMIT).
 import type { ChatAnthropic } from "npm:@langchain/anthropic";
+// Prompty sa modulem TS generowanym z plikow .md przez
+// backend/scripts/build-prompts.sh: deploy nie bundluje .md.
+import { prompts } from "./prompts/index.ts";
 
 // Models per CLAUDE.md: sonnet 5 for generation (briefs, content),
 // haiku 4.5 for classification.
@@ -45,9 +48,6 @@ export async function getClassificationModel(): Promise<ChatAnthropic> {
   });
 }
 
-// Prompt loader. Deploy nie bundluje plikow .md, wiec prompty sa modulem TS
-// generowanym z .md przez backend/scripts/build-prompts.sh (patrz prompts/README.md).
-import { prompts } from "./prompts/index.ts";
 
 export function loadPrompt(name: string): string {
   const text = prompts[name];

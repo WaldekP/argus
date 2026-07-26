@@ -24,7 +24,7 @@ export type Topic = (typeof TOPICS)[number];
 
 // Slowa-klucze (w mianowniku i typowych odmianach) -> temat. Dopasowanie po
 // zawieraniu, bez diakrytykow, na lowercase. Kolejnosc bez znaczenia.
-const KEYWORDS: Array<[Topic, string[]]> = [
+const KEYWORDS: [Topic, string[]][] = [
   ["podatki i budzet", ["podatek", "podatk", "budzet", "vat", "pit", "cit", "danin", "skarbow", "fiskus", "skladk"]],
   ["gospodarka", ["gospodark", "ekonom", "inflacj", "firm", "biznes", "gielda", "przedsiebiorc", "rynek", "pln", "zloteg"]],
   ["energetyka", ["energetyk", "energi", "atom", "wegiel", "gaz", "prad", "oze", "elektrown", "cen pradu"]],

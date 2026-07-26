@@ -1,14 +1,15 @@
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Paleta aktualnego motywu. Jedyne wejście do kolorów dla komponentów
+ * (`theme.background`, `theme.accent`, ...).
+ *
+ * Motyw pochodzi z wyboru użytkownika (store `@/store/theme`), nie z ustawień
+ * systemu: decyzja usera z 2026-07-26 to jasny motyw domyślnie plus
+ * przełącznik na ciemny w zakładce Profil.
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeMode } from '@/store/theme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  return Colors[useThemeMode()];
 }

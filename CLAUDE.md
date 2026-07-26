@@ -46,6 +46,38 @@ argus_app/
   docs/               — kontrakty API i tematyczne bazy wiedzy
 ```
 
+## Kontrola jakości (uruchamiaj przed commitem)
+
+| Komenda | Co sprawdza |
+| --- | --- |
+| `npm run typecheck` | `tsc --noEmit` na `src/` (strict) |
+| `npm run lint` | ESLint na `src/` i `backend/` |
+| `npm test` | testy jednostkowe logiki czystej |
+| `npm run check` | wszystkie trzy po kolei |
+
+Te same bramki chodzą w CI (`.github/workflows/check.yml`), plus `deno check` na
+Edge Functions i kontrola, czy `_shared/prompts/index.ts` zgadza się z plikami `.md`.
+**To jedyne zabezpieczenie przed wdrożeniem błędu typu**: ani Metro, ani
+`supabase functions deploy` nie sprawdzają typów, a push na main wdraża produkcję.
+
+**Testy** stoją na wbudowanym runnerze Node (`node --test`, Node 24 sam zdejmuje typy),
+bez jednej zależności deweloperskiej. Pliki `*.test.ts` obok kodu, resolver aliasu `@/`
+i importów bez rozszerzeń: `test/setup.mts`. Testujemy logikę czystą (formatowanie,
+normalizacja odpowiedzi API, spójność bazy wiedzy); komponentów RN nie renderujemy.
+
+**Backend (typy Deno) sprawdza CI, nie sprawdzaj go lokalnie w repo.**
+`deno check --node-modules-dir=auto` uruchomione gdziekolwiek w drzewie projektu
+przebudowuje `node_modules` na strukturę z symlinkami do `.deno/` (jak pnpm).
+Działa, ale potem zwykłe `rm -rf node_modules/.deno` albo operacja npm zrywa
+symlink `typescript` i psuje `tsc`. Jeśli musisz sprawdzić backend lokalnie,
+skopiuj `backend/supabase/functions` do katalogu tymczasowego poza repo, dodaj
+tam `deno.json` z `{ "nodeModulesDir": "auto" }` i uruchom `deno check` na kopii.
+
+**Pułapka:** `expo start` generuje `.expo/types/router.d.ts` z zaśmieconą listą tras
+(trafiają tam pliki spoza `src/app`, np. `/../lib/knowledge/...`), po czym `tsc` zgłasza
+fałszywe błędy tras. `expo export` generuje ten plik poprawnie. Jeśli widzisz błędy
+`TS2345` na `router.push`, usuń `.expo/types/router.d.ts` i sprawdź ponownie.
+
 ## Tematyczne bazy wiedzy (`docs/`)
 
 Korpusy merytoryczne pod briefy przedwywiadowe i generator przekazu. Każdy korpus ma własny
@@ -56,6 +88,9 @@ katalog z `README.md` (rola, mapa dokumentów, zasady pracy, audyt źródeł).
 - `docs/konfederacja-podatki/` — program podatkowy Konfederacji 2023 (5 postulatów): kwota wolna
   12×, PIT liniowy 12%, podatek Belki, dobrowolny ZUS, uproszczenia dla przedsiębiorców.
   Rekomendacje dwuwarstwowe (co podchwycić / gdzie uderzyć).
+- `docs/programy-wyborcze/` — korpus surowców: oficjalne PDF-y programów wyborczych partii
+  sejmowych z wyborów 2011, 2015, 2019, 2023 (bez Mniejszości Niemieckiej, decyzja usera).
+  Indeks źródeł w README. Surowiec pod analizy programowe i plan wyborczy dla Petru.
 
 Zasada: przed odpowiedzią na pytanie merytoryczne z danego tematu przeszukaj korpus, nie
 odpowiadaj z pamięci modelu. Liczby oznaczone `[do weryfikacji]` nie nadają się do publikacji.
@@ -72,13 +107,36 @@ rejestr w `index.ts`), renderowane w zakładce Tematy i na `/temat/[slug]`. Kont
 - **RLS na KAŻDEJ tabeli** + testy RLS (tenant A nie widzi danych tenanta B) — warunek zaliczenia migracji.
 - 2FA (TOTP) wymuszone dla roli `politician`.
 
-## Edge Functions — konwencja
+## Migracje bazy danych
+
+Migracje to pliki SQL w `backend/supabase/migrations/`, wersjonowane w gicie.
+Na produkcję nakłada je integracja Supabase↔GitHub przy merge do `main`
+(albo narzędzie `apply_migration` konektora Supabase MCP).
+
+**Zasada nadrzędna (decyzja Waldka): nigdy nie migruj bez pytania.** Kiedy zadanie
+wymaga zmiany schematu, napisz plik migracji i od razu zapytaj usera, czy go
+nałożyć. Nie nakładaj migracji po cichu i nie zostawiaj utworzonej migracji bez
+zadania pytania „migrować?". User zatwierdza, Claude wykonuje. Migracje na żywo
+w bazie (poza plikami) tworzą dryft, dlatego jedynym źródłem prawdy są pliki.
 
 Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+
+**Zasada, którą łatwo złamać:** operacja działająca na danych WSZYSTKICH tenantów
+(przebiegi cronowe) nie może istnieć w funkcji użytkownika, nawet „do testów".
+Takie operacje mieszkają wyłącznie w `argus-ingest`. Klient Edge Functions po
+stronie apki: `src/lib/api/client.ts` (jeden transport, `edgeClient<Operation>()`
+per domena). Błąd 500 zwracaj przez `serverErrorResponse()` z `_shared/types.ts`,
+nigdy z treścią wyjątku: do UI trafiały surowe komunikaty Postgresa.
 
 ### Rejestr sądowy (KRS)
 
 Kontrakt: `docs/kontrakt-rejestr-krs.md`. Dwa źródła rozdzielone kosztem: otwarte API Ministerstwa Sprawiedliwości (darmowe, wykrywa zmiany, ale maskuje dane osób fizycznych) i Rejestr.io (płatne z salda w PLN, daje nazwiska i sieć powiązań). Klucz: sekret `REJESTRIO_API_KEY`, nigdy na kliencie. Zasada nadrzędna: tożsamość osoby potwierdza człowiek, bo wyszukiwanie po nazwisku zwraca imienników bez pola rozróżniającego.
+
+Saldo Rejestr.io jest **wspólne dla wszystkich tenantów**, więc płatne wywołania
+mają dwa bezpieczniki w `_shared/rejestrio.ts`: próg salda (`MIN_BALANCE_PLN`)
+i dzienny limit per tenant (`MAX_PAID_CALLS_PER_TENANT_PER_DAY`, liczony
+z `registry_api_calls`). Dodając nowy płatny endpoint, przepuść go przez
+`assertBudget()`, bo tam siedzą oba.
 
 ### Zasady promptów
 
@@ -88,7 +146,15 @@ Kontrakt: `docs/kontrakt-rejestr-krs.md`. Dwa źródła rozdzielone kosztem: otw
 
 ## Design system
 
-**Źródło prawdy: `../briefy/15-mini-brief-design-argus.md`** (mini brief designu — przeczytaj przed każdą pracą nad UI). Spójność wizualna z prezentacją (brief 13). Klimat: "quiet power" — antyczna powaga + nowoczesny produkt, "muzeum nocą, nie startup". **Dark mode first.** Motyw oka Argusa (logo, empty states, loader, kropka-oko zamiast bulletów) — subtelnie.
+**Źródło prawdy: `../briefy/15-mini-brief-design-argus.md`** (mini brief designu — przeczytaj przed każdą pracą nad UI). Spójność wizualna z prezentacją (brief 13). Klimat: "quiet power" — antyczna powaga + nowoczesny produkt, "muzeum nocą, nie startup". Motyw oka Argusa (logo, empty states, loader, kropka-oko zamiast bulletów) — subtelnie.
+
+**Motyw: jasny domyślnie, ciemny na przełącznik (decyzja usera, 2026-07-26.**
+Zmiana wobec wcześniejszego "dark mode first"). Wybór należy do użytkownika, nie
+do systemu: store `src/store/theme.ts` (trwały per urządzenie, klucz
+`argus.theme.mode`), przełącznik w zakładce Profil, paleta przez `useTheme()`.
+Nie czytamy `useColorScheme()` z systemu, bo nadpisywałby wybór usera.
+Uwaga: jasna paleta w `Colors.ts` nie była nigdy zweryfikowana z deckiem, a jest
+teraz domyślna, więc przy pracy nad UI sprawdzaj OBA motywy.
 
 **Korekta dla aplikacji (decyzja usera, 2026-07-23):** tła w apce są jaśniejsze niż w decku, a CTA ma własne złoto. Dark: tło `#161D45`, karty `#1F2755`, panel alt `#1A214C`, tło głębsze `#0F1535`, przyciski CTA `#E3B93C` (token `cta`) z tekstem `#10173A`. Wartości z tabeli poniżej dotyczą prezentacji; w apce zawsze bierz kolory z `src/constants/Colors.ts`.
 

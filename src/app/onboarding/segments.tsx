@@ -119,7 +119,11 @@ export default function SegmentsScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.five, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
         <View style={styles.header}>
           <ThemedText themeColor="accent" style={styles.kicker}>
             Krok 4 z 4

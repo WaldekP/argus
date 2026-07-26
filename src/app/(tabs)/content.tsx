@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -95,6 +96,25 @@ export default function ContentScreen() {
         </View>
 
         <PrimaryButton title="Nowy przekaz" onPress={() => router.push('/content/new')} />
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Programy wyborcze partii sejmowych, pliki PDF do pobrania"
+          onPress={() => router.push('/programy-wyborcze')}
+          style={({ pressed }) => [
+            styles.libraryCard,
+            { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+            pressed && styles.dimmed,
+          ]}>
+          <View style={styles.libraryTexts}>
+            <ThemedText style={styles.libraryTitle}>Programy wyborcze</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Oficjalne dokumenty partii sejmowych z wyborów 2011, 2015, 2019 i 2023, do pobrania
+              jako PDF.
+            </ThemedText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+        </Pressable>
 
         {!loaded ? (
           <View style={styles.centerBox}>
@@ -200,6 +220,23 @@ const styles = StyleSheet.create({
   },
   cards: {
     gap: Spacing.three,
+  },
+  libraryCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    padding: Spacing.four,
+  },
+  libraryTexts: {
+    flex: 1,
+    gap: Spacing.one,
+  },
+  libraryTitle: {
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize.section,
+    lineHeight: FontSize.section * 1.3,
   },
   card: {
     borderWidth: 1,

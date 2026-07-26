@@ -8,8 +8,8 @@
  * Odpowiedź: { ok: true, data } albo { ok: false, error }.
  */
 
+import { edgeClient, GENERIC_ERROR } from '@/lib/api/client';
 import type { SegmentPriority } from '@/lib/api/onboarding';
-import { supabase } from '@/lib/supabase';
 
 /** Kanały przekazu (kontrakt) i ich etykiety w UI. */
 export type Channel = 'fb' | 'x' | 'tiktok' | 'prasa';
@@ -79,6 +79,28 @@ export type CreateDraftResult = {
   total_variants: number;
 };
 
+/** Framing per segment tenanta (klucz mapy segments w TopicFraming). */
+export type SegmentFraming = {
+  kat?: string;
+  coDziala?: string[];
+  czegoUnikac?: string[];
+  przyklad?: string;
+};
+
+/**
+ * Framing z tematu bazy wiedzy przekazywany do generatora (most zakładka
+ * Tematy → argus-content). Klient rozwiązuje mapowanie segmentów korpusu na
+ * segmenty tenanta, więc `segments` jest kluczowane po ID segmentu tenanta.
+ * Kontrakt: docs/kontrakt-task-7.md, projekt: docs/plan-wyborczy-petru/faza-2-generator.md.
+ */
+export type TopicFraming = {
+  slug?: string;
+  stanowisko?: string;
+  podchwycic?: string[];
+  zaatakowac?: string[];
+  segments?: Record<string, SegmentFraming>;
+};
+
 /** Jeden krok porcjowanej generacji wariantów (operation: generate_step). */
 export type GenerateStepResult = {
   processed: number;
@@ -96,7 +118,6 @@ type ContentOperation =
   | 'regenerate_variant'
   | 'set_status';
 
-const DEFAULT_TIMEOUT_MS = 60_000;
 /** Krok generacji woła Sonneta (do 2 wariantów), dajemy zapas czasu. */
 const GENERATE_STEP_TIMEOUT_MS = 120_000;
 /** Regeneracja wariantu to też wywołanie modelu. */
@@ -104,76 +125,13 @@ const REGENERATE_TIMEOUT_MS = 120_000;
 /** Bezpiecznik pętli generacji: krok robi do 2 wariantów, 200 kroków to aż nadto. */
 const GENERATE_MAX_STEPS = 200;
 
-const GENERIC_ERROR = 'Coś poszło nie tak. Spróbuj ponownie za chwilę.';
-const NETWORK_ERROR = 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.';
-const TIMEOUT_ERROR = 'Operacja trwała zbyt długo. Spróbuj ponownie.';
-const SESSION_ERROR = 'Sesja wygasła. Zaloguj się ponownie.';
 
 /**
  * Bazowe wywołanie Edge Function. Zwraca `data` z odpowiedzi albo rzuca
  * Error z komunikatem po polsku (gotowym do pokazania w UI).
  */
-async function callContent<T>(
-  operation: ContentOperation,
-  payload?: Record<string, unknown>,
-  timeoutMs: number = DEFAULT_TIMEOUT_MS
-): Promise<T> {
-  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-  const anonKey =
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_KEY;
-  if (!supabaseUrl || !anonKey) {
-    throw new Error(GENERIC_ERROR);
-  }
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
-  if (!accessToken) {
-    throw new Error(SESSION_ERROR);
-  }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let response: Response;
-  try {
-    response = await fetch(`${supabaseUrl}/functions/v1/argus-content`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        apikey: anonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ operation, ...payload }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error(TIMEOUT_ERROR);
-    }
-    throw new Error(NETWORK_ERROR);
-  } finally {
-    clearTimeout(timer);
-  }
-
-  let body: { ok?: boolean; data?: T; error?: string } | null = null;
-  try {
-    body = (await response.json()) as { ok?: boolean; data?: T; error?: string };
-  } catch {
-    body = null;
-  }
-
-  if (!body || body.ok !== true) {
-    if (body?.error && typeof body.error === 'string') {
-      throw new Error(body.error);
-    }
-    if (response.status === 401 || response.status === 403) {
-      throw new Error(SESSION_ERROR);
-    }
-    throw new Error(GENERIC_ERROR);
-  }
-
-  return body.data as T;
-}
+/** Klient tej domeny: transport w @/lib/api/client, tu tylko lista operacji. */
+const callContent = edgeClient<ContentOperation>('argus-content');
 
 const asText = (value: unknown): string => (typeof value === 'string' ? value : '');
 
@@ -266,6 +224,10 @@ export async function createDraft(input: {
   core_message?: string;
   segment_ids: string[];
   channels: Channel[];
+  /** Opcjonalny slug tematu bazy wiedzy, z którego pochodzi framing. */
+  topic_slug?: string;
+  /** Opcjonalny framing (stanowisko, podchwycić, zaatakować, per segment). */
+  topic_framing?: TopicFraming;
 }): Promise<CreateDraftResult> {
   const data = await callContent<Partial<CreateDraftResult>>('create', input);
   return {

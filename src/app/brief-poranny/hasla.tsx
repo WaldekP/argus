@@ -31,7 +31,7 @@ import { relativeTime } from '@/lib/format-time';
 
 /** Potwierdzenie usunięcia. Na webie `Alert` nie działa, więc `confirm`. */
 async function confirmRemoval(phrase: string): Promise<boolean> {
-  const message = `Usunąć hasło "${phrase}"? Zebrane wzmianki też znikną.`;
+  const message = `Usunąć hasło „${phrase}”? Zebrane wzmianki też znikną.`;
 
   if (Platform.OS === 'web') {
     return globalThis.confirm(message);
@@ -47,7 +47,7 @@ async function confirmRemoval(phrase: string): Promise<boolean> {
 
 /**
  * Hasła obserwowane: nazwiska, nazwy partii, tematy. Na ich podstawie Argus
- * pobiera wzmianki z Google News do briefu porannego.
+ * pobiera wzmianki z Bing News RSS do briefu porannego.
  *
  * Hasła są wspólne dla całego biura: polityk i asystent widzą tę samą listę.
  */
@@ -159,7 +159,11 @@ export default function WatchedTermsScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.six },
         ]}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Wróć"
@@ -216,8 +220,8 @@ export default function WatchedTermsScreen() {
 
           <ThemedText type="small" themeColor="textSecondary">
             Polskie nazwiska się odmieniają, więc dla nazwiska warto podać własne zapytanie z
-            wariantami, na przykład: {'"Pieniak" OR "Pieniaka" OR "Pieniakowi"'}. Działają operatory
-            Google News: cudzysłów, OR, site:.
+            wariantami, na przykład: {'"Pieniak" OR "Pieniaka" OR "Pieniakowi"'}. Działają
+            operatory wyszukiwarki: cudzysłów, OR, site:.
           </ThemedText>
 
           <PrimaryButton title="Dodaj hasło" onPress={handleAdd} loading={saving} />

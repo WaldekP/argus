@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -6,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
+import { FullScreenProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -27,52 +28,78 @@ import {
   type Channel,
   type ContentSegment,
   type GenerateStepResult,
+  type TopicFraming,
 } from '@/lib/api/content';
+import { tematy, znajdzTemat } from '@/lib/knowledge';
+import type { Temat } from '@/lib/knowledge/types';
 
 const TOPIC_MIN_LENGTH = 5;
 
-type Phase = 'form' | 'generating';
+/** Normalizacja nazwy segmentu do luźnego dopasowania korpus ↔ tenant. */
+function normalizeName(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 /**
- * Pełnoekranowy stan generacji z realnym postępem z pętli generate_step.
- * Po wygenerowaniu wszystkich wariantów backend robi kontrolę spójności,
- * stąd osobna etykieta na końcu.
+ * Buduje framing dla generatora z wybranego tematu. Stanowisko i warstwy
+ * taktyczne obowiązują cały draft; framing per segment dokładany jest tam,
+ * gdzie nazwa segmentu tenanta daje się dopasować do segmentu korpusu.
  */
-function GenerationLoader({
-  step,
-  total,
-}: {
-  step: GenerateStepResult | null;
-  total: number | null;
-}) {
-  const theme = useTheme();
-  const knownTotal = step?.total ?? total ?? 0;
-  const processed = step?.processed ?? 0;
-  const checkingConsistency = step !== null && knownTotal > 0 && processed >= knownTotal;
-  const label = checkingConsistency
-    ? 'Sprawdzam spójność z Twoją historią'
-    : knownTotal > 0
-      ? `Wariant ${Math.min(processed + 1, knownTotal)} z ${knownTotal}`
-      : 'Przygotowuję generację';
-  const ratio = knownTotal > 0 ? Math.min(processed / knownTotal, 1) : 0;
+function buildTopicFraming(
+  temat: Temat,
+  selectedSegmentIds: string[],
+  segments: ContentSegment[]
+): TopicFraming {
+  const segMap: NonNullable<TopicFraming['segments']> = {};
+  for (const id of selectedSegmentIds) {
+    const tenantSeg = segments.find((s) => s.id === id);
+    if (!tenantSeg) continue;
+    const tn = normalizeName(tenantSeg.name);
+    const match = temat.segmenty.find((ts) => {
+      const kn = normalizeName(ts.nazwa);
+      if (!tn || !kn) return false;
+      return tn.includes(kn) || kn.includes(tn) || tn.split(' ')[0] === kn.split(' ')[0];
+    });
+    if (match) {
+      segMap[id] = {
+        kat: match.kat,
+        coDziala: match.coDziala,
+        czegoUnikac: match.czegoUnikac,
+        przyklad: match.przyklad,
+      };
+    }
+  }
+  return {
+    slug: temat.slug,
+    stanowisko: temat.rekomendacja.odpowiedz,
+    podchwycic: temat.rekomendacja.podchwycic,
+    zaatakowac: temat.rekomendacja.zaatakowac,
+    segments: Object.keys(segMap).length > 0 ? segMap : undefined,
+  };
+}
 
-  return (
-    <View style={styles.loader}>
-      <ActivityIndicator size="large" color={theme.accent} />
-      <ThemedText style={styles.loaderStep}>{label}</ThemedText>
-      <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-        <View
-          style={[
-            styles.progressFill,
-            { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-          ]}
-        />
-      </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-        Generacja może potrwać kilka minut. Nie zamykaj aplikacji.
-      </ThemedText>
-    </View>
-  );
+type Phase = 'form' | 'generating';
+
+
+/**
+ * Etykieta kroku generacji. Po wygenerowaniu wszystkich wariantów backend robi
+ * jeszcze kontrolę spójności, stąd osobna nazwa na końcu.
+ */
+function generationLabel(step: GenerateStepResult | null, knownTotal: number): string {
+  const processed = step?.processed ?? 0;
+  if (step !== null && knownTotal > 0 && processed >= knownTotal) {
+    return 'Sprawdzam spójność z Twoją historią';
+  }
+  if (knownTotal > 0) {
+    return `Wariant ${Math.min(processed + 1, knownTotal)} z ${knownTotal}`;
+  }
+  return 'Przygotowuję generację';
 }
 
 /** Formularz nowego przekazu: temat, komunikat, segmenty, kanały. */
@@ -88,6 +115,7 @@ export default function NewContentScreen() {
   const [segmentsLoading, setSegmentsLoading] = useState(true);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
+  const [selectedTopicSlug, setSelectedTopicSlug] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationStep, setGenerationStep] = useState<GenerateStepResult | null>(null);
@@ -137,6 +165,22 @@ export default function NewContentScreen() {
     );
   };
 
+  // Wybór tematu z bazy wiedzy: pojedynczy, ponowny klik odznacza.
+  // Prefill tematu i komunikatu tylko gdy pola są puste, żeby nie nadpisać usera.
+  const selectTopic = (slug: string) => {
+    setSelectedTopicSlug((current) => {
+      const next = current === slug ? null : slug;
+      if (next) {
+        const temat = znajdzTemat(next);
+        if (temat) {
+          setTopic((value) => (value.trim() ? value : temat.nazwa));
+          setCoreMessage((value) => (value.trim() ? value : temat.rekomendacja.odpowiedz));
+        }
+      }
+      return next;
+    });
+  };
+
   const toggleChannel = (channel: Channel) => {
     setSelectedChannels((current) =>
       current.includes(channel)
@@ -151,7 +195,11 @@ export default function NewContentScreen() {
         setGenerationStep(step);
       }
     });
+    // Zdarzenie leci nawet po odejściu z ekranu: generacja faktycznie się
+    // udała. Przejścia już nie wymuszamy, bo wyrwałoby użytkownika z miejsca,
+    // w którym jest teraz.
     track('content_generated', { variants: finalStep.total });
+    if (!mountedRef.current) return;
     router.replace(`/content/${draftId}`);
   };
 
@@ -174,11 +222,17 @@ export default function NewContentScreen() {
     try {
       let draftId = draftIdRef.current;
       if (!draftId) {
+        const temat = selectedTopicSlug ? znajdzTemat(selectedTopicSlug) : undefined;
+        const topicFraming = temat
+          ? buildTopicFraming(temat, selectedSegmentIds, segments)
+          : undefined;
         const created = await createDraft({
           topic: trimmedTopic,
           core_message: coreMessage.trim() || undefined,
           segment_ids: selectedSegmentIds,
           channels: selectedChannels,
+          topic_slug: temat?.slug,
+          topic_framing: topicFraming,
         });
         draftId = created.draft_id;
         draftIdRef.current = draftId;
@@ -228,7 +282,13 @@ export default function NewContentScreen() {
             </View>
           </View>
         ) : (
-          <GenerationLoader step={generationStep} total={totalVariants} />
+          <FullScreenProgress
+            label={generationLabel(generationStep, generationStep?.total ?? totalVariants ?? 0)}
+            processed={generationStep?.processed ?? 0}
+            total={generationStep?.total ?? totalVariants ?? 0}
+            showCount={false}
+            hint="Generacja może potrwać kilka minut. Nie zamykaj aplikacji."
+          />
         )}
       </ThemedView>
     );
@@ -241,13 +301,12 @@ export default function NewContentScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
+        <BackLink />
 
         <View style={styles.header}>
           <ThemedText style={styles.title}>Nowy przekaz</ThemedText>
@@ -274,6 +333,51 @@ export default function NewContentScreen() {
           numberOfLines={3}
           style={styles.multiline}
         />
+
+        <View style={styles.section}>
+          <ThemedText themeColor="accent" style={styles.kicker}>
+            Temat z bazy wiedzy (opcjonalnie)
+          </ThemedText>
+          <View style={styles.chips}>
+            {tematy.map((temat) => {
+              const active = selectedTopicSlug === temat.slug;
+              return (
+                <Pressable
+                  key={temat.slug}
+                  accessibilityRole="button"
+                  onPress={() => selectTopic(temat.slug)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    active
+                      ? { backgroundColor: theme.cta, borderColor: theme.cta }
+                      : {
+                          backgroundColor: theme.backgroundSelected,
+                          borderColor: theme.borderStrong,
+                        },
+                    pressed && styles.dimmed,
+                  ]}>
+                  <ThemedText
+                    type="small"
+                    themeColor={active ? 'onAccent' : 'accentLight'}
+                    style={styles.chipLabel}>
+                    {temat.nazwa}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          {selectedTopicSlug ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Przekaz użyje stanowiska i framingu z tego tematu, a strażnik spójności sprawdzi
+              warianty także wobec tego stanowiska.
+            </ThemedText>
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              Wybór tematu wstrzyknie stanowisko i argumenty do generatora oraz dopasuje przekaz
+              do segmentów.
+            </ThemedText>
+          )}
+        </View>
 
         <View style={styles.section}>
           <ThemedText themeColor="accent" style={styles.kicker}>
@@ -385,12 +489,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
-  },
   header: {
     gap: Spacing.two,
   },
@@ -437,23 +535,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
     paddingHorizontal: Spacing.five,
-  },
-  loaderStep: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize.section,
-    lineHeight: FontSize.section * 1.3,
-    textAlign: 'center',
-  },
-  progressTrack: {
-    width: '100%',
-    maxWidth: 320,
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   centered: {
     textAlign: 'center',

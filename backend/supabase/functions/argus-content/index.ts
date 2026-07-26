@@ -17,7 +17,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/types.ts";
+import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import {
   getClassificationModel,
   getGenerationModel,
@@ -68,6 +68,70 @@ interface ConsistencyAlert {
   description: string;
   conflict_statement_id: string | null;
   suggested_response: string;
+}
+
+// Framing z tematu bazy wiedzy (opcjonalny most z zakladki Tematy do generatora).
+// Klient rozwiazuje mapowanie: segments jest kluczowane po ID segmentu tenanta,
+// bo to klient laczy segment korpusu z segmentem tenanta. Patrz
+// docs/faza-2-generator.md oraz docs/kontrakt-task-7.md.
+interface SegmentFraming {
+  kat?: string;
+  coDziala?: string[];
+  czegoUnikac?: string[];
+  przyklad?: string;
+}
+
+interface TopicFraming {
+  slug?: string;
+  stanowisko?: string;
+  podchwycic?: string[];
+  zaatakowac?: string[];
+  segments?: Record<string, SegmentFraming>;
+}
+
+// Sanityzacja framingu z body (dane od zalogowanego klienta, ale ksztalt
+// walidujemy, zeby model nie dostal smieci i zeby nie wywrocic promptu).
+function parseFraming(raw: unknown): TopicFraming | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown) =>
+    typeof v === "string" && v.trim() ? v.trim() : undefined;
+  const arr = (v: unknown) =>
+    Array.isArray(v)
+      ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+        .map((x) => x.trim())
+      : undefined;
+
+  const segments: Record<string, SegmentFraming> = {};
+  if (r.segments && typeof r.segments === "object") {
+    for (const [id, val] of Object.entries(r.segments as Record<string, unknown>)) {
+      if (!val || typeof val !== "object") continue;
+      const s = val as Record<string, unknown>;
+      segments[id] = {
+        kat: str(s.kat),
+        coDziala: arr(s.coDziala),
+        czegoUnikac: arr(s.czegoUnikac),
+        przyklad: str(s.przyklad),
+      };
+    }
+  }
+
+  const framing: TopicFraming = {
+    slug: str(r.slug),
+    stanowisko: str(r.stanowisko),
+    podchwycic: arr(r.podchwycic),
+    zaatakowac: arr(r.zaatakowac),
+    segments: Object.keys(segments).length > 0 ? segments : undefined,
+  };
+  // Pusty framing traktujemy jak brak.
+  const hasContent = framing.stanowisko || framing.podchwycic ||
+    framing.zaatakowac || framing.segments;
+  return hasContent ? framing : null;
+}
+
+function getFraming(cc: unknown): TopicFraming | null {
+  const raw = (cc as Record<string, unknown> | null)?._framing;
+  return raw ? parseFraming(raw) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,11 +280,13 @@ interface GenerateVariantInput {
   topic: string;
   coreMessage: string | null;
   existingVariants: Variant[];
+  framing?: TopicFraming | null;
   feedback?: string;
 }
 
 function buildVariantHuman(input: GenerateVariantInput): string {
-  const { profile, item, segmentProfile, topic, coreMessage, feedback } = input;
+  const { profile, item, segmentProfile, topic, coreMessage, framing, feedback } =
+    input;
   const spec = CHANNELS[item.channel];
 
   // Kontekst spojnosci: najpierw warianty tego samego segmentu, potem inne.
@@ -258,6 +324,45 @@ function buildVariantHuman(input: GenerateVariantInput): string {
       ? `Kluczowy komunikat (ma wybrzmiec): ${coreMessage}`
       : "Kluczowy komunikat: brak, sformuluj naturalnie na podstawie tematu.",
   ];
+
+  if (framing) {
+    const segF = item.segment_id ? framing.segments?.[item.segment_id] : undefined;
+    lines.push("", "Stanowisko z bazy wiedzy (temat programowy):");
+    if (framing.stanowisko) {
+      lines.push(
+        `Przyjete stanowisko polityka (wariant NIE moze byc z nim sprzeczny): ${framing.stanowisko}`,
+      );
+    }
+    if (framing.podchwycic?.length) {
+      lines.push(
+        "Katy do wykorzystania (podchwycic):",
+        ...framing.podchwycic.map((p) => `- ${p}`),
+      );
+    }
+    if (framing.zaatakowac?.length) {
+      lines.push(
+        "Kontry wobec przeciwnikow (uzyj, jesli pasuja do kanalu i tonu):",
+        ...framing.zaatakowac.map((z) => `- ${z}`),
+      );
+    }
+    if (segF) {
+      if (segF.kat) lines.push(`Kat przekazu dla tego segmentu: ${segF.kat}`);
+      if (segF.coDziala?.length) {
+        lines.push("Co dziala w tym segmencie:", ...segF.coDziala.map((c) => `- ${c}`));
+      }
+      if (segF.czegoUnikac?.length) {
+        lines.push(
+          "Czego unikac w tym segmencie:",
+          ...segF.czegoUnikac.map((c) => `- ${c}`),
+        );
+      }
+      if (segF.przyklad) {
+        lines.push(
+          `Wzorcowe sformulowanie (wzoruj sie na tonie, nie kopiuj doslownie): ${segF.przyklad}`,
+        );
+      }
+    }
+  }
 
   if (context.length > 0) {
     lines.push(
@@ -329,6 +434,7 @@ async function runConsistencyCheck(
   tenantId: string,
   draft: { id: string; topic: string; core_message: string | null },
   variants: Variant[],
+  stanowisko?: string | null,
 ): Promise<ConsistencyAlert[]> {
   const queryText = [draft.topic, draft.core_message ?? ""].join(". ").trim();
   const embedding = await embedText(queryText);
@@ -344,8 +450,9 @@ async function runConsistencyCheck(
     text: string;
     date: string | null;
   }[];
-  // Brak wypowiedzi (np. onboarding pominiety) = brak alertow, bez modelu.
-  if (statements.length === 0) return [];
+  // Brak wypowiedzi i brak przyjetego stanowiska = brak alertow, bez modelu.
+  // Gdy jest stanowisko z tematu, sprawdzamy nawet bez historii wypowiedzi.
+  if (statements.length === 0 && !stanowisko) return [];
 
   const statementsBlock = statements
     .map((s, i) =>
@@ -369,11 +476,16 @@ async function runConsistencyCheck(
       [
         `Temat przekazu: ${draft.topic}`,
         `Kluczowy komunikat: ${draft.core_message ?? "brak"}`,
+        stanowisko
+          ? `\nStanowisko przyjete przez polityka w tym temacie: ${stanowisko}\nOznacz jako sprzecznosc (conflict_statement_index: null) takze kazdy wariant sprzeczny z tym stanowiskiem.`
+          : "",
         "",
         "Warianty przekazu:",
         variantsBlock,
         "",
-        "Wczesniejsze wypowiedzi polityka (ponumerowane):",
+        statements.length > 0
+          ? "Wczesniejsze wypowiedzi polityka (ponumerowane):"
+          : "Brak wczesniejszych wypowiedzi w bazie.",
         statementsBlock,
       ].join("\n"),
     ],
@@ -422,6 +534,7 @@ async function opCreate(
     core_message?: unknown;
     segment_ids?: unknown;
     channels?: unknown;
+    topic_framing?: unknown;
   },
 ) {
   const topic = typeof body.topic === "string" ? body.topic.trim() : "";
@@ -470,6 +583,8 @@ async function opCreate(
     }
   }
 
+  const framing = parseFraming(body.topic_framing);
+
   const { data, error } = await supabase
     .from("content_drafts")
     .insert({
@@ -478,7 +593,7 @@ async function opCreate(
       core_message: coreMessage,
       variants: [],
       status: "draft",
-      consistency_check: { _plan: plan },
+      consistency_check: framing ? { _plan: plan, _framing: framing } : { _plan: plan },
     })
     .select("id")
     .single();
@@ -502,6 +617,7 @@ async function opGenerateStep(
   const variants: Variant[] = Array.isArray(draft.variants)
     ? draft.variants as Variant[]
     : [];
+  const framing = getFraming(cc);
   const have = new Set(variants.map(variantKey));
   const missing = plan.filter((p) => !have.has(variantKey(p)));
   const consistencyDone = Array.isArray(cc.alerts);
@@ -537,6 +653,7 @@ async function opGenerateStep(
         topic: draft.topic as string,
         coreMessage: draft.core_message as string | null,
         existingVariants: current,
+        framing,
       });
       current = [...current, { ...item, text }];
       // Zapis po kazdym wariancie: blad w polowie kroku nie traci pracy.
@@ -560,6 +677,7 @@ async function opGenerateStep(
       core_message: draft.core_message as string | null,
     },
     variants,
+    framing?.stanowisko ?? null,
   );
 
   // Idempotencja: usuwamy poprzednie alerty tego draftu przed insertem.
@@ -670,6 +788,7 @@ async function opRegenerateVariant(
     : undefined;
 
   const cc = (draft.consistency_check ?? {}) as Record<string, unknown>;
+  const framing = getFraming(cc);
   const plan = Array.isArray(cc._plan) ? cc._plan as PlanItem[] : [];
   const item = plan.find(
     (p) => variantKey(p) === variantKey({ segment_id: segmentId, channel }),
@@ -702,6 +821,7 @@ async function opRegenerateVariant(
     existingVariants: variants.filter(
       (v) => variantKey(v) !== variantKey(item),
     ),
+    framing,
     feedback,
   });
 
@@ -802,11 +922,6 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) {
       return jsonResponse({ ok: false, error: err.message }, err.status);
     }
-    console.error("argus-content error:", err);
-    const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse(
-      { ok: false, error: `Wystapil blad. Sprobuj ponownie pozniej. (${detail})` },
-      500,
-    );
+    return serverErrorResponse("argus-content", err);
   }
 });

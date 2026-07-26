@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Zrodlo } from '@/lib/knowledge/types';
+import { openExternalUrl } from '@/lib/open-url';
 
 export type SourceLinkProps = {
   zrodlo: Zrodlo;
@@ -18,7 +19,7 @@ export function SourceLink({ zrodlo }: SourceLinkProps) {
   const theme = useTheme();
 
   const open = () => {
-    void Linking.openURL(zrodlo.url);
+    void openExternalUrl(zrodlo.url);
   };
 
   return (
