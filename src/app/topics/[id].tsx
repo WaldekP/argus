@@ -8,6 +8,7 @@ import { PrimaryButton } from '@/components/primary-button';
 import { BackLink } from '@/components/back-link';
 import { InlineProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
+import { TopicStatusChip } from '@/components/topic-status-chip';
 import { ThemedView } from '@/components/themed-view';
 import {
   FontFamily,
@@ -29,7 +30,6 @@ import {
   type GeneratePhase,
   type QuestionAsker,
   type Topic,
-  type TopicStatus,
 } from '@/lib/api/topics';
 import { pickAnalysisDocument } from '@/lib/documents';
 import { formatDate, polishPlural } from '@/lib/format';
@@ -37,12 +37,6 @@ import { formatDate, polishPlural } from '@/lib/format';
 import type { ThemeColor } from '@/constants/theme';
 
 const DELETE_CONFIRM_MS = 3000;
-
-const STATUS_META: Record<TopicStatus, { label: string; color: ThemeColor }> = {
-  generating: { label: 'W trakcie', color: 'accentLight' },
-  ready: { label: 'Gotowe', color: 'success' },
-  error: { label: 'Błąd', color: 'error' },
-};
 
 const NUMBER_STATUS_META: Record<'zweryfikowane' | 'do weryfikacji', { label: string; color: ThemeColor }> = {
   zweryfikowane: { label: 'Zweryfikowane', color: 'success' },
@@ -68,18 +62,6 @@ type WorkProgress = {
   total: number;
 };
 
-/** Chip statusu dossier tematu. */
-function TopicStatusChip({ status }: { status: TopicStatus }) {
-  const theme = useTheme();
-  const meta = STATUS_META[status];
-  return (
-    <View style={[styles.badge, { borderColor: theme[meta.color] }]}>
-      <ThemedText type="small" themeColor={meta.color} style={styles.badgeLabel}>
-        {meta.label}
-      </ThemedText>
-    </View>
-  );
-}
 
 /** Pasek postępu pętli generacji w treści ekranu. */
 

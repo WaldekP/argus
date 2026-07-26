@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EyeDot } from '@/components/eye-dot';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
+import { TopicStatusChip } from '@/components/topic-status-chip';
 import { ThemedView } from '@/components/themed-view';
 import {
   BottomTabInset,
@@ -26,29 +27,10 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
-import { listTopics, type TopicListItem, type TopicStatus } from '@/lib/api/topics';
+import { listTopics, type TopicListItem } from '@/lib/api/topics';
 import { formatDate, polishPlural } from '@/lib/format';
 import { tematy } from '@/lib/knowledge';
 
-const STATUS_LABEL: Record<TopicStatus, string> = {
-  generating: 'W trakcie',
-  ready: 'Gotowe',
-  error: 'Błąd',
-};
-
-/** Chip statusu dossier tematu. */
-function TopicStatusChip({ status }: { status: TopicStatus }) {
-  const theme = useTheme();
-  const color =
-    status === 'ready' ? theme.success : status === 'error' ? theme.error : theme.accentLight;
-  return (
-    <View style={[styles.chip, { borderColor: color }]}>
-      <ThemedText type="small" style={[styles.chipText, { color }]}>
-        {STATUS_LABEL[status]}
-      </ThemedText>
-    </View>
-  );
-}
 
 /**
  * Zakładka Tematy: u góry własne dossiery (upload analizy → podsumowanie,
