@@ -1,0 +1,19 @@
+{
+  "name": "bip-scraper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lokalne narzedzie do mapowania i pobierania dokumentow ze stron BIP. Zero zaleznosci: Node 24+ (wbudowany sqlite, fetch, natywny TypeScript).",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "registry": "node --no-warnings src/cli.ts registry",
+    "probe": "node --no-warnings src/cli.ts probe",
+    "crawl": "node --no-warnings src/cli.ts crawl",
+    "status": "node --no-warnings src/cli.ts status"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.1.200"
+  }
+}

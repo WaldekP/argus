@@ -6,12 +6,12 @@
  * z tokenem usera w Authorization i polem `operation` w body.
  * Odpowiedź: { ok: true, data } albo { ok: false, error }.
  *
- * Źródło danych to Google News RSS. Klient nigdy nie odpytuje go sam:
- * pobranie, deduplikacja i zapis dzieją się w Edge Function.
+ * Źródło danych to Bing News RSS (Google News zapasowo, bo odpowiada 503 na
+ * ruch z centrów danych). Klient nigdy nie odpytuje go sam: pobranie,
+ * deduplikacja i zapis dzieją się w Edge Function.
  */
 
-import { unwrapFunctionError } from '@/lib/api/error';
-import { supabase } from '@/lib/supabase';
+import { edgeClient, LONG_TIMEOUT_MS } from '@/lib/api/client';
 
 /** Hasło obserwowane przez tenanta. Polityk i asystent widzą te same hasła. */
 export type WatchedTopic = {
@@ -57,25 +57,33 @@ export type TopicSyncResult = {
   error: string | null;
 };
 
-async function call<T>(operation: string, payload: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('argus-mentions', {
-    body: { operation, ...payload },
-  });
+type MentionOperation =
+  | 'add_topic'
+  | 'dismiss'
+  | 'list_mentions'
+  | 'list_topics'
+  | 'mark_read'
+  | 'remove_topic'
+  | 'sync'
+  | 'update_topic';
 
-  if (error) {
-    throw await unwrapFunctionError(error, 'argus-mentions');
-  }
-  if (!data?.ok) throw new Error(data?.error ?? 'Nieznany błąd wzmianek.');
-  return data.data as T;
-}
+/** Klient tej domeny: transport w @/lib/api/client. */
+const call = edgeClient<MentionOperation>('argus-mentions');
 
 export function listTopics() {
   return call<{ topics: WatchedTopic[] }>('list_topics');
 }
 
-/** Dodanie hasła od razu pobiera pierwsze wzmianki, żeby lista nie była pusta. */
+/**
+ * Dodanie hasła od razu pobiera pierwsze wzmianki, żeby lista nie była pusta.
+ * Pobranie idzie do zewnętrznego RSS, więc dostaje dłuższy limit czasu.
+ */
 export function addTopic(params: { phrase: string; query?: string; window_days?: number }) {
-  return call<{ topic: WatchedTopic; sync: TopicSyncResult | null }>('add_topic', params);
+  return call<{ topic: WatchedTopic; sync: TopicSyncResult | null }>(
+    'add_topic',
+    params,
+    LONG_TIMEOUT_MS
+  );
 }
 
 export function updateTopic(params: {
@@ -93,11 +101,15 @@ export function removeTopic(topicId: string) {
   return call<{ removed: true }>('remove_topic', { topic_id: topicId });
 }
 
-/** Ręczne odświeżenie. Bez `topicId` odświeża wszystkie aktywne hasła. */
+/**
+ * Ręczne odświeżenie. Bez `topicId` odświeża wszystkie aktywne hasła, czyli
+ * pobiera z RSS tyle razy, ile haseł. Stąd dłuższy limit czasu.
+ */
 export function syncMentions(topicId?: string) {
   return call<{ results: TopicSyncResult[]; inserted: number }>(
     'sync',
     topicId ? { topic_id: topicId } : {},
+    LONG_TIMEOUT_MS,
   );
 }
 

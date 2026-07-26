@@ -57,3 +57,15 @@ example
 # trzymac tego w historii repo.
 ds.json
 senat.xml
+
+# Artefakty `deno check` na Edge Functions (typy backendu pilnuje CI).
+# Produkcji nie pinuja: Supabase buduje funkcje z katalogu backend/.
+deno.lock
+node_modules/.deno/
+
+# PDF-y programow wyborczych: 70 MB surowca, ktorego apka NIE czyta z repo.
+# Aplikacja bierze je z bucketa Storage `programy-wyborcze` (urlProgramu()
+# w src/lib/knowledge/programy-wyborcze.ts), a historia gita jest wieczna,
+# wiec trzymanie ich tutaj tylko na stale rozdmuchaloby klon.
+# Indeks zrodel z linkami do pobrania: docs/programy-wyborcze/README.md.
+docs/programy-wyborcze/**/*.pdf

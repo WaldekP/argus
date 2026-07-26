@@ -602,7 +602,10 @@ export async function findPotentialConflicts(
 
   const hits: ConflictHit[] = [];
   for (const row of connections ?? []) {
-    const org = row.registry_orgs as
+    // Relacja many-to-one, więc PostgREST zwraca jeden obiekt. Bez
+    // wygenerowanych typów bazy supabase-js zakłada tablicę, stąd rzutowanie
+    // przez unknown (inaczej TS słusznie mówi, że typy się nie pokrywają).
+    const org = row.registry_orgs as unknown as
       | { krs: string; name_full: string; pkd_main_section: string | null }
       | null;
     if (!org) continue;
@@ -658,7 +661,8 @@ export async function findRelatedVotes(
 
   const hits: VoteHit[] = [];
   for (const row of data ?? []) {
-    const voting = row.sejm_votings as
+    // Jak wyżej: many-to-one zwraca obiekt, nie tablicę.
+    const voting = row.sejm_votings as unknown as
       | { title: string; description: string | null; date: string }
       | null;
     if (!voting) continue;

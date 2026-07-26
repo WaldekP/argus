@@ -36,4 +36,6 @@ export type AnalyticsEvent =
   | 'watch_term_added'
   | 'watch_term_removed'
   | 'mentions_synced'
-  | 'mention_opened';
+  | 'mention_opened'
+  /** Pobranie PDF programu wyborczego z ekranu Programy wyborcze. */
+  | 'election_program_downloaded';

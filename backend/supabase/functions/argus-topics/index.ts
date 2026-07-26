@@ -16,7 +16,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { jsonResponse } from "../_shared/types.ts";
+import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 
 const TITLE_MIN_LENGTH = 5;
@@ -671,11 +671,6 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) {
       return jsonResponse({ ok: false, error: err.message }, err.status);
     }
-    console.error("argus-topics error:", err);
-    const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse(
-      { ok: false, error: `Wystąpił błąd. Spróbuj ponownie później. (${detail})` },
-      500,
-    );
+    return serverErrorResponse("argus-topics", err);
   }
 });

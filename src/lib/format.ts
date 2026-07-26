@@ -67,6 +67,29 @@ export function polishPlural(count: number, one: string, few: string, many: stri
   return `${count} ${many}`;
 }
 
+/** Separator tysięcy w polskim zapisie: spacja nierozdzielająca (U+00A0). */
+const THOUSANDS_SEPARATOR = ' ';
+
+/**
+ * Grupowanie cyfr po trzy, licząc od prawej.
+ *
+ * Świadomie bez `toLocaleString`: Hermes na iOS i Androidzie nie ma pełnego
+ * ICU, więc ta sama kwota wychodziła tam w zapisie angielskim („46,580"),
+ * a na webie w polskim. Ręczne grupowanie daje jeden wynik na trzech
+ * platformach, tak samo jak `formatDate` powyżej.
+ */
+function groupThousands(value: number): string {
+  const digits = Math.abs(value).toFixed(0);
+  let grouped = '';
+  for (let i = 0; i < digits.length; i += 1) {
+    if (i > 0 && (digits.length - i) % 3 === 0) {
+      grouped += THOUSANDS_SEPARATOR;
+    }
+    grouped += digits[i];
+  }
+  return value < 0 ? `-${grouped}` : grouped;
+}
+
 /**
  * Kwota w formacie polskim, ze spacją nierozdzielającą jako separatorem tysięcy.
  * Duże liczby skracamy do mln, bo kapitał zakładowy w pełnym zapisie rozsadza
@@ -84,11 +107,10 @@ export function formatMoney(
 
   if (abs >= 1_000_000) {
     const millions = amount / 1_000_000;
-    const rounded = millions.toFixed(millions >= 100 ? 0 : 1).replace('.', ',');
+    const rounded = millions.toFixed(abs >= 100_000_000 ? 0 : 1).replace('.', ',');
     return `${rounded} mln ${unit}`;
   }
-  const rounded = Math.round(amount);
-  return `${rounded.toLocaleString('pl-PL').replace(/ /g, ' ')} ${unit}`;
+  return `${groupThousands(Math.round(amount))} ${unit}`;
 }
 
 /** Ile pełnych lat minęło od daty. Null gdy daty nie znamy. */

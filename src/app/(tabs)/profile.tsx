@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import { MpMandateCard } from '@/components/mp-mandate';
 import { PrimaryButton } from '@/components/primary-button';
@@ -13,6 +13,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { getMpDetails, readMpIdentity, type MpDetails } from '@/lib/api/onboarding';
 import { signOut, useAuthStore } from '@/store/auth';
 import { resumeOnboarding, useOnboardingStore } from '@/store/onboarding';
+import { toggleThemeMode, useThemeMode } from '@/store/theme';
 
 export default function ProfileScreen() {
   const theme = useTheme();
@@ -21,6 +22,7 @@ export default function ProfileScreen() {
   const onboardingStatus = useOnboardingStore((state) => state.status);
   const onboardingSkipped = useOnboardingStore((state) => state.skipped);
   const profile = useOnboardingStore((state) => state.profile);
+  const themeMode = useThemeMode();
   const counts = useOnboardingStore((state) => state.counts);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,10 @@ export default function ProfileScreen() {
   const [mpDetails, setMpDetails] = useState<MpDetails | null>(null);
   const [mpDetailsLoading, setMpDetailsLoading] = useState(true);
   const [mpDetailsError, setMpDetailsError] = useState<string | null>(null);
+
+  const handleToggleTheme = () => {
+    void toggleThemeMode();
+  };
 
   const onboardingUnfinished = onboardingSkipped || onboardingStatus !== 'done';
   const identity = readMpIdentity(profile);
@@ -110,6 +116,28 @@ export default function ProfileScreen() {
           subjectId={typeof profile?.id === 'string' ? profile.id : null}
         />
 
+        <ThemedView
+          type="backgroundElement"
+          style={[styles.settingCard, { borderColor: theme.border }]}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingLabel}>
+              <ThemedText style={styles.settingTitle}>Motyw ciemny</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                {themeMode === 'dark'
+                  ? 'Ciemne tło, złote akcenty.'
+                  : 'Teraz włączony jest motyw jasny.'}
+              </ThemedText>
+            </View>
+            <Switch
+              value={themeMode === 'dark'}
+              onValueChange={handleToggleTheme}
+              accessibilityLabel="Motyw ciemny"
+              trackColor={{ false: theme.progressTrack, true: theme.accent }}
+              thumbColor={theme.backgroundElement}
+            />
+          </View>
+        </ThemedView>
+
         {session?.user.email ? (
           <ThemedText type="small" themeColor="textSecondary">
             Zalogowano jako {session.user.email}
@@ -145,6 +173,23 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   onboardingTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+  },
+  settingCard: {
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    padding: Spacing.four,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  settingLabel: {
+    flex: 1,
+    gap: Spacing.half,
+  },
+  settingTitle: {
     fontFamily: FontFamily.sansSemiBold,
   },
 });

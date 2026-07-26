@@ -17,6 +17,18 @@ const MIN_BALANCE_PLN = 5;
 // Ile sekund cache'ujemy saldo, żeby nie odpytywać go przy każdym wywołaniu.
 const BALANCE_CACHE_MS = 60_000;
 
+// Ile płatnych wywołań na dobę wolno JEDNEMU biuru.
+//
+// Saldo Rejestr.io jest wspólne dla wszystkich tenantów, a próg MIN_BALANCE_PLN
+// chroni tylko przed zejściem do zera. Bez limitu per tenant jedno konto
+// pilotażowe mogło w pętli przepalić środki wszystkich pozostałych. Tabela
+// registry_api_calls istnieje właśnie po to, żeby dało się to policzyć.
+const MAX_PAID_CALLS_PER_TENANT_PER_DAY = 100;
+
+// Jedyny darmowy endpoint. Nie wchodzi do limitu, bo wołamy go sami przed
+// każdym płatnym wywołaniem (assertBudget).
+const FREE_ENDPOINT = "/konto/stan";
+
 let balanceCache: { value: number; at: number } | null = null;
 
 function apiKey(): string {
@@ -121,6 +133,39 @@ export async function getBalance(ctx?: CallContext): Promise<number> {
   return value;
 }
 
+/**
+ * Dzienny limit płatnych wywołań dla jednego tenanta.
+ *
+ * Liczymy z audytu (registry_api_calls), pomijając darmowy odczyt salda.
+ * Awaria samego audytu nie blokuje operacji użytkownika: wtedy zostaje próg
+ * salda jako bezpiecznik.
+ */
+async function assertTenantQuota(ctx?: CallContext) {
+  if (!ctx?.tenantId) return;
+
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await ctx.supabase
+    .from("registry_api_calls")
+    .select("id", { count: "exact", head: true })
+    .eq("provider", "rejestrio")
+    .eq("tenant_id", ctx.tenantId)
+    .neq("endpoint", FREE_ENDPOINT)
+    .gte("created_at", since);
+
+  if (error) {
+    console.warn("rejestrio: nie udalo sie policzyc limitu tenanta:", error.message);
+    return;
+  }
+  if ((count ?? 0) >= MAX_PAID_CALLS_PER_TENANT_PER_DAY) {
+    throw new HttpError(
+      429,
+      `Wyczerpany dzienny limit zapytań do rejestru sądowego ` +
+        `(${MAX_PAID_CALLS_PER_TENANT_PER_DAY} na dobę). Limit chroni wspólne ` +
+        `saldo konta. Spróbuj ponownie za kilka godzin.`,
+    );
+  }
+}
+
 async function assertBudget(ctx?: CallContext) {
   const balance = await getBalance(ctx);
   if (balance < MIN_BALANCE_PLN) {
@@ -131,6 +176,7 @@ async function assertBudget(ctx?: CallContext) {
         `pobieranie danych z rejestru.`,
     );
   }
+  await assertTenantQuota(ctx);
 }
 
 // ---------------------------------------------------------------------------

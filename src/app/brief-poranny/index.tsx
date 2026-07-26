@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -35,6 +34,7 @@ import {
   type WatchedTopic,
 } from '@/lib/api/mentions';
 import { formatWeekday, relativeTime } from '@/lib/format-time';
+import { openExternalUrl } from '@/lib/open-url';
 
 type TopicGroup = {
   topic: WatchedTopic;
@@ -119,7 +119,9 @@ export default function MorningBriefScreen() {
       ),
     );
     void markMentionsRead(mention.id).catch(() => undefined);
-    await Linking.openURL(mention.url);
+    if (!(await openExternalUrl(mention.url))) {
+      setError('Nie udało się otworzyć linku.');
+    }
   }, []);
 
   const handleMarkAllRead = useCallback(async () => {

@@ -179,6 +179,8 @@ export default function NewTopicScreen() {
       }
     });
 
+    // Jak w pozostałych generatorach: po odejściu z ekranu nie przenosimy.
+    if (!mountedRef.current) return;
     router.replace(`/topics/${topicId}`);
   };
 

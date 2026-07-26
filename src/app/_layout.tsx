@@ -15,9 +15,9 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { initAnalytics } from '@/lib/analytics/posthog';
 import { initAuth } from '@/store/auth';
+import { loadThemeMode, useThemeStore } from '@/store/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -46,7 +46,8 @@ const ArgusLightTheme: typeof DefaultTheme = {
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const themeMode = useThemeStore((state) => state.mode);
+  const themeLoaded = useThemeStore((state) => state.loaded);
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     CormorantGaramond_600SemiBold_Italic,
@@ -60,26 +61,35 @@ export default function RootLayout() {
   useEffect(() => {
     initAuth();
     initAnalytics();
+    void loadThemeMode();
   }, []);
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
+  const ready = fontsLoaded && themeLoaded;
 
-  if (!fontsLoaded) {
+  useEffect(() => {
+    if (ready) {
+      void SplashScreen.hideAsync();
+    }
+  }, [ready]);
+
+  // Czekamy też na wybór motywu, żeby użytkownik ciemnego motywu nie zobaczył
+  // mignięcia jasnego tła przed wczytaniem preferencji z pamięci urządzenia.
+  if (!ready) {
     return null;
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? ArgusDarkTheme : ArgusLightTheme}>
+    <ThemeProvider value={themeMode === 'dark' ? ArgusDarkTheme : ArgusLightTheme}>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="temat" />
-        <Stack.Screen name="spolka/[krs]" />
+        {/* Katalogi z własnym _layout.tsx deklarujemy nazwą grupy, nie trasy
+            w środku: "spolka/[krs]" nie istniało na tym poziomie i router
+            zgłaszał to ostrzeżeniem przy każdym starcie. */}
+        <Stack.Screen name="spolka" />
+        <Stack.Screen name="brief-poranny" />
         <Stack.Screen name="content/new" />
         <Stack.Screen name="content/[id]" />
         <Stack.Screen name="analysis/index" />
@@ -88,6 +98,7 @@ export default function RootLayout() {
         <Stack.Screen name="topics/new" />
         <Stack.Screen name="topics/[id]" />
         <Stack.Screen name="wystapienia" />
+        <Stack.Screen name="programy-wyborcze" />
       </Stack>
     </ThemeProvider>
   );

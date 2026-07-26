@@ -18,11 +18,31 @@ Res data: `{ segments: [{ id: uuid, name: string, priority: "mobilize"|"persuade
 
 ### `create` — utworzenie draftu
 
-Req: `{ operation: "create", topic: string, core_message?: string, segment_ids: uuid[], channels: string[] }`
+Req: `{ operation: "create", topic: string, core_message?: string, segment_ids: uuid[], channels: string[], topic_slug?: string, topic_framing?: TopicFraming }`
 - `topic` wymagany (min 5 znaków), `channels` min 1.
 - `segment_ids` może być puste: wtedy generujemy warianty "ogólne" (segment_id: null, segment_name: "Ogólny").
+- `topic_slug` i `topic_framing` opcjonalne (most z zakładki Tematy, faza 2). Gdy podane, framing
+  zapisywany jest w `content_drafts.consistency_check._framing` i wstrzykiwany do promptu generacji
+  oraz do kontroli spójności. Klient rozwiązuje mapowanie segmentów korpusu na segmenty tenanta.
 Res data: `{ draft_id: uuid, total_variants: number }` (total = max(1, |segments|) × |channels|)
 Draft w `content_drafts` ze status 'draft', variants '[]'.
+
+`TopicFraming` (klient buduje z modelu `Temat`, patrz `docs/plan-wyborczy-petru/faza-2-generator.md`):
+```
+{
+  slug?: string,
+  stanowisko?: string,          // rekomendacja.odpowiedz; wariant nie może być z nią sprzeczny
+  podchwycic?: string[],         // katy do wykorzystania
+  zaatakowac?: string[],         // kontry wobec przeciwników
+  segments?: { [tenantSegmentId: uuid]: {
+    kat?: string, coDziala?: string[], czegoUnikac?: string[], przyklad?: string
+  } }
+}
+```
+Wpływ na generację: `generate_step` wstrzykuje stanowisko, podchwycić, zaatakować i framing per
+segment do promptu wariantu; kontrola spójności lite oznacza jako sprzeczność także wariant
+sprzeczny z `stanowisko` (nawet gdy brak historii wypowiedzi). `regenerate_variant` używa tego
+samego framingu z draftu.
 
 ### `generate_step` — porcjowana generacja wariantów (pętla jak przy imporcie)
 

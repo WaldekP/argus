@@ -1,7 +1,11 @@
 /**
  * Jedyne źródło kolorów w aplikacji.
  * Źródło prawdy designu: ../briefy/15-mini-brief-design-argus.md ("quiet power",
- * muzeum nocą). Dark mode first. Zero hardkodowanych hexów w komponentach.
+ * muzeum nocą). Zero hardkodowanych hexów w komponentach.
+ *
+ * Oba motywy są w użyciu: jasny jest domyślny, ciemny włącza przełącznik
+ * w Profilu (decyzja usera 2026-07-26, store src/store/theme.ts). Zmieniając
+ * kolory, sprawdzaj oba zestawy.
  * Zasady: złoto = biżuteria (oszczędnie), teal tylko przy danych,
  * zakaz fioletu/różu "AI", neonów, czystej bieli i czerni.
  */

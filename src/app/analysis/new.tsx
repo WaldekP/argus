@@ -311,6 +311,9 @@ export default function NewAnalysisScreen() {
       mps: targetMode === 'mps' ? selectedMps.length : 0,
       documents: documents.length,
     });
+    // Nie wyrywamy użytkownika z ekranu, na którym jest teraz, jeśli w trakcie
+    // długiej analizy zdążył odejść.
+    if (!mountedRef.current) return;
     router.replace(`/analysis/${analysisId}`);
   };
 

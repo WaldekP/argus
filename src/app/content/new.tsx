@@ -27,9 +27,61 @@ import {
   type Channel,
   type ContentSegment,
   type GenerateStepResult,
+  type TopicFraming,
 } from '@/lib/api/content';
+import { tematy, znajdzTemat } from '@/lib/knowledge';
+import type { Temat } from '@/lib/knowledge/types';
 
 const TOPIC_MIN_LENGTH = 5;
+
+/** Normalizacja nazwy segmentu do luźnego dopasowania korpus ↔ tenant. */
+function normalizeName(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Buduje framing dla generatora z wybranego tematu. Stanowisko i warstwy
+ * taktyczne obowiązują cały draft; framing per segment dokładany jest tam,
+ * gdzie nazwa segmentu tenanta daje się dopasować do segmentu korpusu.
+ */
+function buildTopicFraming(
+  temat: Temat,
+  selectedSegmentIds: string[],
+  segments: ContentSegment[]
+): TopicFraming {
+  const segMap: NonNullable<TopicFraming['segments']> = {};
+  for (const id of selectedSegmentIds) {
+    const tenantSeg = segments.find((s) => s.id === id);
+    if (!tenantSeg) continue;
+    const tn = normalizeName(tenantSeg.name);
+    const match = temat.segmenty.find((ts) => {
+      const kn = normalizeName(ts.nazwa);
+      if (!tn || !kn) return false;
+      return tn.includes(kn) || kn.includes(tn) || tn.split(' ')[0] === kn.split(' ')[0];
+    });
+    if (match) {
+      segMap[id] = {
+        kat: match.kat,
+        coDziala: match.coDziala,
+        czegoUnikac: match.czegoUnikac,
+        przyklad: match.przyklad,
+      };
+    }
+  }
+  return {
+    slug: temat.slug,
+    stanowisko: temat.rekomendacja.odpowiedz,
+    podchwycic: temat.rekomendacja.podchwycic,
+    zaatakowac: temat.rekomendacja.zaatakowac,
+    segments: Object.keys(segMap).length > 0 ? segMap : undefined,
+  };
+}
 
 type Phase = 'form' | 'generating';
 
@@ -88,6 +140,7 @@ export default function NewContentScreen() {
   const [segmentsLoading, setSegmentsLoading] = useState(true);
   const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<Channel[]>([]);
+  const [selectedTopicSlug, setSelectedTopicSlug] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [generationStep, setGenerationStep] = useState<GenerateStepResult | null>(null);
@@ -137,6 +190,22 @@ export default function NewContentScreen() {
     );
   };
 
+  // Wybór tematu z bazy wiedzy: pojedynczy, ponowny klik odznacza.
+  // Prefill tematu i komunikatu tylko gdy pola są puste, żeby nie nadpisać usera.
+  const selectTopic = (slug: string) => {
+    setSelectedTopicSlug((current) => {
+      const next = current === slug ? null : slug;
+      if (next) {
+        const temat = znajdzTemat(next);
+        if (temat) {
+          setTopic((value) => (value.trim() ? value : temat.nazwa));
+          setCoreMessage((value) => (value.trim() ? value : temat.rekomendacja.odpowiedz));
+        }
+      }
+      return next;
+    });
+  };
+
   const toggleChannel = (channel: Channel) => {
     setSelectedChannels((current) =>
       current.includes(channel)
@@ -151,7 +220,11 @@ export default function NewContentScreen() {
         setGenerationStep(step);
       }
     });
+    // Zdarzenie leci nawet po odejściu z ekranu: generacja faktycznie się
+    // udała. Przejścia już nie wymuszamy, bo wyrwałoby użytkownika z miejsca,
+    // w którym jest teraz.
     track('content_generated', { variants: finalStep.total });
+    if (!mountedRef.current) return;
     router.replace(`/content/${draftId}`);
   };
 
@@ -174,11 +247,17 @@ export default function NewContentScreen() {
     try {
       let draftId = draftIdRef.current;
       if (!draftId) {
+        const temat = selectedTopicSlug ? znajdzTemat(selectedTopicSlug) : undefined;
+        const topicFraming = temat
+          ? buildTopicFraming(temat, selectedSegmentIds, segments)
+          : undefined;
         const created = await createDraft({
           topic: trimmedTopic,
           core_message: coreMessage.trim() || undefined,
           segment_ids: selectedSegmentIds,
           channels: selectedChannels,
+          topic_slug: temat?.slug,
+          topic_framing: topicFraming,
         });
         draftId = created.draft_id;
         draftIdRef.current = draftId;
@@ -274,6 +353,51 @@ export default function NewContentScreen() {
           numberOfLines={3}
           style={styles.multiline}
         />
+
+        <View style={styles.section}>
+          <ThemedText themeColor="accent" style={styles.kicker}>
+            Temat z bazy wiedzy (opcjonalnie)
+          </ThemedText>
+          <View style={styles.chips}>
+            {tematy.map((temat) => {
+              const active = selectedTopicSlug === temat.slug;
+              return (
+                <Pressable
+                  key={temat.slug}
+                  accessibilityRole="button"
+                  onPress={() => selectTopic(temat.slug)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    active
+                      ? { backgroundColor: theme.cta, borderColor: theme.cta }
+                      : {
+                          backgroundColor: theme.backgroundSelected,
+                          borderColor: theme.borderStrong,
+                        },
+                    pressed && styles.dimmed,
+                  ]}>
+                  <ThemedText
+                    type="small"
+                    themeColor={active ? 'onAccent' : 'accentLight'}
+                    style={styles.chipLabel}>
+                    {temat.nazwa}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          {selectedTopicSlug ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              Przekaz użyje stanowiska i framingu z tego tematu, a strażnik spójności sprawdzi
+              warianty także wobec tego stanowiska.
+            </ThemedText>
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              Wybór tematu wstrzyknie stanowisko i argumenty do generatora oraz dopasuje przekaz
+              do segmentów.
+            </ThemedText>
+          )}
+        </View>
 
         <View style={styles.section}>
           <ThemedText themeColor="accent" style={styles.kicker}>

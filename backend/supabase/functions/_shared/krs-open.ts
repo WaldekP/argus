@@ -56,6 +56,8 @@ export async function getDailyBulletin(day: string): Promise<Set<string>> {
 export interface KrsHeader {
   numerKRS?: string;
   stanZDnia?: string;
+  /** Data pierwszego wpisu do KRS. Używana jako data rejestracji podmiotu. */
+  dataRejestracjiWKRS?: string;
   dataOstatniegoWpisu?: string;
   numerOstatniegoWpisu?: number;
   oznaczenieSaduDokonujacegoOstatniegoWpisu?: string;

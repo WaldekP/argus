@@ -471,12 +471,20 @@ export async function importMpStatementsForDays(
   }
   if (metas.length === 0) return { inserted: 0, daysProcessed };
 
-  // Deduplikacja: url-e juz zapisane dla tenanta pomijamy.
+  // Url-e juz zapisane pomijamy, zeby nie pobierac po raz drugi HTML-a
+  // stenogramu. To optymalizacja, NIE gwarancja unikalnosci: o te dba unikalny
+  // indeks statements (tenant_id, url) i upsert na koncu tej funkcji.
+  //
+  // Zapytanie jest zawezone do dni z tej porcji. Wczesniej czytalo wszystkie
+  // wypowiedzi tenanta, a PostgREST obcina odpowiedz do max_rows (1000), wiec
+  // powyzej tysiaca wpisow zbior byl niekompletny i wypowiedzi dublowaly sie.
+  const batchDates = [...new Set(metas.map((m) => m.date))];
   const { data: existing, error: existingError } = await supabase
     .from("statements")
     .select("url")
     .eq("tenant_id", tenantId)
-    .eq("source", "sejm");
+    .eq("source", "sejm")
+    .in("date", batchDates);
   if (existingError) {
     throw new Error(`Odczyt statements: ${existingError.message}`);
   }
@@ -511,6 +519,10 @@ export async function importMpStatementsForDays(
 
   if (texts.length === 0) return { inserted: 0, daysProcessed };
 
+  // Upsert z ignoreDuplicates: unikalnosci pilnuje indeks
+  // statements_tenant_url_key, wiec rownolegly przebieg importu ani niepelny
+  // zbior existingUrls nie moga juz zdublowac wypowiedzi.
+  let inserted = 0;
   for (let i = 0; i < texts.length; i += 50) {
     const chunk = texts.slice(i, i + 50).map((t) => ({
       tenant_id: tenantId,
@@ -520,11 +532,17 @@ export async function importMpStatementsForDays(
       url: t.url,
       embedding: null,
     }));
-    const { error } = await supabase.from("statements").insert(chunk);
+    const { data, error } = await supabase
+      .from("statements")
+      .upsert(chunk, { onConflict: "tenant_id,url", ignoreDuplicates: true })
+      .select("id");
     if (error) throw new Error(`Zapis statements: ${error.message}`);
+    // Liczymy faktycznie wstawione wiersze, nie rozmiar porcji: pominiete
+    // duplikaty nie moga zawyzac licznika pokazywanego w onboardingu.
+    inserted += data?.length ?? 0;
   }
 
-  return { inserted: texts.length, daysProcessed };
+  return { inserted, daysProcessed };
 }
 
 // --- import globalny na potrzeby analiz niespojnosci ---------------------------

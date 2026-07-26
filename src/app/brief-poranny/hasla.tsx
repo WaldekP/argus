@@ -31,7 +31,7 @@ import { relativeTime } from '@/lib/format-time';
 
 /** Potwierdzenie usunięcia. Na webie `Alert` nie działa, więc `confirm`. */
 async function confirmRemoval(phrase: string): Promise<boolean> {
-  const message = `Usunąć hasło "${phrase}"? Zebrane wzmianki też znikną.`;
+  const message = `Usunąć hasło „${phrase}”? Zebrane wzmianki też znikną.`;
 
   if (Platform.OS === 'web') {
     return globalThis.confirm(message);
@@ -216,8 +216,8 @@ export default function WatchedTermsScreen() {
 
           <ThemedText type="small" themeColor="textSecondary">
             Polskie nazwiska się odmieniają, więc dla nazwiska warto podać własne zapytanie z
-            wariantami, na przykład: {'"Pieniak" OR "Pieniaka" OR "Pieniakowi"'}. Działają operatory
-            Google News: cudzysłów, OR, site:.
+            wariantami, na przykład: {'"Pieniak" OR "Pieniaka" OR "Pieniakowi"'}. Działają
+            operatory wyszukiwarki: cudzysłów, OR, site:.
           </ThemedText>
 
           <PrimaryButton title="Dodaj hasło" onPress={handleAdd} loading={saving} />
