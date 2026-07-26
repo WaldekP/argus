@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
+import { ContextCard } from '@/components/context-card';
 import { MpMandateCard } from '@/components/mp-mandate';
 import { PrimaryButton } from '@/components/primary-button';
 import { RegistryConnections } from '@/components/registry-connections';
@@ -110,6 +111,8 @@ export default function ProfileScreen() {
             <PrimaryButton title="Wróć do onboardingu" onPress={handleResumeOnboarding} />
           </ThemedView>
         ) : null}
+
+        <ContextCard profile={profile} onEdit={() => router.push('/kontekst')} />
 
         <RegistryConnections
           defaultQuery={typeof profile?.full_name === 'string' ? profile.full_name : ''}

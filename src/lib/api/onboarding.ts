@@ -32,7 +32,21 @@ export type MpSearchResult = {
 export type PoliticianProfile = Record<string, unknown> & {
   full_name?: string;
   style_profile?: StyleProfile | null;
+  /** Ręcznie wpisany kontekst z ekranu Profil (operation: update_context). */
+  bio?: string | null;
+  party_profile?: string | null;
+  topic_positions?: string | null;
 };
+
+/** Trzy pola kontekstu edytowane na ekranie Profil, wolny tekst. */
+export type ProfileContext = {
+  bio: string;
+  party_profile: string;
+  topic_positions: string;
+};
+
+/** Limit długości pojedynczego pola kontekstu (spójny z backendem). */
+export const CONTEXT_FIELD_MAX_LENGTH = 4000;
 
 /** Dane mandatu wyciągnięte z luźnego profilu, gotowe do pokazania w UI. */
 export type MpIdentity = {
@@ -213,6 +227,7 @@ type OnboardingOperation =
   | 'search_mp'
   | 'import_sejm_data'
   | 'get_status'
+  | 'update_context'
   | 'mp_details'
   | 'list_statements'
   | 'get_statement'
@@ -285,6 +300,18 @@ export async function runSejmImport(
 /** Stan onboardingu, profil i liczniki danych. */
 export function getStatus(): Promise<StatusResult> {
   return callOnboarding<StatusResult>('get_status');
+}
+
+/**
+ * Zapis ręcznie wpisanego kontekstu (o kandydacie, o partii, stanowiska).
+ * Przekazuj tylko pola, które chcesz zmienić; puste stringi backend zapisuje
+ * jako brak danych. Zwraca zaktualizowany profil.
+ */
+export async function updateContext(
+  patch: Partial<ProfileContext>
+): Promise<PoliticianProfile> {
+  const data = await callOnboarding<{ profile: PoliticianProfile }>('update_context', patch);
+  return data.profile;
 }
 
 /**

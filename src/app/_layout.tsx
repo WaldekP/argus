@@ -99,6 +99,7 @@ export default function RootLayout() {
         <Stack.Screen name="topics/[id]" />
         <Stack.Screen name="wystapienia" />
         <Stack.Screen name="programy-wyborcze" />
+        <Stack.Screen name="kontekst" />
       </Stack>
     </ThemeProvider>
   );

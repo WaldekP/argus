@@ -552,6 +552,48 @@ async function opGetStatus(supabase: SupabaseClient, tenantId: string) {
   };
 }
 
+// Recznie edytowalny kontekst polityka z ekranu Profil. Wolny tekst, ktory
+// user wpisuje sam i ktory Argus wstrzykuje do promptow generacji.
+const MAX_CONTEXT_FIELD_LEN = 4000;
+const CONTEXT_FIELDS = ["bio", "party_profile", "topic_positions"] as const;
+const contextSchema = z.object({
+  bio: z.string().max(MAX_CONTEXT_FIELD_LEN).optional(),
+  party_profile: z.string().max(MAX_CONTEXT_FIELD_LEN).optional(),
+  topic_positions: z.string().max(MAX_CONTEXT_FIELD_LEN).optional(),
+});
+
+async function opUpdateContext(
+  supabase: SupabaseClient,
+  tenantId: string,
+  body: unknown,
+) {
+  const parsed = contextSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new HttpError(
+      400,
+      `Nieprawidlowe dane kontekstu (limit ${MAX_CONTEXT_FIELD_LEN} znakow na pole).`,
+    );
+  }
+  // Profil musi istniec: kontekst edytujemy, nie zakladamy od zera.
+  const current = await requireProfile(supabase, tenantId);
+
+  // Puste pole zapisujemy jako NULL, zeby prompt widzial "brak danych",
+  // a nie pusty string. Pola nieobecne w body zostaja bez zmian.
+  const patch: Record<string, unknown> = {};
+  for (const key of CONTEXT_FIELDS) {
+    const value = parsed.data[key];
+    if (value !== undefined) {
+      const trimmed = value.trim();
+      patch[key] = trimmed.length > 0 ? trimmed : null;
+    }
+  }
+  if (Object.keys(patch).length === 0) {
+    return { profile: current };
+  }
+  const profile = await updateProfile(supabase, tenantId, patch);
+  return { profile };
+}
+
 // Pelna karta posla z API Sejmu. Danych nie kopiujemy do bazy: sa publiczne,
 // zmieniaja sie (klub, wygasniecie mandatu) i zawsze maja byc aktualne.
 async function opMpDetails(supabase: SupabaseClient, tenantId: string) {
@@ -1007,6 +1049,11 @@ Deno.serve(async (req) => {
         return jsonResponse({
           ok: true,
           data: await opGetStatus(supabase, tenantId),
+        });
+      case "update_context":
+        return jsonResponse({
+          ok: true,
+          data: await opUpdateContext(supabase, tenantId, body),
         });
       case "mp_details":
         return jsonResponse({
