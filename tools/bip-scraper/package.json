@@ -14,6 +14,8 @@
     "status": "node --no-warnings src/cli.ts status"
   },
   "dependencies": {
-    "pdfjs-dist": "^6.1.200"
+    "pdf-to-img": "^6.2.0",
+    "pdfjs-dist": "^6.1.200",
+    "tesseract.js": "^7.0.0"
   }
 }

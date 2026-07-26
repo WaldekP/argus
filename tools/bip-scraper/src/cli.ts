@@ -13,6 +13,8 @@ import { runCrawl } from "./crawl.ts";
 import { runStatus } from "./status.ts";
 import { runExtract } from "./extract.ts";
 import { runIndex, runSearch } from "./search.ts";
+import { runBaw } from "./baw.ts";
+import { runOcr } from "./ocr.ts";
 
 function parseArgs(argv: string[]): {
   command: string;
@@ -61,6 +63,10 @@ Komendy (w tej kolejnosci przy pierwszym uzyciu):
              --limit N | --force (przeliczenie wszystkiego od nowa)
   index      (prze)budowa indeksu pelnotekstowego z rozczytanych dokumentow
   search     szukanie po tresci i tytulach, np.: search "wycinka drzew" --limit 20
+  baw        katalog aktow Urzedu Miasta z Bazy Aktow Wlasnych (uchwaly, zarzadzenia)
+             --min-year N (domyslnie ostatnie 6 lat)
+  ocr        rozczytanie skanow z kolejki needs_ocr (polski, wolne); po nim odpal index
+             --limit N (ile skanow przetworzyc w tym biegu)
   status     postep per podmiot; mozna odpalac w trakcie crawla z drugiego terminala
              --verbose (pelna lista + rozklad platform)
   reset      zeruje stan STRON podmiotu (crawl od nowa); archiwum dokumentow zostaje,
@@ -94,6 +100,10 @@ async function main(): Promise<void> {
       });
     } else if (command === "extract") {
       await runExtract(db, { limit: num(flags, "limit"), force: flags.get("force") === true });
+    } else if (command === "baw") {
+      await runBaw(db, { minYear: num(flags, "min-year") });
+    } else if (command === "ocr") {
+      await runOcr(db, { limit: num(flags, "limit") });
     } else if (command === "index") {
       runIndex(db);
     } else if (command === "search") {

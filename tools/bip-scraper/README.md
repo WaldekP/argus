@@ -1,14 +1,23 @@
 # bip-scraper
 
-Lokalne narzędzie do mapowania stron BIP i archiwizacji publikowanych tam
-dokumentów. Test pilotażowy: wszystkie podmioty gdańskie ze spisu `gov.pl/web/bip`
-(TERC 2261, 86 podmiotów). Docelowo zasila korpusy wiedzy Argusa; na razie jest
-w pełni samodzielne.
+Lokalne narzędzie do mapowania stron BIP, archiwizacji dokumentów i budowy
+przeszukiwalnej bazy treści. Test pilotażowy: wszystkie podmioty gdańskie ze
+spisu `gov.pl/web/bip` (TERC 2261, 86 podmiotów) plus akty prawne Urzędu Miasta
+z Bazy Aktów Własnych. Samodzielne narzędzie, docelowo do przeniesienia do
+osobnego repo (obecnie na branchu `narzedzia/bip-scraper`); pod Argusa zasila
+korpusy wiedzy przez eksport metadanych i tekstu.
 
-Jedyna zależność npm to `pdfjs-dist` (rozczytywanie PDF); poza tym wyłącznie
-Node 24+ (wbudowany SQLite, natywny fetch, natywne uruchamianie TypeScriptu).
-Przed pierwszym `extract` trzeba raz odpalić `npm install`; pozostałe komendy
-działają bez niego.
+Rdzeń (`registry`, `probe`, `crawl`, `status`, `baw`, `search`) działa na samym
+**Node 24+** (wbudowany SQLite, fetch, natywny TypeScript). Etapy przetwarzania
+plików wymagają jednorazowego `npm install`:
+`pdfjs-dist` (tekst z PDF), `pdf-to-img` + `tesseract.js` (OCR skanów).
+
+## Potok
+
+`registry` → `probe` → `crawl` (dokumenty na dysk) → `extract` (tekst) →
+`ocr` (skany) → `index` → `search`. Osobno `baw` (akty prawne UM przez API).
+Każdy etap jest wznawialny — stan siedzi w SQLite, więc przerwanie (Ctrl+C,
+restart) jest bezpieczne, a ponowne uruchomienie kontynuuje od miejsca przerwania.
 
 ## Użycie
 
@@ -62,12 +71,50 @@ Wyszukiwarka pełnotekstowa (SQLite FTS5, tokenizer trigram z
 polska odmiana działa bez stemmera, zapytanie musi mieć co najmniej 3 znaki.
 Kilka słów to koniunkcja, fraza w cudzysłowie szuka dosłownie. Wyniki niosą
 podmiot, tytuł z linku, URL i fragment trafienia. `index` przebudowuje indeks
-od zera; odpalaj go po każdym `crawl` + `extract`. Dokumenty bez rozczytanego
-tekstu (skany przed OCR, formaty binarne) są szukalne po tytule.
+od zera; odpalaj go po każdym `crawl` + `extract` + `ocr`. Dokumenty bez
+rozczytanego tekstu (formaty binarne) są szukalne po tytule.
+
+```bash
+node src/cli.ts ocr --limit 50
+```
+
+Rozczytuje skany z kolejki `needs_ocr` (PDF bez warstwy tekstowej): rasteryzacja
+stron przez `pdf-to-img`, rozpoznanie przez `tesseract.js` z polskim modelem.
+Wolne (sekundy na stronę), więc pełny bieg (setki skanów) najlepiej odpalić na
+noc, jak crawl. Tekst z OCR dostaje status `ocr_ok` (niższa pewność niż natywna
+warstwa), a strony poniżej progu pewności `ocr_low` i NIE wchodzą do korpusu:
+lepsza dziura niż zmyślona liczba ze skanu. Po `ocr` odpal `index`.
+
+```bash
+node src/cli.ts baw
+```
+
+Katalog aktów prawnych Urzędu Miasta z Bazy Aktów Własnych (`baw.bip.gdansk.pl`,
+osobny podsystem, patrz niżej): uchwały Rady Miasta i zarządzenia Prezydenta.
+Domyślnie ostatnie 6 lat (`--min-year N`). Zapisuje metadane (numer, data, tytuł,
+typ, status, publiczny permalink) do tabeli `baw_acts`.
 
 Przydatne flagi crawla: `--entity <id>` (jeden podmiot), `--max-pages N`
 (domyślnie 300 stron na podmiot), `--max-depth N` (domyślnie 4),
 `--delay ms` (domyślnie 1500 na host), `--include-old` (bez filtra wieku).
+`reset --entity <id>` zeruje stan stron podmiotu do ponownego, głębszego crawla
+bez ruszania już pobranych dokumentów.
+
+## Baza Aktów Własnych (uchwały i zarządzenia)
+
+Systematyczne archiwum uchwał i zarządzeń Urzędu Miasta **nie leży w portalu**
+`bip.gdansk.pl`, tylko w osobnym podsystemie `baw.bip.gdansk.pl` — aplikacji
+AngularJS z REST API. Płaski crawl HTML jej nie widzi (pusty szkielet SPA),
+dlatego ma własny adapter `baw` odpytujący API bezpośrednio.
+
+Model (odkryty inżynierią wsteczną, `src/baw.ts`): instytucja
+`UrzadMiejskiwGdansku` = `InstitutionId 216`; zbiory (bags) 1200 = uchwały Rady
+Miasta (11162 akty), 1202 = zarządzenia Prezydenta (50520). Lista przez
+`POST /api/documents/GetDocumentsNewGrid` z paginacją `DevExtremeGridOptions.
+skip/take`, dostępna anonimowo. **Treść plików PDF** wymaga zalogowania
+(`GetDocumentFiles` zwraca 401 anonimowo), więc adapter buduje katalog metadanych
+i permalinków; pobranie samych plików to niedomknięty krok (publiczny URL
+podglądu inline).
 
 ## Jak to działa
 
@@ -96,14 +143,25 @@ Przydatne flagi crawla: `--entity <id>` (jeden podmiot), `--max-pages N`
 - Dokumenty pobieramy z dowolnego hosta (załączniki notorycznie leżą na
   osobnych domenach, np. `download.cloudgdansk.pl`), ale crawl stron nigdy
   nie wychodzi poza zakres podmiotu.
-- OCR skanów: poza zakresem; kolejka czeka w `extractions.status = 'needs_ocr'`.
 - Formaty xls/doc (stare, binarne): status `unsupported`, oryginały w archiwum.
 - Brak dat publikacji innych niż `Last-Modified`; daty ze struktury stron
   wymagają parserów per platforma (patrz rozkład CMS w `status --verbose`).
-- Strony renderowane wyłącznie JavaScriptem nie są widoczne (brak przeglądarki).
+- Strony renderowane wyłącznie JavaScriptem nie są widoczne przez `crawl`
+  (brak przeglądarki); podsystemy SPA jak BAW wymagają własnego adaptera na API.
+- Pliki PDF aktów z BAW: katalog tak, treść plików nie (endpoint wymaga logowania).
 - `robots.txt`: reguły dla `User-agent: *`, wildcardy tylko `*` i `$`.
 
-## Dane
+## Wynik pilotażu (Gdańsk)
 
-Wszystko w `data/` (poza gitem): `bip.sqlite` (stan i metadane), `blobs/`
-(oryginały), `crawl.log`. Usunięcie katalogu `data/` zeruje narzędzie.
+- 86 podmiotów w spisie, crawl objął 85; archiwum ~8,7 tys. dokumentów.
+- Ekstrakcja: ~6,7 tys. z tekstem, ~950 skanów w kolejce OCR (OCR polski
+  potwierdzony, 94% pewności na próbce).
+- BAW: katalog 17,6 tys. aktów UM od 2020 (2287 uchwał, 15302 zarządzenia).
+
+## Dane i przenaszalność
+
+Cały stan w `data/` (poza gitem): `bip.sqlite` (metadane, kolejki, katalog BAW,
+indeks FTS), `blobs/` (oryginały), `texts/` (rozczytany tekst), `crawl.log`.
+Usunięcie `data/` zeruje narzędzie. Kod jest samodzielny (katalog
+`tools/bip-scraper`), bez zależności od reszty repo Argus — przeniesienie do
+osobnego repo to skopiowanie tego katalogu i `npm install`.

@@ -36,7 +36,7 @@ export function runIndex(db: DatabaseSync): void {
       `SELECT d.id, d.url, d.link_text, e.name AS entity, x.text_path
        FROM documents d
        JOIN entities e ON e.id = d.entity_id
-       LEFT JOIN extractions x ON x.sha256 = d.sha256 AND x.status = 'ok'
+       LEFT JOIN extractions x ON x.sha256 = d.sha256 AND x.status IN ('ok', 'ocr_ok')
        WHERE d.status IN ('stored', 'duplicate')`,
     )
     .all() as {
