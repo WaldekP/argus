@@ -79,6 +79,12 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Aktualnych powiązań bywa kilkanaście, a karta jest wysoka. Domyślnie
+  // pokazujemy pierwszą, resztę user rozwija świadomie.
+  const [showAllCurrent, setShowAllCurrent] = useState(false);
+  // Powiązania zakończone są rzadziej potrzebne, więc domyślnie schowane
+  // w całości za jednym przełącznikiem.
+  const [showPast, setShowPast] = useState(false);
 
   const loadConnections = useCallback(async (id: string) => {
     const result = await getConnections(id);
@@ -275,13 +281,31 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
             </ThemedText>
           ) : null}
 
-          {groupByOrg(connections.filter((c) => c.is_current)).map(([krs, group]) => (
-            <RegistryConnectionCard
-              key={krs}
-              connections={group}
-              onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
-            />
-          ))}
+          {(() => {
+            const currentGroups = groupByOrg(connections.filter((c) => c.is_current));
+            const visibleGroups = showAllCurrent ? currentGroups : currentGroups.slice(0, 1);
+            const hiddenCount = currentGroups.length - visibleGroups.length;
+            return (
+              <>
+                {visibleGroups.map(([krs, group]) => (
+                  <RegistryConnectionCard
+                    key={krs}
+                    connections={group}
+                    onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
+                  />
+                ))}
+                {currentGroups.length > 1 ? (
+                  <Pressable onPress={() => setShowAllCurrent((prev) => !prev)}>
+                    <ThemedText type="small" themeColor="accentLight" style={styles.toggle}>
+                      {showAllCurrent
+                        ? 'Zwiń powiązania'
+                        : `Pokaż pozostałe powiązania (${hiddenCount})`}
+                    </ThemedText>
+                  </Pressable>
+                ) : null}
+              </>
+            );
+          })()}
 
           {/* Spółki, z których polityk już wyszedł. Dziennikarz pyta o nie
               równie chętnie, co o obecne, więc nie chowamy ich. */}
@@ -290,13 +314,22 @@ export function RegistryConnections({ defaultQuery = '', subjectId = null }: Pro
               <ThemedText style={[KickerStyle, styles.kicker]} themeColor="accent">
                 Powiązania zakończone
               </ThemedText>
-              {groupByOrg(pastConnections).map(([krs, group]) => (
-                <RegistryConnectionCard
-                  key={`past-${krs}`}
-                  connections={group}
-                  onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
-                />
-              ))}
+              <Pressable onPress={() => setShowPast((prev) => !prev)}>
+                <ThemedText type="small" themeColor="accentLight" style={styles.toggle}>
+                  {showPast
+                    ? 'Zwiń powiązania zakończone'
+                    : `Pokaż powiązania zakończone (${groupByOrg(pastConnections).length})`}
+                </ThemedText>
+              </Pressable>
+              {showPast
+                ? groupByOrg(pastConnections).map(([krs, group]) => (
+                    <RegistryConnectionCard
+                      key={`past-${krs}`}
+                      connections={group}
+                      onPress={() => router.push({ pathname: '/spolka/[krs]', params: { krs } })}
+                    />
+                  ))
+                : null}
             </>
           ) : null}
 
@@ -351,6 +384,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   unlink: {
+    textDecorationLine: 'underline',
+  },
+  toggle: {
     textDecorationLine: 'underline',
   },
   kicker: {
