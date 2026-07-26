@@ -18,6 +18,9 @@ export type AnalyticsEvent =
   | 'practice_session_started'
   | 'practice_session_finished'
   | 'morning_brief_read'
+  /** Brief dnia (synteza): regeneracja przeglądu i wejście w źródło wydarzenia. */
+  | 'morning_brief_generated'
+  | 'daily_brief_item_source_opened'
   | 'journalist_viewed'
   | 'media_searched'
   | 'analysis_created'

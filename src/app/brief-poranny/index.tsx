@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DailyBriefView } from '@/components/daily-brief-view';
 import { EyeDot } from '@/components/eye-dot';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
@@ -25,6 +26,11 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
+import {
+  generateDailyBrief,
+  getDailyBrief,
+  type DailyBrief,
+} from '@/lib/api/daily-brief';
 import {
   listMentions,
   listTopics,
@@ -59,6 +65,12 @@ export default function MorningBriefScreen() {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Przegląd dnia (synteza): niezależny od wzmianek stan i cykl życia.
+  const [brief, setBrief] = useState<DailyBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(true);
+  const [briefGenerating, setBriefGenerating] = useState(false);
+  const [briefError, setBriefError] = useState<string | null>(null);
+
   // Samo pobranie, bez dotykania stanu: dzięki temu efekt montujący ekran
   // zapisuje stan dopiero w callbacku, a nie synchronicznie w swoim ciele.
   const fetchBrief = useCallback(async () => {
@@ -92,6 +104,43 @@ export default function MorningBriefScreen() {
       active = false;
     };
   }, [fetchBrief]);
+
+  // Przegląd dnia pobieramy osobno: brak briefu (jeszcze nie wygenerowany) to
+  // normalny stan, nie błąd, i nie ma blokować pokazania wzmianek.
+  useEffect(() => {
+    let active = true;
+    getDailyBrief()
+      .then((result) => {
+        if (!active) return;
+        setBrief(result.brief);
+        setBriefError(null);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        setBriefError(err instanceof Error ? err.message : 'Nie udało się pobrać przeglądu dnia.');
+      })
+      .finally(() => {
+        if (active) setBriefLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleGenerateBrief = useCallback(async () => {
+    setBriefGenerating(true);
+    setBriefError(null);
+    try {
+      await generateDailyBrief();
+      track('morning_brief_generated');
+      const result = await getDailyBrief();
+      setBrief(result.brief);
+    } catch (err) {
+      setBriefError(err instanceof Error ? err.message : 'Nie udało się wygenerować przeglądu dnia.');
+    } finally {
+      setBriefGenerating(false);
+    }
+  }, []);
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
@@ -202,10 +251,67 @@ export default function MorningBriefScreen() {
           </View>
           <ThemedText style={styles.title}>Brief poranny</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Co się pisze na tematy, które wskazał_aś jako ważne. Prasa i portale, bez social
-            mediów.
+            Najważniejsze wydarzenia dnia w polityce, zebrane pod Twoją strategię, oraz wzmianki
+            prasowe o Twoich hasłach. Bez social mediów.
           </ThemedText>
         </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <ThemedText style={styles.sectionTitle}>Przegląd dnia</ThemedText>
+            {brief?.status === 'ready' ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Odśwież przegląd dnia"
+                onPress={handleGenerateBrief}
+                disabled={briefGenerating}>
+                {briefGenerating ? (
+                  <ActivityIndicator size="small" color={theme.accent} />
+                ) : (
+                  <ThemedText type="small" themeColor="accentLight">
+                    Odśwież
+                  </ThemedText>
+                )}
+              </Pressable>
+            ) : null}
+          </View>
+
+          {briefError ? (
+            <View style={[styles.alert, { borderLeftColor: theme.error }]}>
+              <ThemedText type="small">{briefError}</ThemedText>
+            </View>
+          ) : null}
+
+          {briefLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={theme.accent} />
+            </View>
+          ) : brief && brief.status === 'ready' ? (
+            <DailyBriefView brief={brief} />
+          ) : brief && brief.status === 'generating' ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={theme.accent} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
+                Przygotowuję przegląd dnia. To potrwa chwilę.
+              </ThemedText>
+            </View>
+          ) : (
+            <View style={styles.briefEmpty}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
+                {brief?.status === 'error'
+                  ? 'Ostatnia próba przygotowania przeglądu nie powiodła się.'
+                  : 'Nie ma jeszcze przeglądu na dziś.'}
+              </ThemedText>
+              <PrimaryButton
+                title={briefGenerating ? 'Generuję...' : 'Wygeneruj przegląd'}
+                onPress={handleGenerateBrief}
+                disabled={briefGenerating}
+              />
+            </View>
+          )}
+        </View>
+
+        <ThemedText style={styles.sectionTitle}>Wzmianki o Tobie</ThemedText>
 
         {error ? (
           <View style={[styles.alert, { borderLeftColor: theme.error }]}>
@@ -353,6 +459,25 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serif,
     fontSize: FontSize.screenTitle,
     lineHeight: FontSize.screenTitle * 1.25,
+  },
+  section: {
+    gap: Spacing.three,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+  },
+  sectionTitle: {
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize.section,
+    lineHeight: FontSize.section * 1.3,
+  },
+  briefEmpty: {
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.four,
   },
   actions: {
     flexDirection: 'row',
