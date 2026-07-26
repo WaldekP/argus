@@ -107,7 +107,17 @@ rejestr w `index.ts`), renderowane w zakładce Tematy i na `/temat/[slug]`. Kont
 - **RLS na KAŻDEJ tabeli** + testy RLS (tenant A nie widzi danych tenanta B) — warunek zaliczenia migracji.
 - 2FA (TOTP) wymuszone dla roli `politician`.
 
-## Edge Functions — konwencja
+## Migracje bazy danych
+
+Migracje to pliki SQL w `backend/supabase/migrations/`, wersjonowane w gicie.
+Na produkcję nakłada je integracja Supabase↔GitHub przy merge do `main`
+(albo narzędzie `apply_migration` konektora Supabase MCP).
+
+**Zasada nadrzędna (decyzja Waldka): nigdy nie migruj bez pytania.** Kiedy zadanie
+wymaga zmiany schematu, napisz plik migracji i od razu zapytaj usera, czy go
+nałożyć. Nie nakładaj migracji po cichu i nie zostawiaj utworzonej migracji bez
+zadania pytania „migrować?". User zatwierdza, Claude wykonuje. Migracje na żywo
+w bazie (poza plikami) tworzą dryft, dlatego jedynym źródłem prawdy są pliki.
 
 Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
 
