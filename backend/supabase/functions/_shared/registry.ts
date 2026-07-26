@@ -9,7 +9,6 @@ import {
   getFinancialDocumentJson,
   getOrgConnections,
   getPersonConnections,
-  normalizeKrs,
   orgToRow,
   type RioOrg,
   type RioPerson,

@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
+import { FullScreenProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -47,38 +49,6 @@ type RunProgress = {
   total: number;
 };
 
-/** Pełnoekranowy stan pracy z realnym postępem z pętli generacji. */
-function TopicLoader({ progress }: { progress: RunProgress | null }) {
-  const theme = useTheme();
-  const label = progress?.label ?? 'Przygotowuję dossier';
-  const showCount = progress !== null && progress.total > 0;
-  const ratio = showCount ? Math.min(progress.processed / progress.total, 1) : 0;
-
-  return (
-    <View style={styles.loader}>
-      <ActivityIndicator size="large" color={theme.accent} />
-      <ThemedText style={styles.loaderStep}>{label}</ThemedText>
-      {showCount ? (
-        <>
-          <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-              ]}
-            />
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {progress.processed} z {progress.total}
-          </ThemedText>
-        </>
-      ) : null}
-      <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-        Generacja dossier zwykle trwa poniżej minuty. Nie zamykaj aplikacji.
-      </ThemedText>
-    </View>
-  );
-}
 
 /** Formularz nowego tematu: tytuł, wgranie analizy, generacja dossier. */
 export default function NewTopicScreen() {
@@ -233,7 +203,12 @@ export default function NewTopicScreen() {
             </View>
           </View>
         ) : (
-          <TopicLoader progress={runProgress} />
+          <FullScreenProgress
+            label={runProgress?.label ?? 'Przygotowuję dossier'}
+            processed={runProgress?.processed ?? 0}
+            total={runProgress?.total ?? 0}
+            hint="Generacja dossier zwykle trwa poniżej minuty. Nie zamykaj aplikacji."
+          />
         )}
       </ThemedView>
     );
@@ -246,13 +221,12 @@ export default function NewTopicScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
+        <BackLink />
 
         <View style={styles.header}>
           <ThemedText style={styles.title}>Nowy temat</ThemedText>
@@ -346,12 +320,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
-  },
   header: {
     gap: Spacing.two,
   },
@@ -390,23 +358,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
     paddingHorizontal: Spacing.five,
-  },
-  loaderStep: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize.section,
-    lineHeight: FontSize.section * 1.3,
-    textAlign: 'center',
-  },
-  progressTrack: {
-    width: '100%',
-    maxWidth: 320,
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   centered: {
     textAlign: 'center',

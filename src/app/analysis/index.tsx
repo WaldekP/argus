@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
@@ -14,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnalysisStatusChip } from '@/components/analysis-status-chip';
 import { EyeDot } from '@/components/eye-dot';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -85,12 +85,7 @@ export default function AnalysisListScreen() {
             colors={[theme.accent]}
           />
         }>
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        <BackLink />
 
         <View style={styles.header}>
           <ThemedText style={styles.title}>Analizy niespójności</ThemedText>
@@ -181,12 +176,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
-  },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
   },
   header: {
     gap: Spacing.two,

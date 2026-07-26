@@ -47,7 +47,7 @@ async function confirmRemoval(phrase: string): Promise<boolean> {
 
 /**
  * Hasła obserwowane: nazwiska, nazwy partii, tematy. Na ich podstawie Argus
- * pobiera wzmianki z Google News do briefu porannego.
+ * pobiera wzmianki z Bing News RSS do briefu porannego.
  *
  * Hasła są wspólne dla całego biura: polityk i asystent widzą tę samą listę.
  */
@@ -159,7 +159,11 @@ export default function WatchedTermsScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.three, paddingBottom: insets.bottom + Spacing.six },
         ]}
-        keyboardShouldPersistTaps="handled">
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Wróć"

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
+import { FullScreenProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -38,37 +39,6 @@ const PHASE_LABELS: Record<ImportStepResult['phase'], string> = {
 type Phase = 'search' | 'confirm' | 'importing' | 'summary' | 'no_mandate';
 
 /** Pełnoekranowy loader importu z realnym postępem z pętli importu. */
-function ImportLoader({ step }: { step: ImportStepResult | null }) {
-  const theme = useTheme();
-  const label = step ? PHASE_LABELS[step.phase] : 'Przygotowuję import';
-  const showCount = step !== null && step.total > 0;
-  const ratio = showCount ? Math.min(step.processed / step.total, 1) : 0;
-
-  return (
-    <View style={styles.loader}>
-      <ActivityIndicator size="large" color={theme.accent} />
-      <ThemedText style={styles.loaderStep}>{label}</ThemedText>
-      {showCount ? (
-        <>
-          <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-              ]}
-            />
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {step.processed} z {step.total}
-          </ThemedText>
-        </>
-      ) : null}
-      <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-        Import danych z Sejmu może potrwać kilka minut. Nie zamykaj aplikacji.
-      </ThemedText>
-    </View>
-  );
-}
 
 /** Duża złota liczba z podpisem (podsumowanie importu). */
 function StatNumber({ value, label }: { value: number; label: string }) {
@@ -186,7 +156,12 @@ export default function ImportScreen() {
   if (phase === 'importing') {
     return (
       <ThemedView style={styles.screen}>
-        <ImportLoader step={importStep} />
+        <FullScreenProgress
+          label={importStep ? PHASE_LABELS[importStep.phase] : 'Przygotowuję import'}
+          processed={importStep?.processed ?? 0}
+          total={importStep?.total ?? 0}
+          hint="Import danych z Sejmu może potrwać kilka minut. Nie zamykaj aplikacji."
+        />
       </ThemedView>
     );
   }
@@ -403,29 +378,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.serif,
     fontSize: FontSize.section,
     lineHeight: FontSize.section * 1.3,
-  },
-  loader: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.three,
-    paddingHorizontal: Spacing.five,
-  },
-  loaderStep: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize.section,
-    lineHeight: FontSize.section * 1.3,
-  },
-  progressTrack: {
-    width: '100%',
-    maxWidth: 320,
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   centered: {
     textAlign: 'center',

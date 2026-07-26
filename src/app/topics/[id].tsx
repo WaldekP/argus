@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
+import { InlineProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -61,7 +62,7 @@ const GENERATE_LABELS: Record<GeneratePhase, string> = {
   done: 'Porządkuję dossier',
 };
 
-type InlineProgress = {
+type WorkProgress = {
   label: string;
   processed: number;
   total: number;
@@ -81,38 +82,6 @@ function TopicStatusChip({ status }: { status: TopicStatus }) {
 }
 
 /** Pasek postępu pętli generacji w treści ekranu. */
-function InlineProgressBar({ progress }: { progress: InlineProgress | null }) {
-  const theme = useTheme();
-  const label = progress?.label ?? 'Przygotowuję dossier';
-  const showCount = progress !== null && progress.total > 0;
-  const ratio = showCount ? Math.min(progress.processed / progress.total, 1) : 0;
-
-  return (
-    <ThemedView type="backgroundElement" style={[styles.progressCard, { borderColor: theme.border }]}>
-      <View style={styles.progressRow}>
-        <ActivityIndicator color={theme.accent} />
-        <ThemedText type="small" themeColor="text80">
-          {label}
-        </ThemedText>
-      </View>
-      {showCount ? (
-        <>
-          <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-              ]}
-            />
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {progress.processed} z {progress.total}
-          </ThemedText>
-        </>
-      ) : null}
-    </ThemedView>
-  );
-}
 
 /** Widok dossier tematu: podsumowanie, liczby, pytania, linie, dopytanie AI. */
 export default function TopicScreen() {
@@ -126,7 +95,7 @@ export default function TopicScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [working, setWorking] = useState(false);
-  const [workProgress, setWorkProgress] = useState<InlineProgress | null>(null);
+  const [workProgress, setWorkProgress] = useState<WorkProgress | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
 
   const [question, setQuestion] = useState('');
@@ -423,13 +392,12 @@ export default function TopicScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
+        <BackLink />
 
         {loading ? (
           <View style={styles.centerBox}>
@@ -464,7 +432,13 @@ export default function TopicScreen() {
               </ThemedText>
             </View>
 
-            {working ? <InlineProgressBar progress={workProgress} /> : null}
+            {working ? (
+              <InlineProgress
+                label={workProgress?.label ?? 'Przygotowuję dossier'}
+                processed={workProgress?.processed ?? 0}
+                total={workProgress?.total ?? 0}
+              />
+            ) : null}
 
             {workError ? (
               <ThemedText type="small" themeColor="error">
@@ -697,12 +671,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
-  },
   centerBox: {
     alignItems: 'center',
     paddingVertical: Spacing.six,
@@ -786,27 +754,6 @@ const styles = StyleSheet.create({
   },
   suggestedUse: {
     gap: Spacing.one,
-  },
-  progressCard: {
-    borderWidth: 1,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   actions: {
     gap: Spacing.two,

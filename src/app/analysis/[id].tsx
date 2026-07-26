@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AnalysisStatusChip } from '@/components/analysis-status-chip';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
+import { InlineProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -69,7 +70,7 @@ const EVIDENCE_TYPE_LABELS: Record<'statement' | 'vote', string> = {
   vote: 'głosowanie',
 };
 
-type InlineProgress = {
+type WorkProgress = {
   label: string;
   processed: number;
   total: number;
@@ -88,38 +89,6 @@ function sourcesLine(summary: Analysis['findings']['sources_summary']): string {
 }
 
 /** Pasek postępu pętli wznowienia albo ponownej analizy, w treści ekranu. */
-function InlineProgressBar({ progress }: { progress: InlineProgress | null }) {
-  const theme = useTheme();
-  const label = progress?.label ?? 'Przygotowuję analizę';
-  const showCount = progress !== null && progress.total > 0;
-  const ratio = showCount ? Math.min(progress.processed / progress.total, 1) : 0;
-
-  return (
-    <ThemedView type="backgroundElement" style={[styles.progressCard, { borderColor: theme.border }]}>
-      <View style={styles.progressRow}>
-        <ActivityIndicator color={theme.accent} />
-        <ThemedText type="small" themeColor="text80">
-          {label}
-        </ThemedText>
-      </View>
-      {showCount ? (
-        <>
-          <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-            <View
-              style={[
-                styles.progressFill,
-                { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-              ]}
-            />
-          </View>
-          <ThemedText type="small" themeColor="textSecondary">
-            {progress.processed} z {progress.total}
-          </ThemedText>
-        </>
-      ) : null}
-    </ThemedView>
-  );
-}
 
 /** Widok analizy niespójności: ustalenia, weryfikacja dokumentów, akcje. */
 export default function AnalysisScreen() {
@@ -133,7 +102,7 @@ export default function AnalysisScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [working, setWorking] = useState(false);
-  const [workProgress, setWorkProgress] = useState<InlineProgress | null>(null);
+  const [workProgress, setWorkProgress] = useState<WorkProgress | null>(null);
   const [workError, setWorkError] = useState<string | null>(null);
 
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -337,12 +306,7 @@ export default function AnalysisScreen() {
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
         keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        <BackLink />
 
         {loading ? (
           <View style={styles.centerBox}>
@@ -377,7 +341,13 @@ export default function AnalysisScreen() {
               ) : null}
             </View>
 
-            {working ? <InlineProgressBar progress={workProgress} /> : null}
+            {working ? (
+              <InlineProgress
+                label={workProgress?.label ?? 'Przygotowuję analizę'}
+                processed={workProgress?.processed ?? 0}
+                total={workProgress?.total ?? 0}
+              />
+            ) : null}
 
             {workError ? (
               <ThemedText type="small" themeColor="error">
@@ -554,12 +524,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
-  },
   centerBox: {
     alignItems: 'center',
     paddingVertical: Spacing.six,
@@ -633,27 +597,6 @@ const styles = StyleSheet.create({
   claim: {
     gap: Spacing.one,
     paddingTop: Spacing.two,
-  },
-  progressCard: {
-    borderWidth: 1,
-    borderRadius: Radius.card,
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  progressTrack: {
-    width: '100%',
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   actions: {
     gap: Spacing.two,

@@ -1,4 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -6,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
+import { BackLink } from '@/components/back-link';
+import { FullScreenProgress } from '@/components/progress';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -85,46 +86,20 @@ function buildTopicFraming(
 
 type Phase = 'form' | 'generating';
 
-/**
- * Pełnoekranowy stan generacji z realnym postępem z pętli generate_step.
- * Po wygenerowaniu wszystkich wariantów backend robi kontrolę spójności,
- * stąd osobna etykieta na końcu.
- */
-function GenerationLoader({
-  step,
-  total,
-}: {
-  step: GenerateStepResult | null;
-  total: number | null;
-}) {
-  const theme = useTheme();
-  const knownTotal = step?.total ?? total ?? 0;
-  const processed = step?.processed ?? 0;
-  const checkingConsistency = step !== null && knownTotal > 0 && processed >= knownTotal;
-  const label = checkingConsistency
-    ? 'Sprawdzam spójność z Twoją historią'
-    : knownTotal > 0
-      ? `Wariant ${Math.min(processed + 1, knownTotal)} z ${knownTotal}`
-      : 'Przygotowuję generację';
-  const ratio = knownTotal > 0 ? Math.min(processed / knownTotal, 1) : 0;
 
-  return (
-    <View style={styles.loader}>
-      <ActivityIndicator size="large" color={theme.accent} />
-      <ThemedText style={styles.loaderStep}>{label}</ThemedText>
-      <View style={[styles.progressTrack, { backgroundColor: theme.progressTrack }]}>
-        <View
-          style={[
-            styles.progressFill,
-            { backgroundColor: theme.accent, width: `${Math.round(ratio * 100)}%` },
-          ]}
-        />
-      </View>
-      <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
-        Generacja może potrwać kilka minut. Nie zamykaj aplikacji.
-      </ThemedText>
-    </View>
-  );
+/**
+ * Etykieta kroku generacji. Po wygenerowaniu wszystkich wariantów backend robi
+ * jeszcze kontrolę spójności, stąd osobna nazwa na końcu.
+ */
+function generationLabel(step: GenerateStepResult | null, knownTotal: number): string {
+  const processed = step?.processed ?? 0;
+  if (step !== null && knownTotal > 0 && processed >= knownTotal) {
+    return 'Sprawdzam spójność z Twoją historią';
+  }
+  if (knownTotal > 0) {
+    return `Wariant ${Math.min(processed + 1, knownTotal)} z ${knownTotal}`;
+  }
+  return 'Przygotowuję generację';
 }
 
 /** Formularz nowego przekazu: temat, komunikat, segmenty, kanały. */
@@ -307,7 +282,13 @@ export default function NewContentScreen() {
             </View>
           </View>
         ) : (
-          <GenerationLoader step={generationStep} total={totalVariants} />
+          <FullScreenProgress
+            label={generationLabel(generationStep, generationStep?.total ?? totalVariants ?? 0)}
+            processed={generationStep?.processed ?? 0}
+            total={generationStep?.total ?? totalVariants ?? 0}
+            showCount={false}
+            hint="Generacja może potrwać kilka minut. Nie zamykaj aplikacji."
+          />
         )}
       </ThemedView>
     );
@@ -320,13 +301,12 @@ export default function NewContentScreen() {
           styles.content,
           { paddingTop: insets.top + Spacing.four, paddingBottom: insets.bottom + Spacing.four },
         ]}
-        keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.back}>
-          <Ionicons name="chevron-back" size={20} color={theme.textSecondary} />
-          <ThemedText type="small" themeColor="textSecondary">
-            Wróć
-          </ThemedText>
-        </Pressable>
+        keyboardShouldPersistTaps="handled"
+        // Klawiatura nie moze zaslaniac przycisku pod formularzem. Na iOS robi to
+        // ta wlasciwosc (ScrollView sam koryguje wciecie), na Androidzie domyslny
+        // tryb okna "resize" z Expo.
+        automaticallyAdjustKeyboardInsets>
+        <BackLink />
 
         <View style={styles.header}>
           <ThemedText style={styles.title}>Nowy przekaz</ThemedText>
@@ -509,12 +489,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     gap: Spacing.four,
   },
-  back: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    alignSelf: 'flex-start',
-  },
   header: {
     gap: Spacing.two,
   },
@@ -561,23 +535,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.three,
     paddingHorizontal: Spacing.five,
-  },
-  loaderStep: {
-    fontFamily: FontFamily.serif,
-    fontSize: FontSize.section,
-    lineHeight: FontSize.section * 1.3,
-    textAlign: 'center',
-  },
-  progressTrack: {
-    width: '100%',
-    maxWidth: 320,
-    height: 6,
-    borderRadius: Radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius.full,
   },
   centered: {
     textAlign: 'center',
