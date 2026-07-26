@@ -9,6 +9,8 @@ import { PollBars } from '@/components/knowledge/poll-bars';
 import { QuoteCard } from '@/components/knowledge/quote-card';
 import { SectionHeading } from '@/components/knowledge/section-heading';
 import { SourceLink } from '@/components/knowledge/source-link';
+import { PrimaryButton } from '@/components/primary-button';
+import { SavedDraftsList } from '@/components/saved-drafts-list';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
@@ -75,7 +77,7 @@ export default function TopicScreen() {
           <ThemedText style={styles.title}>{temat.nazwa}</ThemedText>
           <ThemedText themeColor="textSecondary">{temat.zajawka}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            {temat.liczbaZrodel} źródeł, korpus {temat.korpus}, aktualizacja {temat.aktualizacja}
+            {temat.liczbaZrodel} źródeł, aktualizacja {temat.aktualizacja}
           </ThemedText>
         </View>
 
@@ -209,7 +211,7 @@ export default function TopicScreen() {
             <SectionHeading
               kicker="Synteza"
               title="Co mówi opinia społeczna"
-              lead="Wnioski z badań w korpusie. Każdy da się sprawdzić w źródle niżej."
+              lead="Wnioski z badań w tym zagadnieniu. Każdy da się sprawdzić w źródle niżej."
             />
             <View style={styles.list}>
               {temat.syntezaOpinii.map((zdanie) => (
@@ -345,7 +347,7 @@ export default function TopicScreen() {
                   ) : (
                     <ThemedText type="small" themeColor="accentLight">
                       {polityk.wypowiedzi.length}{' '}
-                      {polityk.wypowiedzi.length === 1 ? 'wypowiedź' : 'wypowiedzi'} w korpusie
+                      {polityk.wypowiedzi.length === 1 ? 'wypowiedź' : 'wypowiedzi'} w tym zagadnieniu
                     </ThemedText>
                   )}
                 </View>
@@ -361,6 +363,29 @@ export default function TopicScreen() {
               title="Jak o tym mówić"
               lead="Ten sam temat, inny język do każdej grupy. Podstawa każdego wyboru podana jawnie."
             />
+
+            <View
+              style={[
+                styles.generateCard,
+                { backgroundColor: theme.backgroundSelected, borderLeftColor: theme.accent },
+              ]}>
+              <ThemedText themeColor="accentLight" style={styles.kicker}>
+                Wygeneruj przekaz
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Na podstawie tego zagadnienia przygotuj gotowe warianty treści dla wybranych grup
+                wyborców i kanałów, w Twoim stylu. Możesz je zapisać i wrócić do nich później.
+              </ThemedText>
+              <PrimaryButton
+                title="Wygeneruj przekaz"
+                onPress={() =>
+                  router.push({
+                    pathname: '/content/new',
+                    params: { topicSlug: temat.slug },
+                  })
+                }
+              />
+            </View>
 
             {temat.segmenty.map((segment) => (
               <View
@@ -430,10 +455,23 @@ export default function TopicScreen() {
           </View>
         ) : null}
 
+        {/* Zapisane przekazy tego tematu: zawsze widoczne, niezależnie od sekcji. */}
+        <View style={styles.section}>
+          <SectionHeading
+            kicker="Twoje przekazy"
+            title="Zapisane przekazy"
+            lead="Warianty wygenerowane z tego tematu. Dotknij, żeby otworzyć."
+          />
+          <SavedDraftsList
+            topicRef={temat.slug}
+            emptyText="Nie masz jeszcze przekazu z tego tematu. Użyj przycisku Wygeneruj przekaz w sekcji Komunikacja."
+          />
+        </View>
+
         {/* Luki: zawsze widoczne, niezależnie od sekcji. */}
         <View style={[styles.gaps, { borderColor: theme.border }]}>
           <ThemedText themeColor="textSecondary" style={styles.kicker}>
-            Czego w korpusie nie ma
+            Czego w tym zagadnieniu nie ma
           </ThemedText>
           {temat.luki.map((luka) => (
             <ThemedText key={luka} type="small" themeColor="textSecondary">
@@ -538,6 +576,12 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  generateCard: {
+    borderLeftWidth: 2,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    gap: Spacing.two,
   },
   card: {
     borderWidth: 1,

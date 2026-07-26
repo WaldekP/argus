@@ -18,6 +18,12 @@ export type AnalyticsEvent =
   | 'practice_session_started'
   | 'practice_session_finished'
   | 'morning_brief_read'
+  /** Brief dnia (synteza): regeneracja przeglądu i wejście w źródło wydarzenia. */
+  | 'morning_brief_generated'
+  | 'daily_brief_item_source_opened'
+  /** Pomysły na tweety (X) z briefu dnia: generacja i skopiowanie wpisu. */
+  | 'brief_tweets_generated'
+  | 'brief_tweet_copied'
   | 'journalist_viewed'
   | 'media_searched'
   | 'analysis_created'

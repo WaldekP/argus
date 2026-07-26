@@ -18,12 +18,23 @@ Res data: `{ segments: [{ id: uuid, name: string, priority: "mobilize"|"persuade
 
 ### `create` — utworzenie draftu
 
-Req: `{ operation: "create", topic: string, core_message?: string, segment_ids: uuid[], channels: string[], topic_slug?: string, topic_framing?: TopicFraming }`
+Req: `{ operation: "create", topic: string, core_message?: string, segments?: SegmentInput[], segment_ids?: uuid[], channels: string[], topic_slug?: string, topic_framing?: TopicFraming, topic_ref?: string }`
 - `topic` wymagany (min 5 znaków), `channels` min 1.
-- `segment_ids` może być puste: wtedy generujemy warianty "ogólne" (segment_id: null, segment_name: "Ogólny").
-- `topic_slug` i `topic_framing` opcjonalne (most z zakładki Tematy, faza 2). Gdy podane, framing
+- Segmenty przez `segments` (tryb "z tematu") albo legacy `segment_ids`. `segments` ma
+  pierwszeństwo, gdy niepuste. Puste w obu = jeden wariant "ogólny" (segment_id: null,
+  segment_name: "Ogólny").
+- `SegmentInput = { id: string, name: string }`. `id` to UUID segmentu tenanta ALBO id segmentu
+  korpusu tematycznego z prefiksem `corpus:` (grupa wyborców z bazy wiedzy, nie ma wiersza w
+  tabeli `segments`). Nazwę segmentu tenanta bierzemy z bazy (autorytatywna), nazwę segmentu
+  korpusu z requestu. Segmenty korpusu (`corpus:`) są pomijane w zapytaniach do tabeli `segments`
+  (kolumna `id` jest typu uuid), więc nie mają profilu stylu segmentu — tylko framing.
+- `segment_ids` (legacy): wyłącznie UUID segmentów tenanta.
+- `topic_slug` i `topic_framing` opcjonalne (most z zakładki Tematy). Gdy podane, framing
   zapisywany jest w `content_drafts.consistency_check._framing` i wstrzykiwany do promptu generacji
-  oraz do kontroli spójności. Klient rozwiązuje mapowanie segmentów korpusu na segmenty tenanta.
+  oraz do kontroli spójności. `topic_framing.segments` jest kluczowane tym samym `id` co plan
+  (UUID tenanta oraz `corpus:<id>`).
+- `topic_ref` opcjonalny: wiąże draft z tematem dla listy per temat. Slug korpusu (np.
+  `kwota-wolna`) albo `dossier:<uuid>`. Zapisywany w kolumnie `content_drafts.topic_ref`.
 Res data: `{ draft_id: uuid, total_variants: number }` (total = max(1, |segments|) × |channels|)
 Draft w `content_drafts` ze status 'draft', variants '[]'.
 
@@ -66,8 +77,9 @@ Res data: `{ draft: { id, topic, core_message: string|null, status: "draft"|"acc
 
 ### `list` — lista draftów tenanta
 
-Req: `{ operation: "list" }`
-Res data: `{ drafts: [{ id, topic, status, created_at, variants_count: number, alerts_count: number }] }` (sort: created_at desc, max 50)
+Req: `{ operation: "list", topic_ref?: string }`
+- `topic_ref` opcjonalny: zwraca tylko przekazy powiązane z danym tematem (slug korpusu albo `dossier:<uuid>`). Bez niego wszystkie przekazy tenanta.
+Res data: `{ drafts: [{ id, topic, topic_ref: string|null, status, created_at, variants_count: number, alerts_count: number }] }` (sort: created_at desc, max 50)
 
 ### `regenerate_variant` — nowa wersja jednego wariantu
 
@@ -81,19 +93,28 @@ Res data: `{ ok: true }`
 
 ## Frontend — ekrany
 
+Generacja przeniesiona z osobnej zakładki do wnętrza tematu. Wejście: przycisk
+"Wygeneruj przekaz" na ekranie zagadnienia (`temat/[slug].tsx`) i dossieru
+(`topics/[id].tsx`). Zapisane przekazy widać wyłącznie per temat (na ekranie
+danego zagadnienia/dossieru), bez globalnej listy.
+
 ```text
-src/app/(tabs)/content.tsx — lista draftów (status, temat, data, liczba wariantów
-  i alertów) + CTA "Nowy przekaz"; pull-to-refresh; empty state zachęcający.
-src/app/content/new.tsx    — formularz: temat, kluczowy komunikat (opcjonalny),
-  wybór segmentów (chips z list_segments; brak segmentów = informacja o trybie
-  ogólnym), wybór kanałów (4 pigułki) → create + pętla generate_step z paskiem
-  postępu ("Wariant X z Y", potem "Sprawdzam spójność") → replace do content/[id].
+src/app/(tabs)/content.tsx — zakładka "Dane": katalog materiałów referencyjnych
+  (na razie Programy wyborcze). Bez listy draftów i wolnego generatora.
+src/app/content/new.tsx    — generacja "z tematu" (params: topicSlug zagadnienia
+  ALBO dossierId + topicName). Temat i stanowisko z kontekstu; formularz: kluczowy
+  komunikat (opcjonalny), grupy wyborców w dwóch chipach — "Twoje segmenty"
+  (list_segments) i "Segmenty tematu" (segmenty zagadnienia, tylko dla topicSlug) —
+  wybór kanałów (4 pigułki) → create (segments[] + topic_ref + topic_framing) +
+  pętla generate_step z paskiem postępu → replace do content/[id].
 src/app/content/[id].tsx   — draft: baner alertów spójności (lewy border w kolorze
   error, tło rgba error .14) gdy są, warianty grupowane per segment, karta wariantu:
   etykieta kanału, tekst, przyciski Kopiuj (expo-clipboard, zainstalowany,
   track('content_variant_copied')) i Wygeneruj ponownie (opcjonalne pole uwag),
   na dole Akceptuj / Odrzuć (set_status).
-Rejestracja tras: app/content/new.tsx i app/content/[id].tsx w root Stack.
+src/components/saved-drafts-list.tsx — wspólna lista zapisanych przekazów danego
+  tematu (topicRef wymagany w praktyce); używana na ekranie zagadnienia i dossieru.
+Rejestracja tras: app/content/new.tsx, app/content/[id].tsx w root Stack.
 ```
 
 Klient API: `src/lib/api/content.ts` (wzorzec z `onboarding.ts`, w tym normalizacja

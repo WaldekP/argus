@@ -113,18 +113,19 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="library" size={size} color={color} />,
         }}
       />
+      {/* Media ukryte na życzenie usera (2026-07-26): baza redakcji i
+          dziennikarzy jeszcze nie gotowa. Plik ekranu zostaje, znika z paska. */}
       <Tabs.Screen
         name="media"
         options={{
-          title: 'Media',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
+          href: null,
         }}
       />
       <Tabs.Screen
         name="content"
         options={{
-          title: 'Przekaz',
-          tabBarIcon: ({ color, size }) => <Ionicons name="megaphone" size={size} color={color} />,
+          title: 'Dane',
+          tabBarIcon: ({ color, size }) => <Ionicons name="albums" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

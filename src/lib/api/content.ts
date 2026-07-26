@@ -56,6 +56,8 @@ export type ConsistencyAlert = {
 export type ContentDraft = {
   id: string;
   topic: string;
+  /** Powiązanie z tematem: slug korpusu albo `dossier:<uuid>`. Null = brak. */
+  topic_ref: string | null;
   core_message: string | null;
   status: DraftStatus;
   created_at: string;
@@ -67,11 +69,31 @@ export type ContentDraft = {
 export type DraftListItem = {
   id: string;
   topic: string;
+  /** Powiązanie z tematem: slug korpusu albo `dossier:<uuid>`. Null = brak. */
+  topic_ref: string | null;
   status: DraftStatus;
   created_at: string;
   variants_count: number;
   alerts_count: number;
 };
+
+/**
+ * Segment do generacji w trybie "z tematu". `id` to UUID segmentu tenanta albo
+ * id segmentu korpusu prefiksowane `corpus:` (patrz corpusSegmentId). Framing
+ * per segment jedzie osobno w TopicFraming.segments (kluczowany tym samym id).
+ */
+export type SegmentInput = {
+  id: string;
+  name: string;
+};
+
+/** Prefiks id segmentu korpusu tematycznego (grupa wyborców z bazy wiedzy). */
+export const CORPUS_SEGMENT_PREFIX = 'corpus:';
+
+/** Buduje id segmentu korpusu do planu generacji z lokalnego id segmentu korpusu. */
+export function corpusSegmentId(id: string): string {
+  return `${CORPUS_SEGMENT_PREFIX}${id}`;
+}
 
 /** Wynik utworzenia draftu (operation: create). */
 export type CreateDraftResult = {
@@ -177,6 +199,7 @@ export function normalizeDraft(raw: unknown): ContentDraft {
   return {
     id: asText(source.id),
     topic: asText(source.topic),
+    topic_ref: typeof source.topic_ref === 'string' ? source.topic_ref : null,
     core_message: typeof source.core_message === 'string' ? source.core_message : null,
     status: normalizeStatus(source.status),
     created_at: asText(source.created_at),
@@ -191,6 +214,7 @@ export function normalizeDraftListItem(raw: unknown): DraftListItem {
   return {
     id: asText(source.id),
     topic: asText(source.topic),
+    topic_ref: typeof source.topic_ref === 'string' ? source.topic_ref : null,
     status: normalizeStatus(source.status),
     created_at: asText(source.created_at),
     variants_count: asCount(source.variants_count),
@@ -218,16 +242,24 @@ export async function listSegments(): Promise<ContentSegment[]> {
     .filter((segment) => segment.id.length > 0);
 }
 
-/** Utworzenie draftu. Puste segment_ids = warianty ogólne. */
+/**
+ * Utworzenie draftu. Segmenty przez `segments` (tryb "z tematu", miesza segmenty
+ * tenanta z segmentami korpusu) albo legacy `segment_ids` (wyłącznie tenant).
+ * Puste w obu = warianty ogólne. `topic_ref` wiąże draft z tematem (slug korpusu
+ * albo `dossier:<uuid>`) dla listy per temat.
+ */
 export async function createDraft(input: {
   topic: string;
   core_message?: string;
-  segment_ids: string[];
+  segment_ids?: string[];
+  segments?: SegmentInput[];
   channels: Channel[];
   /** Opcjonalny slug tematu bazy wiedzy, z którego pochodzi framing. */
   topic_slug?: string;
   /** Opcjonalny framing (stanowisko, podchwycić, zaatakować, per segment). */
   topic_framing?: TopicFraming;
+  /** Powiązanie z tematem: slug korpusu albo `dossier:<uuid>`. */
+  topic_ref?: string;
 }): Promise<CreateDraftResult> {
   const data = await callContent<Partial<CreateDraftResult>>('create', input);
   return {
@@ -287,9 +319,15 @@ export async function getDraft(draftId: string): Promise<ContentDraft> {
   return normalizeDraft(data.draft);
 }
 
-/** Lista draftów tenanta (sort: created_at desc, max 50). */
-export async function listDrafts(): Promise<DraftListItem[]> {
-  const data = await callContent<{ drafts: unknown[] }>('list');
+/**
+ * Lista draftów tenanta (sort: created_at desc, max 50). Z `topicRef` zwraca
+ * tylko przekazy powiązane z danym tematem (korpus albo dossier).
+ */
+export async function listDrafts(topicRef?: string): Promise<DraftListItem[]> {
+  const data = await callContent<{ drafts: unknown[] }>(
+    'list',
+    topicRef ? { topic_ref: topicRef } : undefined
+  );
   const list = Array.isArray(data.drafts) ? data.drafts : [];
   return list.map(normalizeDraftListItem);
 }

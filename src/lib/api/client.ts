@@ -22,6 +22,7 @@ export type EdgeFunctionName =
   | 'argus-analysis'
   | 'argus-content'
   | 'argus-mentions'
+  | 'argus-morning-brief'
   | 'argus-onboarding'
   | 'argus-registry'
   | 'argus-topics';
