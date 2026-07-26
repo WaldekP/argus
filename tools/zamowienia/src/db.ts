@@ -45,6 +45,27 @@ CREATE TABLE IF NOT EXISTS contractors (
 );
 CREATE INDEX IF NOT EXISTS idx_contractors_nip ON contractors(nip);
 
+CREATE TABLE IF NOT EXISTS people (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,               -- "Banach Jolanta Maria" (z linku)
+  name_norm TEXT NOT NULL,          -- do dopasowania: bez znakow, lower
+  role TEXT,                        -- kategoria: Radni / Prezydent / Skarbnik ...
+  year INTEGER,                     -- rocznik oswiadczenia
+  page_url TEXT,                    -- podstrona osoby
+  source TEXT NOT NULL,             -- 'oswiadczenia_bip_gdansk'
+  first_seen_at TEXT NOT NULL,
+  UNIQUE(name, role, year)
+);
+CREATE INDEX IF NOT EXISTS idx_people_norm ON people(name_norm);
+
+CREATE TABLE IF NOT EXISTS person_files (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id INTEGER NOT NULL REFERENCES people(id),
+  url TEXT NOT NULL,                -- PDF oswiadczenia (do OCR w fazie 2)
+  link_text TEXT,
+  UNIQUE(person_id, url)
+);
+
 CREATE TABLE IF NOT EXISTS ingest_windows (
   notice_type TEXT NOT NULL,
   day TEXT NOT NULL,                -- okno dzienne (API ignoruje PageNumber,

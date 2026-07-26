@@ -27,6 +27,18 @@ ukończone okno ląduje w `ingest_windows`, ponowny bieg pomija zrobione, a
 bieżący miesiąc odświeża. `--force` pobiera wszystko od nowa.
 
 ```bash
+node src/cli.ts osoby --from-year 2020
+```
+
+Buduje indeks urzędników z **oświadczeń majątkowych** BIP Gdańska (drzewo
+rok → kategoria → osoba). Nazwiska są strukturalne (w URL/linku), więc indeks
+powstaje bez OCR: tabela `people` (nazwisko, rola, rok) + `person_files` (PDF-y
+pod przyszły OCR zadeklarowanych spółek). Role: Prezydent, Zastępcy, Sekretarz,
+Skarbnik, Radni, Osoby zarządzające i członkowie organów spółek miejskich.
+Kategorie grupowane przez jednostki (Kierownicy jednostek, część Osób wydających
+decyzje) mają głębszy poziom, na razie niedobrany.
+
+```bash
 node src/cli.ts status
 ```
 

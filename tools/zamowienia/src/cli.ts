@@ -6,6 +6,7 @@
 import { openDb } from "./db.ts";
 import { runIngest } from "./bzp.ts";
 import { runStatus } from "./status.ts";
+import { runOsoby } from "./osoby.ts";
 
 function parse(argv: string[]): { command: string; flags: Map<string, string | boolean> } {
   const [command = "help", ...rest] = argv;
@@ -30,6 +31,8 @@ const HELP = `zamowienia: analiza zamowien publicznych Gdanska (BZP)
 Komendy:
   ingest   pobiera ogloszenia BZP (o zamowieniu i o wyniku) dla Gdanska
            --from-year N | --to-year N | --force (pobierz ukonczone okna od nowa)
+  osoby    indeks urzednikow z oswiadczen majatkowych (nazwisko, rola, rok, PDF)
+           --from-year N | --to-year N
   status   skala danych, rozklad wg roku, najczestsi zwyciezcy
 
 Wznawialne: przerwanie (Ctrl+C, restart) jest bezpieczne, stan w SQLite.
@@ -47,6 +50,8 @@ async function main(): Promise<void> {
         toYear: num(flags, "to-year"),
         force: flags.get("force") === true,
       });
+    } else if (command === "osoby") {
+      await runOsoby(db, { fromYear: num(flags, "from-year"), toYear: num(flags, "to-year") });
     } else if (command === "status") {
       runStatus(db);
     } else {
