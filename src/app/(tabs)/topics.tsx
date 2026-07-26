@@ -34,7 +34,7 @@ import { tematy } from '@/lib/knowledge';
 
 /**
  * Zakładka Tematy: u góry własne dossiery (upload analizy → podsumowanie,
- * liczby, pytania, linie ataku i obrony), niżej gotowe korpusy tematyczne.
+ * liczby, pytania, linie ataku i obrony), niżej gotowe zagadnienia.
  */
 export default function TopicsScreen() {
   const theme = useTheme();
@@ -162,12 +162,12 @@ export default function TopicsScreen() {
           <View style={styles.kickerRow}>
             <EyeDot size={8} />
             <ThemedText themeColor="accentLight" style={styles.kicker}>
-              Korpusy tematyczne
+              Zagadnienia
             </ThemedText>
           </View>
           <ThemedText type="small" themeColor="textSecondary">
-            Tematy ważne programowo, z gotowym korpusem: co mówią badania, co mówią politycy i jak
-            o tym mówić do poszczególnych grup.
+            Tematy ważne programowo, z gotowymi materiałami: co mówią badania, co mówią politycy i
+            jak o tym mówić do poszczególnych grup.
           </ThemedText>
         </View>
 
@@ -191,7 +191,7 @@ export default function TopicsScreen() {
               <View style={styles.kickerRow}>
                 <EyeDot size={8} />
                 <ThemedText themeColor="accentLight" style={styles.kicker}>
-                  Korpus tematyczny
+                  Zagadnienie
                 </ThemedText>
               </View>
               <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />

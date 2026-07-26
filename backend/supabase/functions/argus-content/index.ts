@@ -169,6 +169,18 @@ function variantKey(item: { segment_id: string | null; channel: string }) {
   return `${item.segment_id ?? "null"}|${item.channel}`;
 }
 
+// Segmenty korpusu tematycznego (grupy wyborcow z bazy wiedzy) nie sa wierszami
+// tabeli `segments`, wiec ich id jest prefiksowane, zeby: 1) nie kolidowalo z
+// UUID segmentu tenanta w kluczu wariantu, 2) dalo sie odfiltrowac przed
+// zapytaniem do DB (kolumna id jest typu uuid — surowy prefiks by je wywrocil).
+// Framing korpusowego segmentu przychodzi w topic_framing.segments[id].
+const CORPUS_SEGMENT_PREFIX = "corpus:";
+
+function isTenantSegmentId(id: string | null): id is string {
+  return typeof id === "string" && id.length > 0 &&
+    !id.startsWith(CORPUS_SEGMENT_PREFIX);
+}
+
 function charLength(text: string): number {
   return [...text].length;
 }
@@ -195,7 +207,9 @@ async function getDraft(
 async function getProfile(supabase: SupabaseClient, tenantId: string) {
   const { data, error } = await supabase
     .from("politician_profiles")
-    .select("full_name, district, values, boundaries, style_profile")
+    .select(
+      "full_name, district, values, boundaries, style_profile, bio, party_profile, topic_positions",
+    )
     .eq("tenant_id", tenantId)
     .maybeSingle();
   if (error) throw new Error(`Odczyt profilu: ${error.message}`);
@@ -269,6 +283,14 @@ function profileContext(profile: {
   ].join("\n");
 }
 
+// Recznie wpisany kontekst (bio, partia, stanowiska): wolny tekst albo,
+// gdy pusty, jawne "brak danych" — model ma nie zmyslac na sile.
+function freeTextField(value: unknown): string {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : "brak danych";
+}
+
 // ---------------------------------------------------------------------------
 // Generacja jednego wariantu
 // ---------------------------------------------------------------------------
@@ -310,6 +332,15 @@ function buildVariantHuman(input: GenerateVariantInput): string {
     "",
     "Granice (czego polityk publicznie nie mowi):",
     JSON.stringify(profile?.boundaries ?? {}, null, 2),
+    "",
+    "O polityku (kontekst wpisany recznie):",
+    freeTextField(profile?.bio),
+    "",
+    "Profil partii/formacji:",
+    freeTextField(profile?.party_profile),
+    "",
+    "Stanowiska polityka wobec tematow:",
+    freeTextField(profile?.topic_positions),
     "",
     `Segment wyborcow: ${item.segment_name}`,
     segmentProfile
@@ -525,6 +556,68 @@ async function opListSegments(supabase: SupabaseClient, tenantId: string) {
   return { segments: data ?? [] };
 }
 
+// Plan segmentow do generacji. Dwa wejscia (wstecznie zgodne):
+//   - `segments: [{id, name}]` (nowe, tryb "z tematu"): pozwala mieszac
+//     segmenty tenanta (UUID) z segmentami korpusu tematycznego (id z prefiksem
+//     `corpus:`). Nazwe segmentu tenanta bierzemy z bazy (autorytatywna),
+//     nazwe segmentu korpusu z klienta (korpus zyje w module aplikacji).
+//   - `segment_ids: string[]` (legacy): wylacznie UUID segmentow tenanta.
+// Pusto w obu = jeden wariant ogolny.
+async function buildSegmentPlan(
+  supabase: SupabaseClient,
+  tenantId: string,
+  body: { segments?: unknown; segment_ids?: unknown },
+): Promise<{ segment_id: string | null; segment_name: string }[]> {
+  const rawSegments = Array.isArray(body.segments) ? body.segments : null;
+  if (rawSegments && rawSegments.length > 0) {
+    const cleaned: { id: string; name: string }[] = [];
+    const seen = new Set<string>();
+    for (const raw of rawSegments) {
+      if (!raw || typeof raw !== "object") continue;
+      const r = raw as Record<string, unknown>;
+      const id = typeof r.id === "string" ? r.id.trim() : "";
+      const name = typeof r.name === "string" ? r.name.trim() : "";
+      if (!id || !name || seen.has(id)) continue;
+      seen.add(id);
+      cleaned.push({ id, name: name.slice(0, 120) });
+    }
+    if (cleaned.length === 0) {
+      return [{ segment_id: null, segment_name: "Ogólny" }];
+    }
+    const tenantIds = cleaned
+      .map((s) => s.id)
+      .filter((id) => isTenantSegmentId(id));
+    const segMap = await fetchSegmentsById(supabase, tenantId, tenantIds);
+    for (const id of tenantIds) {
+      if (!segMap.has(id)) {
+        throw new HttpError(400, "Nieprawidlowy segment na liscie segments");
+      }
+    }
+    return cleaned.map((s) => ({
+      segment_id: s.id,
+      segment_name: isTenantSegmentId(s.id) ? segMap.get(s.id)!.name : s.name,
+    }));
+  }
+
+  const rawSegmentIds = Array.isArray(body.segment_ids) ? body.segment_ids : [];
+  const segmentIds = [...new Set(rawSegmentIds.filter(
+    (s): s is string => typeof s === "string" && s.length > 0,
+  ))];
+  if (segmentIds.length === 0) {
+    return [{ segment_id: null, segment_name: "Ogólny" }];
+  }
+  const segMap = await fetchSegmentsById(supabase, tenantId, segmentIds);
+  for (const id of segmentIds) {
+    if (!segMap.has(id)) {
+      throw new HttpError(400, "Nieprawidlowy segment na liscie segment_ids");
+    }
+  }
+  return segmentIds.map((id) => ({
+    segment_id: id,
+    segment_name: segMap.get(id)!.name,
+  }));
+}
+
 async function opCreate(
   supabase: SupabaseClient,
   tenantId: string,
@@ -533,8 +626,10 @@ async function opCreate(
     topic?: unknown;
     core_message?: unknown;
     segment_ids?: unknown;
+    segments?: unknown;
     channels?: unknown;
     topic_framing?: unknown;
+    topic_ref?: unknown;
   },
 ) {
   const topic = typeof body.topic === "string" ? body.topic.trim() : "";
@@ -557,24 +652,7 @@ async function opCreate(
     if (!CHANNELS[c]) throw new HttpError(400, `Nieznany kanal: ${c}`);
   }
 
-  const rawSegmentIds = Array.isArray(body.segment_ids) ? body.segment_ids : [];
-  const segmentIds = [...new Set(rawSegmentIds.filter(
-    (s): s is string => typeof s === "string" && s.length > 0,
-  ))];
-  const segMap = await fetchSegmentsById(supabase, tenantId, segmentIds);
-  for (const id of segmentIds) {
-    if (!segMap.has(id)) {
-      throw new HttpError(400, "Nieprawidlowy segment na liscie segment_ids");
-    }
-  }
-
-  const segmentPlan: { segment_id: string | null; segment_name: string }[] =
-    segmentIds.length > 0
-      ? segmentIds.map((id) => ({
-        segment_id: id,
-        segment_name: segMap.get(id)!.name,
-      }))
-      : [{ segment_id: null, segment_name: "Ogólny" }];
+  const segmentPlan = await buildSegmentPlan(supabase, tenantId, body);
 
   const plan: PlanItem[] = [];
   for (const seg of segmentPlan) {
@@ -584,6 +662,10 @@ async function opCreate(
   }
 
   const framing = parseFraming(body.topic_framing);
+  const topicRef =
+    typeof body.topic_ref === "string" && body.topic_ref.trim()
+      ? body.topic_ref.trim().slice(0, 200)
+      : null;
 
   const { data, error } = await supabase
     .from("content_drafts")
@@ -591,6 +673,7 @@ async function opCreate(
       tenant_id: tenantId,
       topic,
       core_message: coreMessage,
+      topic_ref: topicRef,
       variants: [],
       status: "draft",
       consistency_check: framing ? { _plan: plan, _framing: framing } : { _plan: plan },
@@ -636,9 +719,7 @@ async function opGenerateStep(
     const batch = missing.slice(0, VARIANTS_PER_CALL);
     const profile = await getProfile(supabase, tenantId);
     const segIds = [
-      ...new Set(
-        batch.map((b) => b.segment_id).filter((s): s is string => Boolean(s)),
-      ),
+      ...new Set(batch.map((b) => b.segment_id).filter(isTenantSegmentId)),
     ];
     const segMap = await fetchSegmentsById(supabase, tenantId, segIds);
 
@@ -736,6 +817,7 @@ async function opGet(
     draft: {
       id: draft.id,
       topic: draft.topic,
+      topic_ref: draft.topic_ref ?? null,
       core_message: draft.core_message,
       status: draft.status,
       created_at: draft.created_at,
@@ -745,11 +827,25 @@ async function opGet(
   };
 }
 
-async function opList(supabase: SupabaseClient, tenantId: string) {
-  const { data, error } = await supabase
+async function opList(
+  supabase: SupabaseClient,
+  tenantId: string,
+  body: { topic_ref?: unknown },
+) {
+  // Opcjonalny filtr po temacie: lista przekazow danego korpusu/dossieru.
+  const topicRef =
+    typeof body.topic_ref === "string" && body.topic_ref.trim()
+      ? body.topic_ref.trim().slice(0, 200)
+      : null;
+
+  let query = supabase
     .from("content_drafts")
-    .select("id, topic, status, created_at, variants, consistency_check")
-    .eq("tenant_id", tenantId)
+    .select("id, topic, status, created_at, topic_ref, variants, consistency_check")
+    .eq("tenant_id", tenantId);
+  if (topicRef) {
+    query = query.eq("topic_ref", topicRef);
+  }
+  const { data, error } = await query
     .order("created_at", { ascending: false })
     .limit(LIST_LIMIT);
   if (error) throw new Error(`Odczyt draftow: ${error.message}`);
@@ -757,6 +853,7 @@ async function opList(supabase: SupabaseClient, tenantId: string) {
     drafts: (data ?? []).map((d) => ({
       id: d.id,
       topic: d.topic,
+      topic_ref: d.topic_ref ?? null,
       status: d.status,
       created_at: d.created_at,
       variants_count: Array.isArray(d.variants) ? d.variants.length : 0,
@@ -807,7 +904,7 @@ async function opRegenerateVariant(
   const segMap = await fetchSegmentsById(
     supabase,
     tenantId,
-    item.segment_id ? [item.segment_id] : [],
+    isTenantSegmentId(item.segment_id) ? [item.segment_id] : [],
   );
 
   const text = await generateVariantText({
@@ -900,7 +997,7 @@ Deno.serve(async (req) => {
       case "list":
         return jsonResponse({
           ok: true,
-          data: await opList(supabase, tenantId),
+          data: await opList(supabase, tenantId, body),
         });
       case "regenerate_variant":
         return jsonResponse({

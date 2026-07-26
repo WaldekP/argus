@@ -7,6 +7,7 @@ import { FormTextInput } from '@/components/form-text-input';
 import { PrimaryButton } from '@/components/primary-button';
 import { BackLink } from '@/components/back-link';
 import { InlineProgress } from '@/components/progress';
+import { SavedDraftsList } from '@/components/saved-drafts-list';
 import { ThemedText } from '@/components/themed-text';
 import { TopicStatusChip } from '@/components/topic-status-chip';
 import { ThemedView } from '@/components/themed-view';
@@ -575,6 +576,41 @@ export default function TopicScreen() {
 
             {topic.status === 'ready' && hasDossier ? (
               <View style={styles.section}>
+                <View
+                  style={[
+                    styles.generateCard,
+                    { backgroundColor: theme.backgroundSelected, borderLeftColor: theme.accent },
+                  ]}>
+                  <ThemedText themeColor="accentLight" style={styles.kicker}>
+                    Wygeneruj przekaz
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Na podstawie tego dossieru przygotuj warianty treści dla wybranych grup
+                    wyborców i kanałów, w Twoim stylu. Możesz je zapisać i wrócić do nich później.
+                  </ThemedText>
+                  <PrimaryButton
+                    title="Wygeneruj przekaz"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/content/new',
+                        params: { dossierId: topic.id, topicName: topic.title },
+                      })
+                    }
+                  />
+                </View>
+
+                <ThemedText themeColor="accent" style={styles.kicker}>
+                  Zapisane przekazy
+                </ThemedText>
+                <SavedDraftsList
+                  topicRef={`dossier:${topic.id}`}
+                  emptyText="Nie masz jeszcze przekazu z tego dossieru. Użyj przycisku Wygeneruj przekaz."
+                />
+              </View>
+            ) : null}
+
+            {topic.status === 'ready' && hasDossier ? (
+              <View style={styles.section}>
                 <ThemedText themeColor="accent" style={styles.kicker}>
                   Zapytaj o ten temat
                 </ThemedText>
@@ -679,6 +715,12 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.three,
+  },
+  generateCard: {
+    borderLeftWidth: 2,
+    borderRadius: Radius.card,
+    padding: Spacing.three,
+    gap: Spacing.two,
   },
   subSection: {
     gap: Spacing.two,
