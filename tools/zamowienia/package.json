@@ -1,0 +1,14 @@
+{
+  "name": "zamowienia",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Analiza zamowien publicznych Gdanska pod katem nieprawidlowosci: ingest BZP, laczenie z KRS, sygnaly ryzyka. Zero zaleznosci: Node 24+ (wbudowany sqlite, fetch, natywny TypeScript).",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "ingest": "node --no-warnings src/cli.ts ingest",
+    "status": "node --no-warnings src/cli.ts status"
+  }
+}
