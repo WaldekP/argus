@@ -74,6 +74,18 @@ Zapisuje `ted_notices`; `--xml` pobiera pliki źródłowe XML do `data/ted`.
 Zwycięzca i kwota z XML to faza 2 (schematy TED 2016 vs eForms 2024 różne).
 
 ```bash
+node src/cli.ts wzbogac
+node src/cli.ts sygnaly
+```
+
+`wzbogac` dociąga dane firm-zwycięzców z **białej listy VAT** (`wl-api.mf.gov.pl`,
+darmowe): nazwa, KRS, adres, **data rejestracji**. NIP walidowany sumą kontrolną
+(pole `contractorNationalId` z BZP to mieszanka NIP-ów i KRS-ów — odpytujemy tylko
+poprawne NIP-y). `sygnaly` liczy tropy: **klaster adresowy** (różne firmy pod tym
+samym adresem = możliwe wydmuszki) i **młoda firma vs pierwsza wygrana**
+(rejestracja < 365 dni przed pierwszym kontraktem). Tropy do weryfikacji, nie zarzuty.
+
+```bash
 node src/cli.ts status
 ```
 

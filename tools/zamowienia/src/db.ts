@@ -66,6 +66,20 @@ CREATE TABLE IF NOT EXISTS person_files (
   UNIQUE(person_id, url)
 );
 
+CREATE TABLE IF NOT EXISTS company_details (
+  nip TEXT PRIMARY KEY,             -- 10 cyfr, po walidacji sumy kontrolnej
+  name TEXT,
+  krs TEXT,                         -- null dla jednoosobowych dzialalnosci
+  regon TEXT,
+  address TEXT,                     -- adres siedziby/dzialalnosci (biala lista)
+  address_norm TEXT,               -- do klastrowania (upper, bez zbednych spacji)
+  registration_date TEXT,          -- data rejestracji (do sygnalu "wiek vs wygrana")
+  is_company INTEGER,              -- 1 = ma KRS (spolka), 0 = os. fizyczna
+  status TEXT NOT NULL,            -- ok | brak (nie w rejestrze VAT) | error
+  enriched_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_company_addr ON company_details(address_norm);
+
 CREATE TABLE IF NOT EXISTS ted_notices (
   pub_number TEXT PRIMARY KEY,       -- np. "262690-2016"
   publication_date TEXT,

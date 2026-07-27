@@ -11,6 +11,8 @@ import { runOcrDecl } from "./ocr-decl.ts";
 import { runMatch } from "./match.ts";
 import { runServe } from "./serve.ts";
 import { runTed } from "./ted.ts";
+import { runEnrich } from "./wzbogac.ts";
+import { runSygnaly } from "./sygnaly.ts";
 
 function parse(argv: string[]): { command: string; flags: Map<string, string | boolean> } {
   const [command = "help", ...rest] = argv;
@@ -41,6 +43,9 @@ Komendy:
            --org "<nazwa nabywcy>" (wymagane) | --xml (pobierz pliki zrodlowe)
   ocr-decl rozczytuje skany oswiadczen (person_files) -> declaration_text (polski, wolne)
            --limit N
+  wzbogac  wzbogaca firmy-zwyciezcow o dane z bialej listy VAT (KRS, adres, data rej.)
+           --limit N
+  sygnaly  sygnaly sledcze: klaster adresowy, mloda firma vs pierwsza wygrana
   match    liczy powiazania: deklaracje urzednikow <-> firmy-zwyciezcy -> tabela leads
   serve    lokalny frontend do przegladania zaleznosci (http://localhost:4319)
            --port N
@@ -80,6 +85,10 @@ async function main(): Promise<void> {
       }
     } else if (command === "ocr-decl") {
       await runOcrDecl(db, { limit: num(flags, "limit") });
+    } else if (command === "wzbogac") {
+      await runEnrich(db, { limit: num(flags, "limit") });
+    } else if (command === "sygnaly") {
+      runSygnaly(db);
     } else if (command === "match") {
       runMatch(db);
     } else if (command === "status") {
