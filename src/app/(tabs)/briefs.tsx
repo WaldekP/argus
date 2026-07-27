@@ -12,7 +12,7 @@ import { formatLongDate } from '@/lib/format-time';
 
 /**
  * Zakładka Briefy: archiwum briefów dnia. Dzisiejszy brief żyje na ekranie
- * Brief poranny (zakładka Dziś); tu jest cała dostępna historia.
+ * Brief poranny (zakładka Pulpit); tu jest cała dostępna historia.
  *
  * Docelowo obok briefów dnia trafią tu briefy przedwywiadowe (TASK 5), zapewne
  * pod przełącznikiem sekcji.

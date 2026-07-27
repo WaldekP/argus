@@ -138,7 +138,7 @@ export default function TodayScreen() {
 
   return (
     <ScreenPlaceholder
-      title="Dziś"
+      title="Pulpit"
       description="Dzień dobry. Tu zobaczysz wszystko, co ważne na dzisiaj: syntezę prasową, plan wywiadów i ostrzeżenia spójności.">
       <View style={styles.cards}>
         {identity ? (

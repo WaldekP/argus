@@ -93,7 +93,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dziś',
+          title: 'Pulpit',
           tabBarIcon: ({ color, size }) => <Ionicons name="today" size={size} color={color} />,
         }}
       />
