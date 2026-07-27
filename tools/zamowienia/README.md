@@ -13,6 +13,11 @@ Umów (wymaga klucza API) i Rejestr.io (płatna sieć powiązań).
 Rdzeń działa na samym **Node 24+** (wbudowany SQLite, fetch, natywny TypeScript),
 bez `npm install`.
 
+**Kontynuacja w kolejnej sesji: [ROADMAP.md](ROADMAP.md)** — stan, krytyczne
+ograniczenia danych (BZP tylko od 2021; duże kontrakty w TED), integracja
+Rejestr.io, następne kroki (adapter TED, komenda `konflikt`, CRBR, klaster
+adresowy) i pełny toolkit OSINT z granicami prawnymi.
+
 ## Użycie
 
 ```bash
