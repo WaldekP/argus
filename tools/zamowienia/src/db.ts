@@ -66,6 +66,19 @@ CREATE TABLE IF NOT EXISTS person_files (
   UNIQUE(person_id, url)
 );
 
+CREATE TABLE IF NOT EXISTS flags (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,               -- nazwisko_zwyciezcy | interlock | mloda_firma | adres
+  official TEXT,                    -- urzednik, ktorego dotyczy
+  official_company TEXT,            -- jego spolka (zamawiajacy)
+  winner_name TEXT,
+  winner_nip TEXT,
+  detail TEXT,                      -- opis + dowod
+  confidence TEXT,                  -- wysoka | srednia | niska
+  computed_at TEXT NOT NULL,
+  UNIQUE(kind, official, winner_name, detail)
+);
+
 CREATE TABLE IF NOT EXISTS company_details (
   nip TEXT PRIMARY KEY,             -- 10 cyfr, po walidacji sumy kontrolnej
   name TEXT,

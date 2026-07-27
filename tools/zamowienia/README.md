@@ -86,6 +86,17 @@ samym adresem = możliwe wydmuszki) i **młoda firma vs pierwsza wygrana**
 (rejestracja < 365 dni przed pierwszym kontraktem). Tropy do weryfikacji, nie zarzuty.
 
 ```bash
+node src/cli.ts konflikt --id 895315        # albo --name "Marcin Dawidowski"
+```
+
+Flagowy łańcuch śledczy dla jednego urzędnika: jego spółki (Rejestr.io) →
+zwycięzcy ich przetargów (BZP) → zarządy i beneficjenci zwycięzców (Rejestr.io) →
+**flagi** zbieżności nazwiska (konflikt/rodzina) i interlocków. **PŁATNE**
+(Rejestr.io ze wspólnego salda) — z bezpiecznikiem progu salda i limitem sprawdzeń
+na przebieg. Tożsamość osoby potwierdza człowiek (imiennicy). Flagi lądują w
+tabeli `flags`. TED (duże kontrakty) dojdzie w fazie 2.
+
+```bash
 node src/cli.ts status
 ```
 
