@@ -66,6 +66,16 @@ CREATE TABLE IF NOT EXISTS person_files (
   UNIQUE(person_id, url)
 );
 
+CREATE TABLE IF NOT EXISTS declaration_text (
+  person_file_id INTEGER PRIMARY KEY REFERENCES person_files(id),
+  status TEXT NOT NULL,             -- ocr_ok | ocr_low | error
+  text TEXT,                        -- rozczytana tresc oswiadczenia (do ekstrakcji spolek)
+  conf REAL,                        -- srednia pewnosc OCR
+  pages INTEGER,
+  ocr_at TEXT NOT NULL,
+  error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS ingest_windows (
   notice_type TEXT NOT NULL,
   day TEXT NOT NULL,                -- okno dzienne (API ignoruje PageNumber,

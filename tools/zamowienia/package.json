@@ -10,5 +10,9 @@
   "scripts": {
     "ingest": "node --no-warnings src/cli.ts ingest",
     "status": "node --no-warnings src/cli.ts status"
+  },
+  "dependencies": {
+    "pdf-to-img": "^6.2.0",
+    "tesseract.js": "^7.0.0"
   }
 }

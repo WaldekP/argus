@@ -7,6 +7,7 @@ import { openDb } from "./db.ts";
 import { runIngest } from "./bzp.ts";
 import { runStatus } from "./status.ts";
 import { runOsoby } from "./osoby.ts";
+import { runOcrDecl } from "./ocr-decl.ts";
 
 function parse(argv: string[]): { command: string; flags: Map<string, string | boolean> } {
   const [command = "help", ...rest] = argv;
@@ -33,6 +34,8 @@ Komendy:
            --from-year N | --to-year N | --force (pobierz ukonczone okna od nowa)
   osoby    indeks urzednikow z oswiadczen majatkowych (nazwisko, rola, rok, PDF)
            --from-year N | --to-year N
+  ocr-decl rozczytuje skany oswiadczen (person_files) -> declaration_text (polski, wolne)
+           --limit N
   status   skala danych, rozklad wg roku, najczestsi zwyciezcy
 
 Wznawialne: przerwanie (Ctrl+C, restart) jest bezpieczne, stan w SQLite.
@@ -52,6 +55,8 @@ async function main(): Promise<void> {
       });
     } else if (command === "osoby") {
       await runOsoby(db, { fromYear: num(flags, "from-year"), toYear: num(flags, "to-year") });
+    } else if (command === "ocr-decl") {
+      await runOcrDecl(db, { limit: num(flags, "limit") });
     } else if (command === "status") {
       runStatus(db);
     } else {
