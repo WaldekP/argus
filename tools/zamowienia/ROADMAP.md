@@ -67,9 +67,22 @@ Negatyw, ale ograniczony do BZP (brak TED).
 WAŻNE: w narzędziu Rejestr.io musi iść przez te same bezpieczniki (saldo + limit
 + audyt), inaczej łatwo w pętli nadszarpnąć wspólne saldo.
 
+## Zrobione po tej sesji (aktualizacja)
+
+- ✅ **Adapter TED faza 1** (`ted --org`): indeks + pliki XML. GIWK 404 ogłoszenia.
+- ✅ **Wzbogacanie firm** (`wzbogac`): biała lista VAT, 1120 firm z KRS/adresem/datą
+  rejestracji. NIP walidowany sumą kontrolną (contractorNationalId to mieszanka
+  NIP/KRS!).
+- ✅ **Sygnały** (`sygnaly`): klaster adresowy + młoda-firma-vs-wygrana. Działa.
+- ✅ **Komenda `konflikt`** (`--id`/`--name`): łańcuch urzędnik → spółki → zwycięzcy
+  → beneficjenci → flagi. Płatne Rejestr.io z bezpiecznikami. Test na Dawidowskim.
+
 ## Następne kroki (priorytety)
 
-1. **Adapter TED** (NAJWAŻNIEJSZE, darmowe). `POST https://api.ted.europa.eu/v3/
+0. **`konflikt` — ulepszenia**: limit sprawdzeń per spółka (nie globalny 60/przebieg,
+   bo ARP go wyczerpuje), dołączyć zwycięzców z TED (nie tylko BZP), flaga interlock
+   (ta sama osoba w zarządzie jego spółki i zwycięzcy), wznawialność.
+1. **TED faza 2** — parsowanie zwycięzcy i kwoty z XML (schematy TED 2016 vs eForms). `POST https://api.ted.europa.eu/v3/
    notices/search`, expert query (`FT~"nazwa nabywcy"` działa; pola eForms do
    dostrojenia), bez klucza. Zwraca ogłoszenia + linki do XML źródłowego. Pobrać
    award notices per nabywca (zwycięzca, kwota, data), zarchiwizować XML, tabele
