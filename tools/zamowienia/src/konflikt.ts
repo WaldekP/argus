@@ -20,7 +20,8 @@ import { isValidNip } from "./wzbogac.ts";
 
 const RIO = "https://rejestr.io/api/v2";
 const MIN_BALANCE = 5;
-const MAX_WINNERS_PER_RUN = 60; // twardy limit płatnych wywołań na przebieg
+const MAX_WINNERS_PER_COMPANY = 50; // limit sprawdzeń na jedną spółkę
+const MAX_WINNERS_TOTAL = 220;      // twardy globalny bezpiecznik kosztu na przebieg
 
 function rejestrioKey(): string {
   if (process.env.REJESTRIO_API_KEY) return process.env.REJESTRIO_API_KEY;
@@ -49,6 +50,23 @@ async function rio<T>(key: string, pathPart: string): Promise<T> {
 
 function norm(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Rdzen nazwy zamawiajacego do filtra BZP: bez formy prawnej i cudzyslowow.
+ *  BZP dopasowuje po fragmencie, wiec pelna nazwa prawna ("...SPOLKA Z O.O.")
+ *  czesto nie trafia; rdzen ("Gdanska Infrastruktura Wodociagowo-Kanalizacyjna")
+ *  trafia. */
+function buyerCore(name: string): string {
+  const cut = name
+    .replace(/\bSP(?:Ó|O)?(?:ŁKA|\.)\b[\s\S]*$/i, "")
+    .replace(/\bSPÓŁKA\b[\s\S]*$/i, "")
+    .replace(/["']/g, "")
+    .replace(/-/g, " ")     // "Wodociagowo-Kanalizacyjna" -> dwa czlony (BZP nie lubi myslnika)
+    .replace(/\s+/g, " ")
+    .trim();
+  // Pierwsze 3 czlony: na tyle wyrozniajace, zeby trafic zamawiajacego, a na
+  // tyle krotkie, zeby BZP dopasowalo po fragmencie (dluga nazwa nie trafia).
+  return cut.split(" ").slice(0, 3).join(" ");
 }
 
 /** Zwyciezcy BZP dla zamawiajacego po nazwie (contractors z TenderResultNotice). */
@@ -129,14 +147,23 @@ export async function runKonflikt(
   // 3. Dla każdej spółki: zwycięzcy BZP → ich osoby → flagi.
   let checked = 0;
   let flagged = 0;
+  const seenWinner = new Set<string>(); // nie sprawdzaj tej samej firmy dwa razy
+  outer:
   for (const comp of companies) {
     const compName = comp.nazwy?.pelna ?? "";
-    const winners = await bzpWinners(compName);
+    const core = buyerCore(compName);
+    const winners = await bzpWinners(core);
+    console.log(`\n  [${core.slice(0, 45)}] zwyciezcow BZP: ${winners.length}`);
     if (winners.length === 0) continue;
-    console.log(`\n  [${compName.slice(0, 40)}] zwyciezcow BZP: ${winners.length}`);
+    let perCompany = 0;
     for (const w of winners) {
-      if (checked >= MAX_WINNERS_PER_RUN) { console.log(`  (osiagnieto limit ${MAX_WINNERS_PER_RUN} sprawdzen na przebieg)`); break; }
+      if (checked >= MAX_WINNERS_TOTAL) { console.log(`  (globalny limit ${MAX_WINNERS_TOTAL} — przerwano)`); break outer; }
+      if (perCompany >= MAX_WINNERS_PER_COMPANY) { console.log(`  (limit ${MAX_WINNERS_PER_COMPANY} na spolke)`); break; }
       if (!isValidNip(w.nip)) continue; // tylko realne NIP-y
+      const nipKey = w.nip.replace(/\D/g, "");
+      if (seenWinner.has(nipKey)) continue;
+      seenWinner.add(nipKey);
+      perCompany++;
       // KRS zwyciezcy przez Rejestr.io org po NIP, potem jego osoby.
       try {
         const found = await rio<{ wyniki?: RioOrg[] }>(key, `/org?${new URLSearchParams({ nip: w.nip.replace(/\D/g, "") })}`);
@@ -163,7 +190,6 @@ export async function runKonflikt(
       }
       await new Promise((r) => setTimeout(r, config.delayMs));
     }
-    if (checked >= MAX_WINNERS_PER_RUN) break;
   }
 
   console.log(`\nGotowe. Sprawdzono ${checked} firm-zwyciezcow, flag: ${flagged}.`);
