@@ -10,11 +10,14 @@ import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 async function opListJournalists(supabase: SupabaseClient) {
+  // UWAGA: lista kolumn musi byc JEDNYM literalem. supabase-js parsuje ten
+  // string na poziomie typow (template literal types); string sklejony plusem
+  // traci typ literalny, parser poddaje sie i kazde pole wiersza konczy sie
+  // bledem "Property ... does not exist on type 'GenericStringError'".
   const { data, error } = await supabase
     .from("journalists")
     .select(
-      "id, full_name, role, topics, bio, email, email_status, source_urls, " +
-        "outlets ( name )",
+      "id, full_name, role, topics, bio, email, email_status, source_urls, outlets ( name )",
     )
     .eq("takedown_requested", false)
     .order("full_name", { ascending: true })
