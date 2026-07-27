@@ -66,6 +66,21 @@ CREATE TABLE IF NOT EXISTS person_files (
   UNIQUE(person_id, url)
 );
 
+CREATE TABLE IF NOT EXISTS ted_notices (
+  pub_number TEXT PRIMARY KEY,       -- np. "262690-2016"
+  publication_date TEXT,
+  year INTEGER,
+  buyer_name TEXT,                   -- nazwa nabywcy (zamawiajacego)
+  title TEXT,
+  buyer_query TEXT,                  -- fraza, po ktorej znaleziono (kontekst)
+  notice_url TEXT,                   -- strona ogloszenia na TED
+  xml_url TEXT,                      -- link do pliku zrodlowego XML
+  xml_path TEXT,                     -- sciezka lokalna po pobraniu (data/ted)
+  first_seen_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ted_buyer ON ted_notices(buyer_query);
+CREATE INDEX IF NOT EXISTS idx_ted_year ON ted_notices(year);
+
 CREATE TABLE IF NOT EXISTS leads (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   person_id INTEGER NOT NULL REFERENCES people(id),

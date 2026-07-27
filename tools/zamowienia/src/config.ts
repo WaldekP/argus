@@ -12,6 +12,11 @@ export const config = {
   /** API BZP (Biuletyn Zamowien Publicznych) na platformie e-Zamowienia. */
   bzpBase: "https://ezamowienia.gov.pl/mo-board/api/v1/notice",
 
+  /** API TED (Tenders Electronic Daily, UE) — ogloszenia powyzej progow UE. */
+  tedBase: "https://api.ted.europa.eu/v3/notices/search",
+  /** Katalog na pobrane pliki zrodlowe XML z TED. */
+  tedDir: path.join(toolRoot, "data", "ted"),
+
   /**
    * Filtr terytorialny: dokladna nazwa miasta zamawiajacego. API filtruje po
    * fragmencie (lapie "Starogard Gdanski"), wiec dokladne dopasowanie robimy

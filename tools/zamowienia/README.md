@@ -64,6 +64,16 @@ człowiek) plus lektura oświadczenia i skanu źródłowego. Zasada: sygnały do
 weryfikacji, nie zarzuty.
 
 ```bash
+node src/cli.ts ted --org "Gdańska Infrastruktura Wodociągowo-Kanalizacyjna" --xml
+```
+
+Ogłoszenia z **TED** (Tenders Electronic Daily, UE) dla danego nabywcy — duże
+kontrakty powyżej progów UE i historia sprzed 2021, których BZP nie ma (GIWK:
+5 w BZP vs 404 w TED, od 2016). Darmowe API, bez klucza, paginacja kursorowa.
+Zapisuje `ted_notices`; `--xml` pobiera pliki źródłowe XML do `data/ted`.
+Zwycięzca i kwota z XML to faza 2 (schematy TED 2016 vs eForms 2024 różne).
+
+```bash
 node src/cli.ts status
 ```
 

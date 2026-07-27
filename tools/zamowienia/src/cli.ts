@@ -10,6 +10,7 @@ import { runOsoby } from "./osoby.ts";
 import { runOcrDecl } from "./ocr-decl.ts";
 import { runMatch } from "./match.ts";
 import { runServe } from "./serve.ts";
+import { runTed } from "./ted.ts";
 
 function parse(argv: string[]): { command: string; flags: Map<string, string | boolean> } {
   const [command = "help", ...rest] = argv;
@@ -36,6 +37,8 @@ Komendy:
            --from-year N | --to-year N | --force (pobierz ukonczone okna od nowa)
   osoby    indeks urzednikow z oswiadczen majatkowych (nazwisko, rola, rok, PDF)
            --from-year N | --to-year N
+  ted      ogloszenia TED (UE, duze kontrakty + historia) dla nabywcy + pliki XML
+           --org "<nazwa nabywcy>" (wymagane) | --xml (pobierz pliki zrodlowe)
   ocr-decl rozczytuje skany oswiadczen (person_files) -> declaration_text (polski, wolne)
            --limit N
   match    liczy powiazania: deklaracje urzednikow <-> firmy-zwyciezcy -> tabela leads
@@ -67,6 +70,14 @@ async function main(): Promise<void> {
       });
     } else if (command === "osoby") {
       await runOsoby(db, { fromYear: num(flags, "from-year"), toYear: num(flags, "to-year") });
+    } else if (command === "ted") {
+      const org = typeof flags.get("org") === "string" ? String(flags.get("org")) : "";
+      if (!org) {
+        console.log('ted wymaga --org "<nazwa nabywcy>"');
+        process.exitCode = 1;
+      } else {
+        await runTed(db, { buyer: org, downloadXml: flags.get("xml") === true });
+      }
     } else if (command === "ocr-decl") {
       await runOcrDecl(db, { limit: num(flags, "limit") });
     } else if (command === "match") {
