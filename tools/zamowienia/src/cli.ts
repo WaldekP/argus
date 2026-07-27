@@ -8,6 +8,8 @@ import { runIngest } from "./bzp.ts";
 import { runStatus } from "./status.ts";
 import { runOsoby } from "./osoby.ts";
 import { runOcrDecl } from "./ocr-decl.ts";
+import { runMatch } from "./match.ts";
+import { runServe } from "./serve.ts";
 
 function parse(argv: string[]): { command: string; flags: Map<string, string | boolean> } {
   const [command = "help", ...rest] = argv;
@@ -36,6 +38,9 @@ Komendy:
            --from-year N | --to-year N
   ocr-decl rozczytuje skany oswiadczen (person_files) -> declaration_text (polski, wolne)
            --limit N
+  match    liczy powiazania: deklaracje urzednikow <-> firmy-zwyciezcy -> tabela leads
+  serve    lokalny frontend do przegladania zaleznosci (http://localhost:4319)
+           --port N
   status   skala danych, rozklad wg roku, najczestsi zwyciezcy
 
 Wznawialne: przerwanie (Ctrl+C, restart) jest bezpieczne, stan w SQLite.
@@ -44,6 +49,13 @@ Wznawialne: przerwanie (Ctrl+C, restart) jest bezpieczne, stan w SQLite.
 async function main(): Promise<void> {
   const { command, flags } = parse(process.argv.slice(2));
   if (command === "help" || command === "--help") { console.log(HELP); return; }
+
+  // serve zarzadza wlasnymi polaczeniami read-only i dziala w petli — nie
+  // otwieramy wspolnej (zapisywalnej) bazy ani jej nie zamykamy.
+  if (command === "serve") {
+    runServe(num(flags, "port") ?? 4319);
+    return;
+  }
 
   const db = openDb();
   try {
@@ -57,6 +69,8 @@ async function main(): Promise<void> {
       await runOsoby(db, { fromYear: num(flags, "from-year"), toYear: num(flags, "to-year") });
     } else if (command === "ocr-decl") {
       await runOcrDecl(db, { limit: num(flags, "limit") });
+    } else if (command === "match") {
+      runMatch(db);
     } else if (command === "status") {
       runStatus(db);
     } else {

@@ -39,6 +39,26 @@ Kategorie grupowane przez jednostki (Kierownicy jednostek, część Osób wydaj�
 decyzje) mają głębszy poziom, na razie niedobrany.
 
 ```bash
+node src/cli.ts ocr-decl
+node src/cli.ts match
+node src/cli.ts serve
+```
+
+`ocr-decl` rozczytuje skany oświadczeń (person_files) do `declaration_text`
+(tesseract pol, wolne). `match` liczy powiązania deklaracja ↔ firma-zwycięzca do
+tabeli `leads`. `serve` uruchamia lokalny frontend (http://localhost:4319,
+`--port N`) do przeglądania: **Szukaj krzyżowo** (wpisz firmę/nazwisko → gdzie
+występuje w oświadczeniach i wśród zwycięzców — najpewniejsza ścieżka),
+**Urzędnicy** (deklaracje z tekstem OCR i linkiem do skanu), **Zwycięzcy**
+(ranking + postępowania), **Powiązania** (auto-leady, eksperymentalne).
+
+Uczciwe ograniczenie: automatyczne parowanie deklaracja ↔ zwycięzca z OCR skanów
+jest szumne (nazwy firm zawierają słowa ze wzorca formularza), więc auto-leady
+to surowe tropy. Precyzyjne łączenie daje wyszukiwarka krzyżowa (termin wybiera
+człowiek) plus lektura oświadczenia i skanu źródłowego. Zasada: sygnały do
+weryfikacji, nie zarzuty.
+
+```bash
 node src/cli.ts status
 ```
 

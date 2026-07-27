@@ -66,6 +66,20 @@ CREATE TABLE IF NOT EXISTS person_files (
   UNIQUE(person_id, url)
 );
 
+CREATE TABLE IF NOT EXISTS leads (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id INTEGER NOT NULL REFERENCES people(id),
+  contractor_nip TEXT,
+  contractor_name TEXT NOT NULL,
+  kind TEXT NOT NULL,               -- 'deklaracja' (mocny) | 'nazwisko' (slaby)
+  confidence TEXT NOT NULL,         -- wysoka | srednia | niska
+  wins INTEGER,                     -- ile przetargow wygrala firma (kontekst)
+  snippet TEXT,                     -- fragment dowodowy (z deklaracji)
+  computed_at TEXT NOT NULL,
+  UNIQUE(person_id, contractor_name, kind)
+);
+CREATE INDEX IF NOT EXISTS idx_leads_person ON leads(person_id);
+
 CREATE TABLE IF NOT EXISTS declaration_text (
   person_file_id INTEGER PRIMARY KEY REFERENCES person_files(id),
   status TEXT NOT NULL,             -- ocr_ok | ocr_low | error
