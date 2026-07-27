@@ -20,7 +20,9 @@ import { supabase } from '@/lib/supabase';
 /** Wdrożone Edge Functions. Nowa domena = nowy wariant tutaj. */
 export type EdgeFunctionName =
   | 'argus-analysis'
+  | 'argus-assistant'
   | 'argus-content'
+  | 'argus-media'
   | 'argus-mentions'
   | 'argus-morning-brief'
   | 'argus-onboarding'
@@ -41,6 +43,37 @@ export const GENERIC_ERROR = 'Coś poszło nie tak. Spróbuj ponownie za chwilę
 export const NETWORK_ERROR = 'Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.';
 export const TIMEOUT_ERROR = 'Operacja trwała zbyt długo. Spróbuj ponownie.';
 export const SESSION_ERROR = 'Sesja wygasła. Zaloguj się ponownie.';
+
+/**
+ * Adres i nagłówki uwierzytelnionego wywołania Edge Function. Do surowych
+ * żądań poza kopertą JSON (strumień SSE asystenta); zwykłe operacje robi
+ * `callEdge` niżej.
+ */
+export async function edgeEndpoint(
+  functionName: EdgeFunctionName
+): Promise<{ url: string; headers: Record<string, string> }> {
+  const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const anonKey =
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? process.env.EXPO_PUBLIC_SUPABASE_KEY;
+  if (!supabaseUrl || !anonKey) {
+    throw new Error(GENERIC_ERROR);
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) {
+    throw new Error(SESSION_ERROR);
+  }
+
+  return {
+    url: `${supabaseUrl}/functions/v1/${functionName}`,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      apikey: anonKey,
+      'Content-Type': 'application/json',
+    },
+  };
+}
 
 /**
  * Wywołanie operacji Edge Function. Zwraca `data` z koperty albo rzuca

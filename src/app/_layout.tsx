@@ -90,16 +90,21 @@ export default function RootLayout() {
             zgłaszał to ostrzeżeniem przy każdym starcie. */}
         <Stack.Screen name="spolka" />
         <Stack.Screen name="brief-poranny" />
+        <Stack.Screen name="content/index" />
         <Stack.Screen name="content/new" />
         <Stack.Screen name="content/[id]" />
         <Stack.Screen name="analysis/index" />
         <Stack.Screen name="analysis/new" />
         <Stack.Screen name="analysis/[id]" />
+        <Stack.Screen name="topics/index" />
         <Stack.Screen name="topics/new" />
         <Stack.Screen name="topics/[id]" />
         <Stack.Screen name="wystapienia" />
         <Stack.Screen name="programy-wyborcze" />
         <Stack.Screen name="kontekst" />
+        <Stack.Screen name="asystent/rozmowy" />
+        <Stack.Screen name="politycy" />
+        <Stack.Screen name="dziennikarze" />
       </Stack>
     </ThemeProvider>
   );

@@ -51,38 +51,73 @@ export interface PersistResult {
   outletId: string;
   upserted: number;
   materials: number;
+  failed: number;
 }
 
-// Upsert dziennikarzy po (outlet_id, outlet_author_slug) i ich materialow.
+// Zapis dziennikarzy po (outlet_id, outlet_author_slug) i ich materialow.
+// UWAGA: nie uzywamy .upsert(onConflict), bo indeks unikalny na tych kolumnach
+// jest CZESCIOWY (where outlet_author_slug is not null), a Postgres nie umie
+// go dopasowac do ON CONFLICT bez predykatu — kazdy wiersz konczyl sie bledem
+// polykanym przez `continue` i baza nie rosla. Robimy select -> update/insert.
 export async function persistJournalists(
   supabase: SupabaseClient,
   outletId: string,
   scraped: ScrapedJournalist[],
 ): Promise<PersistResult> {
   let materials = 0;
+  let upserted = 0;
+  let failed = 0;
 
   for (const j of scraped) {
-    const { data: row, error } = await supabase
+    const values = {
+      outlet_id: outletId,
+      outlet_author_slug: j.outletAuthorSlug,
+      full_name: j.fullName,
+      role: j.role,
+      topics: j.topics,
+      email: j.email,
+      email_status: j.emailStatus,
+      bio: j.bio,
+      socials: j.socials,
+      source_urls: j.sourceUrls,
+      last_scraped_at: new Date().toISOString(),
+    };
+
+    const { data: existing } = await supabase
       .from("journalists")
-      .upsert(
-        {
-          outlet_id: outletId,
-          outlet_author_slug: j.outletAuthorSlug,
-          full_name: j.fullName,
-          role: j.role,
-          topics: j.topics,
-          email: j.email,
-          email_status: j.emailStatus,
-          bio: j.bio,
-          socials: j.socials,
-          source_urls: j.sourceUrls,
-          last_scraped_at: new Date().toISOString(),
-        },
-        { onConflict: "outlet_id,outlet_author_slug" },
-      )
       .select("id")
-      .single();
-    if (error || !row) continue;
+      .eq("outlet_id", outletId)
+      .eq("outlet_author_slug", j.outletAuthorSlug)
+      .maybeSingle();
+
+    let row: { id: string } | null = null;
+    let error: { message: string } | null = null;
+    if (existing?.id) {
+      const res = await supabase
+        .from("journalists")
+        .update(values)
+        .eq("id", existing.id)
+        .select("id")
+        .single();
+      row = res.data;
+      error = res.error;
+    } else {
+      const res = await supabase
+        .from("journalists")
+        .insert(values)
+        .select("id")
+        .single();
+      row = res.data;
+      error = res.error;
+    }
+    if (error || !row) {
+      failed += 1;
+      console.error(
+        `persistJournalists: ${j.outletAuthorSlug}: ${error?.message ?? "brak wiersza"}`,
+      );
+      continue;
+    }
+    upserted += 1;
 
     // Materialy: wstawiamy tylko nowe URL-e (unikamy duplikatow po adresie).
     for (const url of j.articleUrls) {
@@ -107,5 +142,5 @@ export async function persistJournalists(
     .update({ last_crawled_at: new Date().toISOString() })
     .eq("id", outletId);
 
-  return { outletId, upserted: scraped.length, materials };
+  return { outletId, upserted, materials, failed };
 }

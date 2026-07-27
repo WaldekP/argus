@@ -13,7 +13,7 @@ import { jsonResponse } from "../_shared/types.ts";
 import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
-import { refreshOnet } from "../_shared/media/refresh.ts";
+import { refreshOnet, refreshRmf, refreshWp } from "../_shared/media/refresh.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
           },
         });
       }
-      // Odswiezenie bazy dziennikarzy ze stron autorow (na razie Onet).
+      // Odswiezenie bazy dziennikarzy ze stron autorow. Zrodlo wybiera
+      // body.source ("onet" | "wp" | "rmf24", domyslnie "onet").
       // Porcjowane przez maxAuthors, bo crawl chodzi po wielu stronach.
       case "journalist_refresh": {
         const maxAuthors =
@@ -94,7 +95,20 @@ Deno.serve(async (req) => {
         const sections = Array.isArray(body?.sections)
           ? body.sections.filter((s: unknown) => typeof s === "string")
           : undefined;
-        const result = await refreshOnet(supabase, { sections, maxAuthors });
+        const refreshers = {
+          onet: refreshOnet,
+          wp: refreshWp,
+          rmf24: refreshRmf,
+        } as const;
+        const source = typeof body?.source === "string" ? body.source : "onet";
+        const refresh = refreshers[source as keyof typeof refreshers];
+        if (!refresh) {
+          return jsonResponse(
+            { ok: false, error: `Nieznane zrodlo dziennikarzy: ${source}` },
+            400,
+          );
+        }
+        const result = await refresh(supabase, { sections, maxAuthors });
         return jsonResponse({ ok: true, data: result });
       }
       default:

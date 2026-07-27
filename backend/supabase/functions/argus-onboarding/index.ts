@@ -1,5 +1,5 @@
 // argus-onboarding — onboarding polityka (TASK 3, kontrakt docs/kontrakt-task-2-3.md).
-// Operacje: search_mp, import_sejm_data, get_status, mp_details, list_statements,
+// Operacje: search_mp, list_mps, import_sejm_data, get_status, mp_details, list_statements,
 // get_statement, interview_turn, generate_style_profile, update_style_profile,
 // finalize_style, suggest_segments, finalize, debug_search (weryfikacja
 // wyszukiwania wektorowego).
@@ -12,6 +12,7 @@ import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import {
   getMp,
+  getMpList,
   getPastProceedingDays,
   importMpStatementsForDays,
   importMpVotingsForDays,
@@ -296,6 +297,22 @@ async function opSearchMp(body: { query?: unknown }) {
     throw new HttpError(400, "Podaj co najmniej 2 znaki nazwiska");
   }
   const mps = await searchMps(query);
+  return { mps };
+}
+
+// Pelna lista poslow kadencji dla ekranu Dane -> Politycy. Zwracamy tylko
+// pola potrzebne liscie; API Sejmu jest zrodlem prawdy, bez kopii w bazie.
+async function opListMps() {
+  const list = await getMpList();
+  const mps = list.map((mp) => ({
+    mp_id: mp.id,
+    full_name: mp.firstLastName,
+    club: mp.club ?? null,
+    district_name: mp.districtName ?? null,
+    voivodeship: mp.voivodeship ?? null,
+    active: mp.active,
+    number_of_votes: mp.numberOfVotes ?? null,
+  }));
   return { mps };
 }
 
@@ -1040,6 +1057,8 @@ Deno.serve(async (req) => {
     switch (operation) {
       case "search_mp":
         return jsonResponse({ ok: true, data: await opSearchMp(body) });
+      case "list_mps":
+        return jsonResponse({ ok: true, data: await opListMps() });
       case "import_sejm_data":
         return jsonResponse({
           ok: true,

@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EyeDot } from '@/components/eye-dot';
+import { PrimaryButton } from '@/components/primary-button';
 import { PollBars } from '@/components/knowledge/poll-bars';
 import { QuoteCard } from '@/components/knowledge/quote-card';
 import { SectionHeading } from '@/components/knowledge/section-heading';
@@ -23,6 +24,7 @@ import {
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import { znajdzTemat } from '@/lib/knowledge';
+import { buildKnowledgeTopicAssistantQuestion } from '@/lib/topic-assistant';
 
 type Sekcja = 'opinia' | 'politycy' | 'komunikacja';
 
@@ -441,6 +443,19 @@ export default function TopicScreen() {
             </ThemedText>
           ))}
         </View>
+
+        {/* Rozmowa z asystentem: skrót zagadnienia jedzie parametrami q + ts
+            (ten sam mechanizm co karta „Zapytaj Argusa" na Pulpicie). */}
+        <PrimaryButton
+          title="Rozmawiaj o zagadnieniu z asystentem"
+          onPress={() => {
+            track('assistant_question_asked', { source: 'knowledge_topic' });
+            router.push({
+              pathname: '/asystent-argus',
+              params: { q: buildKnowledgeTopicAssistantQuestion(temat), ts: String(Date.now()) },
+            });
+          }}
+        />
       </ScrollView>
     </ThemedView>
   );

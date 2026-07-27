@@ -8,7 +8,7 @@
  * Odpowiedź: { ok: true, data } albo { ok: false, error }.
  */
 
-import { edgeClient, GENERIC_ERROR } from '@/lib/api/client';
+import { edgeClient, GENERIC_ERROR, LONG_TIMEOUT_MS } from '@/lib/api/client';
 
 /** Stan onboardingu zwracany przez get_status. */
 export type OnboardingStatus =
@@ -196,6 +196,17 @@ export type MpDetails = {
   email: string | null;
 };
 
+/** Poseł na pełnej liście posłów (operation: list_mps, ekran Dane → Politycy). */
+export type MpListItem = {
+  mp_id: number;
+  full_name: string;
+  club: string | null;
+  district_name: string | null;
+  voivodeship: string | null;
+  active: boolean;
+  number_of_votes: number | null;
+};
+
 /** Wystąpienie sejmowe na liście (operation: list_statements). */
 export type StatementListItem = {
   id: string;
@@ -225,6 +236,7 @@ export type StatementFull = {
 
 type OnboardingOperation =
   | 'search_mp'
+  | 'list_mps'
   | 'import_sejm_data'
   | 'get_status'
   | 'update_context'
@@ -254,6 +266,15 @@ const callOnboarding = edgeClient<OnboardingOperation>('argus-onboarding');
 /** Wyszukiwanie posła po fragmencie nazwiska (min 2 znaki, max 10 wyników). */
 export async function searchMp(query: string): Promise<MpSearchResult[]> {
   const data = await callOnboarding<{ mps: MpSearchResult[] }>('search_mp', { query });
+  return data.mps;
+}
+
+/**
+ * Pełna lista posłów kadencji z API Sejmu (ekran Dane → Politycy).
+ * Lista jest mała (ok. 460 pozycji), więc filtrowanie robimy na kliencie.
+ */
+export async function listMps(): Promise<MpListItem[]> {
+  const data = await callOnboarding<{ mps: MpListItem[] }>('list_mps', {}, LONG_TIMEOUT_MS);
   return data.mps;
 }
 

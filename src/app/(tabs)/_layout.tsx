@@ -80,6 +80,11 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // Jedna pozycja etykiet dla całego paska: ta opcja jest czytana
+        // z aktywnej trasy, więc ustawiona tylko na jednym ekranie sprawia,
+        // że po zmianie zakładki układ przeskakuje (etykieta obok ikony
+        // na szerokich ekranach) i centralne oko zjeżdża z osi.
+        tabBarLabelPosition: 'below-icon',
         tabBarActiveTintColor: theme.accent,
         tabBarInactiveTintColor: theme.textSecondary,
         tabBarStyle: {
@@ -98,31 +103,32 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="briefs"
+        name="analizy"
         options={{
-          title: 'Briefy',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text" size={size} color={color} />
+          title: 'Analizy',
+          tabBarIcon: ({ color, size }) => <Ionicons name="analytics" size={size} color={color} />,
+        }}
+      />
+      {/* Centralny przycisk menu (decyzja usera 2026-07-27): uniesione koło
+          z okiem Argusa, jak asystent AI w TwójPsycholog. */}
+      <Tabs.Screen
+        name="asystent-argus"
+        options={{
+          title: 'Asystent',
+          tabBarItemStyle: styles.assistantItem,
+          tabBarIcon: () => (
+            <View
+              style={[
+                styles.assistantButton,
+                { backgroundColor: theme.cta, borderColor: theme.backgroundElement },
+              ]}>
+              <Ionicons name="eye" size={26} color={theme.onAccent} />
+            </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="topics"
-        options={{
-          title: 'Tematy',
-          tabBarIcon: ({ color, size }) => <Ionicons name="library" size={size} color={color} />,
-        }}
-      />
-      {/* Media ukryte na życzenie usera (2026-07-26): baza redakcji i
-          dziennikarzy jeszcze nie gotowa. Plik ekranu zostaje, znika z paska. */}
-      <Tabs.Screen
-        name="media"
-        options={{
-          href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="content"
+        name="dane"
         options={{
           title: 'Dane',
           tabBarIcon: ({ color, size }) => <Ionicons name="albums" size={size} color={color} />,
@@ -153,5 +159,18 @@ const styles = StyleSheet.create({
   },
   gateErrorText: {
     textAlign: 'center',
+  },
+  // Uniesione koło może wystawać ponad pasek: bez tego Android przycina.
+  assistantItem: {
+    overflow: 'visible',
+  },
+  assistantButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginTop: -14,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

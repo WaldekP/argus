@@ -24,6 +24,8 @@ export type AnalyticsEvent =
   /** Pomysły na tweety (X) z briefu dnia: generacja i skopiowanie wpisu. */
   | 'brief_tweets_generated'
   | 'brief_tweet_copied'
+  /** Asystent Argus: pytanie zadane z Pulpitu (własne albo z propozycji) lub z ekranu rozmowy. */
+  | 'assistant_question_asked'
   | 'journalist_viewed'
   | 'media_searched'
   | 'analysis_created'

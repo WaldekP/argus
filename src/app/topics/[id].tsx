@@ -33,6 +33,7 @@ import {
 } from '@/lib/api/topics';
 import { pickAnalysisDocument } from '@/lib/documents';
 import { formatDate, polishPlural } from '@/lib/format';
+import { buildTopicAssistantQuestion } from '@/lib/topic-assistant';
 
 import type { ThemeColor } from '@/constants/theme';
 
@@ -276,6 +277,22 @@ export default function TopicScreen() {
         setAsking(false);
       }
     }
+  };
+
+  /**
+   * Nowa rozmowa z asystentem o tej analizie: skrót dossier plus pytanie
+   * otwierające jadą parametrami `q` + `ts` (ten sam mechanizm co karta
+   * „Zapytaj Argusa" na Pulpicie), asystent odpowiada od razu po wejściu.
+   */
+  const handleDiscussWithAssistant = () => {
+    if (!topic) {
+      return;
+    }
+    track('assistant_question_asked', { source: 'topic_dossier' });
+    router.push({
+      pathname: '/asystent-argus',
+      params: { q: buildTopicAssistantQuestion(topic), ts: String(Date.now()) },
+    });
   };
 
   /** Usunięcie z potwierdzeniem: drugie tapnięcie w ciągu 3 sekund. */
@@ -609,6 +626,13 @@ export default function TopicScreen() {
                   </ThemedView>
                 ) : null}
               </View>
+            ) : null}
+
+            {topic.status === 'ready' && hasDossier ? (
+              <PrimaryButton
+                title="Rozmawiaj o analizie z asystentem"
+                onPress={handleDiscussWithAssistant}
+              />
             ) : null}
 
             {!isGenerating ? (
