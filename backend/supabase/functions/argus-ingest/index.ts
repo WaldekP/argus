@@ -14,6 +14,7 @@ import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
 import { refreshOnet, refreshRmf, refreshWp } from "../_shared/media/refresh.ts";
+import { loadKnowledgeDocs, type KnowledgeRecord } from "../_shared/knowledge.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -109,6 +110,29 @@ Deno.serve(async (req) => {
           );
         }
         const result = await refresh(supabase, { sections, maxAuthors });
+        return jsonResponse({ ok: true, data: result });
+      }
+      // Zaladunek badan opinii publicznej (CBOS + ...) do knowledge_docs.
+      // Wejscie: porcja `records` z eksportu tools/cbos-crawler. Embeddingi
+      // liczone tu (Supabase.ai). Porcjowanie po stronie wywolujacego: caly
+      // eksport dzielimy na porcje, bo limit workera nie przepusci setek naraz.
+      case "load_knowledge": {
+        const records = Array.isArray(body?.records)
+          ? (body.records as KnowledgeRecord[])
+          : [];
+        if (records.length === 0) {
+          return jsonResponse(
+            { ok: false, error: "Brak rekordow do zaladowania (pole records)" },
+            400,
+          );
+        }
+        if (records.length > 50) {
+          return jsonResponse(
+            { ok: false, error: "Za duza porcja: max 50 rekordow na wywolanie" },
+            400,
+          );
+        }
+        const result = await loadKnowledgeDocs(supabase, records);
         return jsonResponse({ ok: true, data: result });
       }
       default:

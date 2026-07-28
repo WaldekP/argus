@@ -105,6 +105,7 @@ export default function RootLayout() {
         <Stack.Screen name="asystent/rozmowy" />
         <Stack.Screen name="politycy" />
         <Stack.Screen name="dziennikarze" />
+        <Stack.Screen name="badania-opinii" />
       </Stack>
     </ThemeProvider>
   );

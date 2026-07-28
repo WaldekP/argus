@@ -36,6 +36,12 @@ export default function DaneScreen() {
           description="Oficjalne dokumenty partii sejmowych z wyborów 2011, 2015, 2019 i 2023, do pobrania jako PDF."
           onPress={() => router.push('/programy-wyborcze')}
         />
+        <SectionCard
+          icon="bar-chart-outline"
+          title="Badania opinii"
+          description="Komunikaty z badań CBOS z rozkładami odpowiedzi, pogrupowane po temacie. Dane reprezentatywne, z jawną metodologią."
+          onPress={() => router.push('/badania-opinii')}
+        />
       </View>
     </ScreenPlaceholder>
   );

@@ -46,4 +46,7 @@ export type AnalyticsEvent =
   | 'mentions_synced'
   | 'mention_opened'
   /** Pobranie PDF programu wyborczego z ekranu Programy wyborcze. */
-  | 'election_program_downloaded';
+  | 'election_program_downloaded'
+  /** Badania opinii (CBOS): wejście w komunikat i wyszukiwanie na liście. */
+  | 'knowledge_doc_viewed'
+  | 'badania_searched';

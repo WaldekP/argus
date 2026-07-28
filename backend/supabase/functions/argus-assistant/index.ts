@@ -16,6 +16,7 @@ import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { today } from "../_shared/daily-brief.ts";
+import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 
 const QUESTION_MIN_LENGTH = 3;
@@ -205,9 +206,15 @@ async function opAskStream(
   if (insertError) throw new Error(insertError.message);
 
   const { context, usedBrief } = await buildContext(supabase, tenantId);
+  // Grounding w realnych badaniach opinii (CBOS) dopasowanych do pytania.
+  // Fail-soft: gdy brak trafien albo dane jeszcze niezaladowane, zwraca "".
+  const opinion = await searchOpinionContext(supabase, question);
+  const systemPrompt = opinion
+    ? `${loadPrompt("assistant-ask")}\n\n## Kontekst polityka i dnia\n\n${context}\n\n${opinion}`
+    : `${loadPrompt("assistant-ask")}\n\n## Kontekst polityka i dnia\n\n${context}`;
   const model = await getGenerationModel();
   const messages: [string, string][] = [
-    ["system", `${loadPrompt("assistant-ask")}\n\n## Kontekst polityka i dnia\n\n${context}`],
+    ["system", systemPrompt],
     ...history.map(
       (msg): [string, string] => [msg.role === "user" ? "human" : "ai", msg.content],
     ),

@@ -54,6 +54,9 @@ insert into public.journalists (full_name, outlet_id, takedown_requested) values
   ('Jan Testowy', 'cccccccc-cccc-cccc-cccc-cccccccccccc', false),
   ('Anna Ukryta', 'cccccccc-cccc-cccc-cccc-cccccccccccc', true);
 
+insert into public.knowledge_docs (source, external_id, title, content_hash) values
+  ('CBOS', '1/2026', 'Testowy komunikat RLS', 'rls-test-hash-0001');
+
 -- ---------------------------------------------------------------------------
 -- Jako user A (tenant A)
 -- ---------------------------------------------------------------------------
@@ -95,6 +98,9 @@ begin
   select count(*) into c from public.journalists;
   if c <> 1 then raise exception 'FAIL: journalists z takedown widoczni (%)', c; end if;
 
+  select count(*) into c from public.knowledge_docs;
+  if c <> 1 then raise exception 'FAIL: brak odczytu knowledge_docs (%)', c; end if;
+
   -- Zapis do własnego tenanta działa
   insert into public.statements (tenant_id, source, text)
   values ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'manual', 'wpis usera A');
@@ -112,6 +118,15 @@ begin
   begin
     insert into public.outlets (name, type) values ('Nielegalna', 'tv');
     raise exception 'FAIL: insert do tabeli globalnej przeszedl';
+  exception
+    when insufficient_privilege then null;
+  end;
+
+  -- Zapis do knowledge_docs (globalna) tez musi zostac odrzucony
+  begin
+    insert into public.knowledge_docs (source, external_id, title, content_hash)
+    values ('CBOS', '2/2026', 'Nielegalny', 'rls-test-hash-0002');
+    raise exception 'FAIL: insert do knowledge_docs przeszedl';
   exception
     when insufficient_privilege then null;
   end;
@@ -191,6 +206,8 @@ begin
   if c <> 0 then raise exception 'FAIL: anon widzi statements'; end if;
   select count(*) into c from public.journalists;
   if c <> 0 then raise exception 'FAIL: anon widzi journalists'; end if;
+  select count(*) into c from public.knowledge_docs;
+  if c <> 0 then raise exception 'FAIL: anon widzi knowledge_docs'; end if;
 end $$;
 
 rollback;

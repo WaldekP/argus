@@ -24,6 +24,7 @@ import {
   loadPrompt,
 } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 
 const VARIANTS_PER_CALL = 2; // limit zasobow workera Edge Functions
 const CONSISTENCY_MATCH_LIMIT = 8;
@@ -282,10 +283,12 @@ interface GenerateVariantInput {
   existingVariants: Variant[];
   framing?: TopicFraming | null;
   feedback?: string;
+  /** Blok realnych rozkladow opinii (CBOS) pod grounding wariantu. */
+  opinionContext?: string;
 }
 
 function buildVariantHuman(input: GenerateVariantInput): string {
-  const { profile, item, segmentProfile, topic, coreMessage, framing, feedback } =
+  const { profile, item, segmentProfile, topic, coreMessage, framing, feedback, opinionContext } =
     input;
   const spec = CHANNELS[item.channel];
 
@@ -362,6 +365,14 @@ function buildVariantHuman(input: GenerateVariantInput): string {
         );
       }
     }
+  }
+
+  if (opinionContext) {
+    lines.push(
+      "",
+      "Realne rozklady opinii (CBOS) do tego tematu. Mozesz sie na nie powolac (z podaniem zrodla i daty), zeby przekaz trafial w nastroje. Nie zmyslaj liczb spoza tej listy:",
+      opinionContext,
+    );
   }
 
   if (context.length > 0) {
@@ -642,6 +653,14 @@ async function opGenerateStep(
     ];
     const segMap = await fetchSegmentsById(supabase, tenantId, segIds);
 
+    // Grounding w realnych badaniach opinii (CBOS), policzony raz dla calego
+    // kroku. Fail-soft: brak danych -> "" i prompt leci bez tej sekcji.
+    const opinionContext = await searchOpinionContext(
+      supabase,
+      [draft.topic, draft.core_message ?? ""].join(". ").trim(),
+      { limit: 3 },
+    );
+
     let current = variants;
     for (const item of batch) {
       const text = await generateVariantText({
@@ -654,6 +673,7 @@ async function opGenerateStep(
         coreMessage: draft.core_message as string | null,
         existingVariants: current,
         framing,
+        opinionContext,
       });
       current = [...current, { ...item, text }];
       // Zapis po kazdym wariancie: blad w polowie kroku nie traci pracy.
@@ -809,6 +829,11 @@ async function opRegenerateVariant(
     tenantId,
     item.segment_id ? [item.segment_id] : [],
   );
+  const opinionContext = await searchOpinionContext(
+    supabase,
+    [draft.topic, draft.core_message ?? ""].join(". ").trim(),
+    { limit: 3 },
+  );
 
   const text = await generateVariantText({
     profile,
@@ -823,6 +848,7 @@ async function opRegenerateVariant(
     ),
     framing,
     feedback,
+    opinionContext,
   });
 
   const variant: Variant = { ...item, text };

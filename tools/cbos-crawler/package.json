@@ -1,0 +1,22 @@
+{
+  "name": "cbos-crawler",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lokalne narzedzie do katalogowania i archiwizacji komunikatow z badan CBOS, ekstrakcji tresci i strukturyzacji w badania opinii pod baze wiedzy Argusa. Rdzen na czystym Node 24+ (wbudowany SQLite, fetch, natywny TypeScript); ekstrakcja PDF przez pdfjs-dist, strukturyzacja przez Claude API.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "discover": "node --no-warnings src/cli.ts discover",
+    "crawl": "node --no-warnings src/cli.ts crawl",
+    "extract": "node --no-warnings src/cli.ts extract",
+    "structure": "node --no-warnings src/cli.ts structure",
+    "export": "node --no-warnings src/cli.ts export",
+    "status": "node --no-warnings src/cli.ts status",
+    "test": "node --no-warnings --test \"src/**/*.test.ts\""
+  },
+  "dependencies": {
+    "pdfjs-dist": "^6.1.200"
+  }
+}

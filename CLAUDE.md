@@ -119,7 +119,7 @@ nałożyć. Nie nakładaj migracji po cichu i nie zostawiaj utworzonej migracji 
 zadania pytania „migrować?". User zatwierdza, Claude wykonuje. Migracje na żywo
 w bazie (poza plikami) tworzą dryft, dlatego jedynym źródłem prawdy są pliki.
 
-Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych).
+Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych), `argus-knowledge` (badania opinii publicznej / CBOS, read-only).
 
 **Zasada, którą łatwo złamać:** operacja działająca na danych WSZYSTKICH tenantów
 (przebiegi cronowe) nie może istnieć w funkcji użytkownika, nawet „do testów".
@@ -137,6 +137,21 @@ mają dwa bezpieczniki w `_shared/rejestrio.ts`: próg salda (`MIN_BALANCE_PLN`)
 i dzienny limit per tenant (`MAX_PAID_CALLS_PER_TENANT_PER_DAY`, liczony
 z `registry_api_calls`). Dodając nowy płatny endpoint, przepuść go przez
 `assertBudget()`, bo tam siedzą oba.
+
+### Badania opinii publicznej (CBOS)
+
+Spec: `docs/superpowers/specs/2026-07-27-badania-opinii-cbos-design.md`. Globalna
+tabela `knowledge_docs` (read-only dla zalogowanych, insert tylko service_role,
+`vector(384)`, RPC `match_knowledge_docs`) trzyma badania opinii z komunikatów
+CBOS. Zasilanie: narzędzie `tools/cbos-crawler` (osobny branch, wzorzec
+bip-scraper) kataloguje, rozczytuje i strukturyzuje komunikaty, a operacja
+`load_knowledge` w `argus-ingest` liczy embeddingi (server-side) i wstawia.
+Odczyt: `argus-knowledge` (`list_knowledge_docs`, `get_knowledge_doc`), ekran
+Dane → Badania opinii. Grounding: `_shared/knowledge-search.ts`
+(`searchOpinionContext`, fail-soft) wpięty w `argus-assistant` i `argus-content`,
+oraz dynamicznie na `/temat/[slug]`. CBOS mocny na obronności/euro/energii/socjalu,
+cienki na podatkach (tax-core zostaje na IBRiS/SW Research). Tylko CBOS ma otwarte
+archiwum; inne instytuty poza crawlerem.
 
 ### Zasady promptów
 
@@ -188,7 +203,7 @@ Skrót palety (dark, deck):
 
 ## Analytics (PostHog, obowiązkowe od początku)
 
-Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`, `brief_viewed`, `brief_rated`, `brief_question_feedback`, `content_generated`, `content_variant_copied`, `consistency_alert_shown/resolved`, `practice_session_started/finished`, `morning_brief_read`, `journalist_viewed`, `media_searched`. North star: liczba briefów tygodniowo per tenant.
+Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`, `brief_viewed`, `brief_rated`, `brief_question_feedback`, `content_generated`, `content_variant_copied`, `consistency_alert_shown/resolved`, `practice_session_started/finished`, `morning_brief_read`, `journalist_viewed`, `media_searched`, `knowledge_doc_viewed`, `badania_searched`. North star: liczba briefów tygodniowo per tenant.
 
 ## Bezpieczeństwo i RODO
 

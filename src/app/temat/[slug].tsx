@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,6 +25,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import { znajdzTemat } from '@/lib/knowledge';
 import { buildKnowledgeTopicAssistantQuestion } from '@/lib/topic-assistant';
+import { listKnowledgeDocs, type KnowledgeDocListItem } from '@/lib/api/knowledge';
 
 type Sekcja = 'opinia' | 'politycy' | 'komunikacja';
 
@@ -41,6 +42,24 @@ export default function TopicScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const [sekcja, setSekcja] = useState<Sekcja>('opinia');
   const [otwartyPolityk, setOtwartyPolityk] = useState<string | null>(null);
+  // Badania CBOS dopasowane do tematu, dociągane w locie (fail-soft: błąd/brak
+  // danych = pusto, widać tylko ręczne badania z korpusu).
+  const [cbosDocs, setCbosDocs] = useState<KnowledgeDocListItem[]>([]);
+
+  useEffect(() => {
+    if (!slug) return;
+    let alive = true;
+    listKnowledgeDocs(slug)
+      .then((docs) => {
+        if (alive) setCbosDocs(docs);
+      })
+      .catch(() => {
+        if (alive) setCbosDocs([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [slug]);
 
   const temat = znajdzTemat(slug ?? '');
 
@@ -251,6 +270,33 @@ export default function TopicScreen() {
                 <SourceLink zrodlo={badanie.zrodlo} />
               </View>
             ))}
+
+            {cbosDocs.length > 0 ? (
+              <View style={styles.section}>
+                <SectionHeading
+                  kicker="CBOS"
+                  title="Badania opinii CBOS"
+                  lead="Komunikaty CBOS dopasowane do tematu. Wejdź, żeby zobaczyć pytania i rozkłady odpowiedzi."
+                />
+                {cbosDocs.map((doc) => (
+                  <Pressable
+                    key={doc.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/badania-opinii/${doc.id}`)}
+                    style={({ pressed }) => [
+                      styles.card,
+                      { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+                      pressed ? { opacity: 0.7 } : null,
+                    ]}>
+                    <ThemedText style={styles.cardTitle}>{doc.title}</ThemedText>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {doc.source} nr {doc.external_id}
+                      {doc.pub_date ? `, ${doc.pub_date}` : ''}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
 
             {temat.zagranica?.length ? (
               <View style={styles.section}>
