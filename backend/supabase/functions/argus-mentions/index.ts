@@ -12,6 +12,7 @@ import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { syncTenant, type TopicSyncResult } from "../_shared/mentions.ts";
+import { syncBrand24Tenant } from "../_shared/brand24-sync.ts";
 
 /** Ile hasel moze miec jeden tenant. Chroni przed zajezdzeniem crona. */
 const MAX_TOPICS_PER_TENANT = 25;
@@ -235,7 +236,19 @@ async function opSync(
 
   const results = await syncTenant(supabase, tenantId, { topicId });
   const inserted = results.reduce((sum, item) => sum + item.inserted, 0);
-  return { results, inserted };
+
+  // Pełne odświeżenie (bez wskazanego hasła) ciągnie też wzmianki Brand24, żeby
+  // jeden przycisk „Odśwież" pokrywał oba źródła. Błąd Brand24 nie psuje RSS.
+  let brand24: Awaited<ReturnType<typeof syncBrand24Tenant>> | null = null;
+  if (topicId === undefined) {
+    try {
+      brand24 = await syncBrand24Tenant(supabase, tenantId);
+    } catch (err) {
+      console.warn("brand24 sync:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  return { results, inserted: inserted + (brand24?.inserted ?? 0), brand24 };
 }
 
 async function opListMentions(
@@ -356,6 +369,11 @@ Deno.serve(async (req) => {
         });
       case "sync":
         return jsonResponse({ ok: true, data: await opSync(supabase, tenantId, body) });
+      case "brand24_sync":
+        return jsonResponse({
+          ok: true,
+          data: await syncBrand24Tenant(supabase, tenantId),
+        });
       case "list_mentions":
         return jsonResponse({
           ok: true,

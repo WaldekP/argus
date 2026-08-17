@@ -15,6 +15,11 @@ import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
 import { refreshOnet, refreshRmf, refreshWp } from "../_shared/media/refresh.ts";
 import { loadKnowledgeDocs, type KnowledgeRecord } from "../_shared/knowledge.ts";
+import {
+  setupBrand24,
+  syncBrand24AllTenants,
+  syncBrand24Tenant,
+} from "../_shared/brand24-sync.ts";
 
 function isAuthorized(req: Request): boolean {
   const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
@@ -134,6 +139,45 @@ Deno.serve(async (req) => {
         }
         const result = await loadKnowledgeDocs(supabase, records);
         return jsonResponse({ ok: true, data: result });
+      }
+      // Jednorazowa konfiguracja Brand24 dla tenanta: tworzy hasło-rodzic i
+      // zapisuje namiary projektu. project_id istniejącego projektu Brand24.
+      case "brand24_setup": {
+        const tenantId = typeof body?.tenant_id === "string" ? body.tenant_id : "";
+        const accountId = typeof body?.account_id === "string" ? body.account_id : "";
+        const projectId = typeof body?.project_id === "string" ? body.project_id : "";
+        if (!tenantId || !accountId || !projectId) {
+          return jsonResponse(
+            { ok: false, error: "Wymagane: tenant_id, account_id, project_id" },
+            400,
+          );
+        }
+        const keywords = Array.isArray(body?.keywords) ? body.keywords : [];
+        const result = await setupBrand24(supabase, {
+          tenantId,
+          accountId,
+          projectId,
+          keywords,
+        });
+        return jsonResponse({ ok: true, data: result });
+      }
+      // Sync wzmianek Brand24: bez tenant_id przebiega po wszystkich tenantach
+      // z konfiguracją (cron), z tenant_id tylko jeden.
+      case "brand24_sync": {
+        if (typeof body?.tenant_id === "string" && body.tenant_id) {
+          const result = await syncBrand24Tenant(supabase, body.tenant_id);
+          return jsonResponse({ ok: true, data: result });
+        }
+        const results = await syncBrand24AllTenants(supabase);
+        return jsonResponse({
+          ok: true,
+          data: {
+            tenants: results.length,
+            inserted: results.reduce((s, r) => s + r.inserted, 0),
+            classified: results.reduce((s, r) => s + r.classified, 0),
+            results,
+          },
+        });
       }
       default:
         return jsonResponse(
