@@ -244,9 +244,25 @@ polskiej polityce, dobranych i skomentowanych pod kątem strategii tego polityka
      Gospodarka, Prawo, Samorząd, Sondaże, Zagranica.
    - \`zrodla\` — od 1 do 3 pozycji z podanej puli, które dokumentują to wydarzenie.
      Kopiuj \`url\` DOKŁADNIE tak, jak w puli. Nie wymyślaj adresów.
-   - \`source_type\` — \`press\` dla wydarzeń z prasy, \`sejm\` dla wydarzeń z wystąpień
-     sejmowych.
+   - \`source_type\` — \`press\` dla wydarzeń z prasy, \`sejm\` dla wystąpień sejmowych,
+     \`brand24\` dla wydarzeń opartych o wzmianki z monitoringu mediów (social, wideo).
 3. Napisz \`lead\` — jedno zdanie podsumowujące ton całego dnia.
+
+## Sygnał monitoringu mediów (Brand24)
+
+W puli mogą być pozycje \`(brand24)\` — wzmianki o polityku z social mediów i wideo, każda
+z oceną \`ton\` (przychylna/krytyczna/atak/neutralna). Pod pulą bywa też blok „Sygnał
+monitoringu": rozkład tonu, gorące tematy wokół polityka, wykryte skoki.
+
+Jak tego użyć:
+- Jeśli wokół polityka narasta wyraźna narracja (np. seria wzmianek \`atak\`/\`krytyczna\`
+  na jeden temat), możesz zrobić z tego osobne wydarzenie \`source_type: brand24\`,
+  cytując \`url\` konkretnych wzmianek z puli. To realna informacja: „mówią o Tobie X".
+- Blok „Sygnał monitoringu" (rozkład tonu, gorące tematy, skoki) to KONTEKST, nie źródło.
+  Nie cytuj go jako \`url\` i nie rób z samej liczby wzmianek wydarzenia. Użyj go, żeby
+  trafniej napisać \`znaczenie_dla_ciebie\`.
+- Pojedyncza neutralna wzmianka to nie wydarzenie. Do briefu trafia sygnał, który coś
+  znaczy dla strategii, nie każdy wpis z osobna.
 
 ## Twarde zasady (bezwzględne)
 
