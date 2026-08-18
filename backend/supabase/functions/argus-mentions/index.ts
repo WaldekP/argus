@@ -229,7 +229,11 @@ async function opSync(
   supabase: SupabaseClient,
   tenantId: string,
   body: Record<string, unknown>,
-): Promise<{ results: TopicSyncResult[]; inserted: number }> {
+): Promise<{
+  results: TopicSyncResult[];
+  inserted: number;
+  brand24: Awaited<ReturnType<typeof syncBrand24Tenant>> | null;
+}> {
   const topicId = body.topic_id === undefined
     ? undefined
     : requireUuid(body.topic_id, "topic_id");
