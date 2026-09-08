@@ -25,14 +25,22 @@ export default function AnalizyScreen() {
           onPress={() => router.push('/topics')}
         />
         <SectionCard
+          icon="mic-outline"
+          title="Brief przedwywiadowy"
+          description="Kto pyta, o co zapyta, co odpowiedzieć i gdzie jest pułapka. Dziesięć przewidywanych pytań z rekomendacjami."
+          onPress={() => router.push('/brief')}
+        />
+        <SectionCard
           icon="search-outline"
           title="Analiza niespójności"
           description="Wskaż temat i cel, a Argus znajdzie sprzeczności w wypowiedziach i głosowaniach z Sejmu."
+          onPress={() => router.push('/analysis')}
         />
         <SectionCard
           icon="megaphone-outline"
           title="Analiza przekazu"
           description="Warianty treści per segment wyborców i kanał, z kontrolą spójności z historią wypowiedzi."
+          onPress={() => router.push('/content')}
         />
         <SectionCard
           icon="videocam-outline"

@@ -21,6 +21,7 @@ import { supabase } from '@/lib/supabase';
 export type EdgeFunctionName =
   | 'argus-analysis'
   | 'argus-assistant'
+  | 'argus-brief'
   | 'argus-content'
   | 'argus-knowledge'
   | 'argus-media'
