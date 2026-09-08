@@ -52,5 +52,6 @@ Czego link **nie** załatwia:
 - Osoba, która sama się zarejestruje, nie ma wpisu w `memberships`, więc Edge
   Functions odpowiedzą jej `403 User has no tenant membership`. Testerzy muszą
   dostać konto przypisane do tenanta.
-- `site_url` i lista dozwolonych przekierowań w Supabase Auth muszą zawierać
-  adres deploya, inaczej link potwierdzający z maila odsyła na `localhost`.
+- `site_url` i lista dozwolonych przekierowań w Supabase Auth wskazują na
+  `https://argus-pilotaz.vercel.app`. Zmieniając adres deploya, zaktualizuj obie
+  wartości, inaczej link potwierdzający z maila odeśle testera w pustkę.
