@@ -22,7 +22,9 @@ const CAROUSEL_LIMIT = 10;
  * (dotknięcie otwiera pełny brief) i nieprzeczytane wzmianki prasowe
  * (dotknięcie otwiera artykuł i oznacza wzmiankę jako przeczytaną).
  *
- * Link „Wszystkie" prowadzi do archiwum wszystkich briefów dnia.
+ * Link „Wszystkie" prowadzi do archiwum wszystkich briefów dnia, a licznik
+ * nowych wzmianek do ich pełnej listy: karuzela pokazuje tylko kilka kafelków
+ * z pierwszych pięćdziesięciu nieprzeczytanych.
  */
 export function MorningBriefSection() {
   const theme = useTheme();
@@ -152,9 +154,14 @@ export function MorningBriefSection() {
         <>
           <View style={styles.titleRow}>
             <ThemedText type="smallBold">Wzmianki o Tobie</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {polishPlural(unreadTotal || mentions.length, 'nowa', 'nowe', 'nowych')}
-            </ThemedText>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Wszystkie wzmianki"
+              onPress={() => router.push('/brief-poranny/wzmianki')}>
+              <ThemedText type="small" themeColor="accentLight">
+                {polishPlural(unreadTotal || mentions.length, 'nowa', 'nowe', 'nowych')}
+              </ThemedText>
+            </Pressable>
           </View>
           <ScrollView
             horizontal
