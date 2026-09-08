@@ -24,9 +24,11 @@ import {
   addTopic,
   listTopics,
   removeTopic,
+  syncMentions,
   updateTopic,
   type WatchedTopic,
 } from '@/lib/api/mentions';
+import { polishPlural } from '@/lib/format';
 import { relativeTime } from '@/lib/format-time';
 
 /** Potwierdzenie usunięcia. Na webie `Alert` nie działa, więc `confirm`. */
@@ -61,6 +63,9 @@ export default function WatchedTermsScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [syncing, setSyncing] = useState(false);
+  const [syncNote, setSyncNote] = useState<string | null>(null);
+
   const [phrase, setPhrase] = useState('');
   const [query, setQuery] = useState('');
   const [advanced, setAdvanced] = useState(false);
@@ -93,6 +98,31 @@ export default function WatchedTermsScreen() {
       active = false;
     };
   }, []);
+
+  /**
+   * Ręczne pobranie wzmianek dla wszystkich aktywnych haseł. Do tej pory
+   * monitoring odświeżał się wyłącznie przy dodaniu nowego hasła, bo cron
+   * nie jest wpięty, a z ekranu nie dało się go uruchomić. Efekt: wzmianki
+   * potrafiły stać w miejscu tygodniami.
+   */
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncNote(null);
+    setError(null);
+    try {
+      const result = await syncMentions();
+      await reload();
+      setSyncNote(
+        result.inserted > 0
+          ? `Pobrano ${polishPlural(result.inserted, 'nową wzmiankę', 'nowe wzmianki', 'nowych wzmianek')}.`
+          : 'Brak nowych wzmianek. Wszystko już było pobrane.'
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nie udało się pobrać wzmianek.');
+    } finally {
+      setSyncing(false);
+    }
+  }, [reload]);
 
   const handleAdd = useCallback(async () => {
     const trimmed = phrase.trim();
@@ -178,6 +208,17 @@ export default function WatchedTermsScreen() {
             Nazwiska, nazwy partii i tematy, których Argus pilnuje w prasie. Hasła są wspólne dla
             całego biura.
           </ThemedText>
+          <PrimaryButton
+            title="Pobierz nowe wzmianki"
+            variant="secondary"
+            onPress={handleSync}
+            loading={syncing}
+          />
+          {syncNote ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              {syncNote}
+            </ThemedText>
+          ) : null}
         </View>
 
         {error ? (

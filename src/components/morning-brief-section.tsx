@@ -9,6 +9,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import { getDailyBrief, type DailyBrief } from '@/lib/api/daily-brief';
 import { listMentions, markMentionsRead, type Mention } from '@/lib/api/mentions';
+import { polishPlural } from '@/lib/format';
 import { relativeTime } from '@/lib/format-time';
 import { openExternalUrl } from '@/lib/open-url';
 
@@ -30,6 +31,9 @@ export function MorningBriefSection() {
   const [brief, setBrief] = useState<DailyBrief | null>(null);
   const [briefLoading, setBriefLoading] = useState(true);
   const [mentions, setMentions] = useState<Mention[]>([]);
+  // Liczba nieprzeczytanych z bazy, nie dlugosc pobranej listy: karuzela
+  // bierze najwyzej 50 pozycji, a nieprzeczytanych bywa wielokrotnie wiecej.
+  const [unreadTotal, setUnreadTotal] = useState(0);
 
   // Odświeżamy przy każdym wejściu w zakładkę, nie tylko przy montażu:
   // użytkownik wraca z briefu po wygenerowaniu przeglądu albo przeczytaniu
@@ -47,7 +51,9 @@ export function MorningBriefSection() {
         });
       listMentions({ only_unread: true, limit: 50 })
         .then((result) => {
-          if (active) setMentions(result.mentions);
+          if (!active) return;
+          setMentions(result.mentions);
+          setUnreadTotal(result.unread_total);
         })
         .catch(() => undefined);
       return () => {
@@ -147,7 +153,7 @@ export function MorningBriefSection() {
           <View style={styles.titleRow}>
             <ThemedText type="smallBold">Wzmianki o Tobie</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
-              {mentions.length} nowych
+              {polishPlural(unreadTotal || mentions.length, 'nowa', 'nowe', 'nowych')}
             </ThemedText>
           </View>
           <ScrollView

@@ -122,7 +122,7 @@ export function listMentions(
     offset?: number;
   } = {},
 ) {
-  return call<{ mentions: Mention[] }>('list_mentions', params);
+  return call<{ mentions: Mention[]; unread_total: number }>('list_mentions', params);
 }
 
 /** Bez `mentionId` oznacza wszystkie nieprzeczytane wzmianki tenanta. */

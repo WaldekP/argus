@@ -3,7 +3,12 @@
 //
 // Autoryzacja: token service_role ALBO CRON_SECRET, podawany AD HOC przez
 // zmienna ARGUS_INGEST_TOKEN lub flage --token — NIGDY z repo .env, bo klucz
-// service_role jest sekretem Edge Functions (patrz .env.example). URL projektu
+// service_role jest sekretem Edge Functions (patrz .env.example).
+//
+// UWAGA: argus-ingest porownuje token doslownie z SUPABASE_SERVICE_ROLE_KEY
+// wstrzykiwanym do funkcji, a projekt ma juz nowe klucze API, wiec pasuje
+// klucz `sb_secret_...` z zakladki API Keys, a NIE stary service_role w postaci
+// JWT. Stary klucz konczy sie odpowiedzia 403. URL projektu
 // bierzemy z EXPO_PUBLIC_SUPABASE_URL (repo .env).
 //
 // Dziala dopiero PO wypchnieciu migracji knowledge_docs i deployu argus-ingest.
@@ -16,8 +21,14 @@ import { config } from "./config.ts";
 const toolRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(toolRoot, "..", "..");
 
-/** Rozmiar porcji: musi byc <= limitu operacji load_knowledge (50). */
-const BATCH = 40;
+/**
+ * Rozmiar porcji. Limit operacji load_knowledge to 50 rekordow, ale nie o niego
+ * tu chodzi: jeden rekord CBOS wazy okolo 28 kB (pelny tekst komunikatu),
+ * a Edge Function liczy embeddingi po stronie serwera. Porcja po 40 konczyla
+ * sie HTTP 503, po 5 bledem WORKER_RESOURCE_LIMIT. Trojka przechodzi
+ * z zapasem, a caly korpus i tak wchodzi w mniej niz minute.
+ */
+const BATCH = 3;
 
 function loadRepoEnv(): void {
   const envPath = path.join(repoRoot, ".env");
@@ -69,8 +80,16 @@ export async function runUpload(opts: UploadOptions): Promise<void> {
   let skipped = 0;
   const errors: Array<{ external_id: string; error: string }> = [];
 
-  for (let i = 0; i < records.length; i += BATCH) {
-    const chunk = records.slice(i, i + BATCH);
+  interface SendResult {
+    ok: boolean;
+    status: number;
+    upserted: number;
+    skipped: number;
+    errors: typeof errors;
+    error?: string;
+  }
+
+  async function send(chunk: unknown[]): Promise<SendResult> {
     const res = await fetch(endpoint, {
       method: "POST",
       headers: {
@@ -86,13 +105,55 @@ export async function runUpload(opts: UploadOptions): Promise<void> {
       error?: string;
       data?: { upserted: number; skipped: number; errors: typeof errors };
     };
-    if (!res.ok || !json.ok) {
-      throw new Error(`Porcja ${i / BATCH + 1}: HTTP ${res.status} ${json.error ?? ""}`);
+    return {
+      ok: res.ok && json.ok === true,
+      status: res.status,
+      upserted: json.data?.upserted ?? 0,
+      skipped: json.data?.skipped ?? 0,
+      errors: json.data?.errors ?? [],
+      error: json.error,
+    };
+  }
+
+  function absorb(result: SendResult): void {
+    upserted += result.upserted;
+    skipped += result.skipped;
+    if (result.errors.length) errors.push(...result.errors);
+  }
+
+  const total = Math.ceil(records.length / BATCH);
+
+  for (let i = 0; i < records.length; i += BATCH) {
+    const chunk = records.slice(i, i + BATCH);
+    const nr = Math.floor(i / BATCH) + 1;
+
+    const first = await send(chunk);
+    if (first.ok) {
+      absorb(first);
+      console.log(`  porcja ${nr}/${total}: upserted=${first.upserted}`);
+      continue;
     }
-    upserted += json.data?.upserted ?? 0;
-    skipped += json.data?.skipped ?? 0;
-    if (json.data?.errors?.length) errors.push(...json.data.errors);
-    console.log(`  porcja ${Math.floor(i / BATCH) + 1}: upserted=${json.data?.upserted ?? 0}`);
+
+    // Worker Edge Functions potrafi paść na pamięci (HTTP 546
+    // WORKER_RESOURCE_LIMIT albo 503), bo liczy embeddingi dla całych
+    // komunikatów. To nie powód, żeby przerwać cały załadunek: schodzimy do
+    // pojedynczych rekordów, dajemy workerowi chwilę na restart i lecimy
+    // dalej. Wcześniej pierwszy taki błąd wywracał bieg i korpus wchodził do
+    // bazy w kilkunastu procentach.
+    console.log(`  porcja ${nr}/${total}: HTTP ${first.status}, probuje pojedynczo`);
+    for (const record of chunk) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const single = await send([record]);
+      if (single.ok) {
+        absorb(single);
+        continue;
+      }
+      const id = (record as { external_id?: string }).external_id ?? "?";
+      errors.push({
+        external_id: id,
+        error: `HTTP ${single.status} ${single.error ?? ""}`.trim(),
+      });
+    }
   }
 
   console.log(`\nGotowe: upserted=${upserted}, skipped=${skipped}, bledow=${errors.length}`);

@@ -289,7 +289,18 @@ async function opListMentions(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
-  return { mentions: data ?? [] };
+  // Licznik nieprzeczytanych liczony osobno, bez `limit` i `offset`. Pulpit
+  // pokazywal dotad dlugosc uzyskanej listy, wiec przy 129 nieprzeczytanych
+  // wzmiankach twierdzil, ze jest ich 50.
+  const { count, error: countError } = await supabase
+    .from("mentions")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .is("dismissed_at", null)
+    .is("read_at", null);
+  if (countError) throw new Error(countError.message);
+
+  return { mentions: data ?? [], unread_total: count ?? 0 };
 }
 
 async function opMarkRead(

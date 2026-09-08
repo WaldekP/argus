@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,6 +30,38 @@ import {
 import { formatWeekday } from '@/lib/format-time';
 
 /**
+ * Ile i jak często dopytujemy o wynik, gdy `generate` nie zdąży odpowiedzieć
+ * w limicie klienta. Synteza potrafi zająć kilkanaście minut, a limit żądania
+ * to dwie minuty, więc bez tego przekroczony czas wyglądał jak awaria, mimo
+ * że funkcja spokojnie kończyła pracę i brief pojawiał się dopiero po ręcznym
+ * odświeżeniu strony.
+ */
+const BRIEF_POLL_INTERVAL_MS = 15_000;
+const BRIEF_POLL_ATTEMPTS = 60;
+
+/** Czeka na gotowy przegląd. Zwraca null, gdy skończył się błędem albo czas. */
+async function waitForBrief(isMounted: () => boolean): Promise<DailyBrief | null> {
+  for (let attempt = 0; attempt < BRIEF_POLL_ATTEMPTS; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, BRIEF_POLL_INTERVAL_MS));
+    if (!isMounted()) {
+      return null;
+    }
+    try {
+      const result = await getDailyBrief();
+      if (result.brief?.status === 'ready') {
+        return result.brief;
+      }
+      if (result.brief?.status === 'error') {
+        return null;
+      }
+    } catch {
+      // Pojedyncze nieudane odpytanie nie kończy czekania.
+    }
+  }
+  return null;
+}
+
+/**
  * Brief poranny: syntetyczny przegląd dnia w polityce pod strategię polityka
  * plus pomysły na wpisy na X. Dane z `argus-morning-brief`.
  *
@@ -40,6 +72,15 @@ export default function MorningBriefScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // Odpytywanie o wynik trwa minutami, a ekran można w tym czasie zamknąć.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Przegląd dnia (synteza).
   const [brief, setBrief] = useState<DailyBrief | null>(null);
@@ -81,11 +122,24 @@ export default function MorningBriefScreen() {
       await generateDailyBrief();
       track('morning_brief_generated');
       const result = await getDailyBrief();
-      setBrief(result.brief);
-    } catch (err) {
-      setBriefError(err instanceof Error ? err.message : 'Nie udało się wygenerować przeglądu dnia.');
+      if (mountedRef.current) setBrief(result.brief);
+    } catch {
+      // Przekroczony limit żądania nie znaczy, że funkcja przestała pracować.
+      // Zamiast ogłaszać porażkę, czekamy na wynik i dopiero brak wyniku
+      // po kwadransie traktujemy jak niepowodzenie.
+      const finished = await waitForBrief(() => mountedRef.current);
+      if (!mountedRef.current) {
+        return;
+      }
+      if (finished) {
+        setBrief(finished);
+      } else {
+        setBriefError(
+          'Przygotowanie przeglądu trwa dłużej niż zwykle. Wróć za kilka minut, będzie gotowy.'
+        );
+      }
     } finally {
-      setBriefGenerating(false);
+      if (mountedRef.current) setBriefGenerating(false);
     }
   }, []);
 
@@ -183,9 +237,11 @@ export default function MorningBriefScreen() {
           ) : (
             <View style={styles.briefEmpty}>
               <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
-                {brief?.status === 'error'
-                  ? 'Ostatnia próba przygotowania przeglądu nie powiodła się.'
-                  : 'Nie ma jeszcze przeglądu na dziś.'}
+                {briefGenerating
+                  ? 'Przygotowuję przegląd dnia. Potrafi to zająć kilkanaście minut, możesz zostawić ten ekran otwarty.'
+                  : brief?.status === 'error'
+                    ? 'Ostatnia próba przygotowania przeglądu nie powiodła się.'
+                    : 'Nie ma jeszcze przeglądu na dziś.'}
               </ThemedText>
               <PrimaryButton
                 title={briefGenerating ? 'Generuję...' : 'Wygeneruj przegląd'}
