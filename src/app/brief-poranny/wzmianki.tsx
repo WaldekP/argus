@@ -241,7 +241,15 @@ export default function MentionsScreen() {
                   <ThemedText type="small" themeColor="textSecondary" numberOfLines={3}>
                     {mention.snippet}
                   </ThemedText>
-                ) : null}
+                ) : (
+                  // Brand24 nie oddaje treści wpisów z X, Facebooka i Instagrama
+                  // (regulaminy tych platform), a bez tego zdania karta wygląda
+                  // na uszkodzoną, zamiast na kompletną informację o tym, że
+                  // treść trzeba przeczytać u źródła.
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Treści tego wpisu nie udostępnia monitoring. Otwórz źródło, żeby ją zobaczyć.
+                  </ThemedText>
+                )}
               </ThemedView>
             </Pressable>
           ))

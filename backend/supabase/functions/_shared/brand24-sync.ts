@@ -68,18 +68,33 @@ function publishedAt(m: Brand24Mention): string | null {
   return `${m.date}T${time}:00+02:00`;
 }
 
+/** Nazwy platform, dla ktorych Brand24 nie oddaje ani tytulu, ani tresci. */
+const PLATFORM_LABEL: Record<string, string> = {
+  x: "Wpis na X",
+  twitter: "Wpis na X",
+  facebook: "Wpis na Facebooku",
+  instagram: "Wpis na Instagramie",
+};
+
 /**
- * Tytuł wzmianki — zawsze niepusty (mentions.title jest NOT NULL). Wzmianki z X
- * mają title i content null, więc gdy brak tytułu, budujemy go z treści albo
- * z etykiety źródła.
+ * Tytuł wzmianki — zawsze niepusty (mentions.title jest NOT NULL). Kolejność:
+ * prawdziwy tytuł, początek treści, etykieta platformy.
+ *
+ * Dla X, Facebooka i Instagrama Brand24 zwraca `title` i `content` puste
+ * (regulaminy tych platform), więc trzecia gałąź to nie awaria, tylko stały
+ * stan rzeczy dla większości wzmianek z social mediów. Etykieta ma nazywać
+ * rzecz po imieniu („Wpis na X"), a nie wyglądać jak uszkodzony rekord
+ * („Wzmianka (x)"), bo użytkownik i tak musi kliknąć w źródło.
  */
 function mentionTitle(m: Brand24Mention): string {
   const t = typeof m.title === "string" ? m.title.trim() : "";
   if (t) return t;
   const c = typeof m.content === "string" ? m.content.trim() : "";
   if (c) return c.length > 120 ? `${c.slice(0, 117)}...` : c;
-  const label = m.category || m.host || "brak treści";
-  return `Wzmianka (${label})`;
+  const platforma = (m.category ?? "").trim().toLowerCase();
+  if (PLATFORM_LABEL[platforma]) return PLATFORM_LABEL[platforma];
+  const host = (m.host ?? "").trim().replace(/^https?:\/\//, "");
+  return host ? `Wzmianka w ${host}` : "Wzmianka bez treści";
 }
 
 /**
