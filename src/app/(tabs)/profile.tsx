@@ -157,10 +157,12 @@ export default function ProfileScreen() {
               <View key={user.user_id} style={styles.activityRow}>
                 <ThemedText type="small">{user.email ?? 'Konto bez adresu'}</ThemedText>
                 <ThemedText type="small" themeColor="textSecondary">
-                  {polishPlural(user.logins, 'logowanie', 'logowania', 'logowań')}
-                  {user.last_login_at
-                    ? `, ostatnie ${formatLongDate(user.last_login_at)}`
-                    : ', jeszcze ani razu'}
+                  {user.logins === 0
+                    ? 'Jeszcze ani razu'
+                    : `${polishPlural(user.logins, 'logowanie', 'logowania', 'logowań')}` +
+                      (user.last_login_at
+                        ? `, ostatnie ${formatLongDate(user.last_login_at)}`
+                        : '')}
                 </ThemedText>
               </View>
             ))
