@@ -53,7 +53,9 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --import ./test/setup.mts --test \"src/**/*.test.ts\"",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "check": "npm run typecheck && npm run lint && npm test",
+    "build:web": "expo export --platform web && node -e \"require('fs').copyFileSync('scripts/vercel-static.json', 'dist/vercel.json')\"",
+    "deploy:web": "npm run build:web && npx --yes vercel@latest deploy dist --prod"
   },
   "private": true
 }
