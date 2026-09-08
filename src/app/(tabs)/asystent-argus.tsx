@@ -416,18 +416,25 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: Spacing.four,
   },
+  // Na telefonie dwie piguły akcji potrzebują ponad 300 px, a `flex: 1` bez
+  // dolnej granicy pozwalał zjechać kolumnie z tytułem do kilkunastu pikseli:
+  // „Asystent Argus" łamał się po jednej literze na linię i wypychał rozmowę
+  // poza ekran. `minWidth` wymusza zawinięcie akcji do drugiego rzędu.
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
     gap: Spacing.three,
     paddingBottom: Spacing.three,
   },
   headerText: {
     flex: 1,
+    minWidth: 220,
     gap: Spacing.two,
   },
   headerActions: {
     flexDirection: 'row',
+    flexShrink: 0,
     gap: Spacing.two,
     paddingTop: Spacing.one,
   },
