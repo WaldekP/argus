@@ -17,6 +17,7 @@ import {
   edgeEndpoint,
   GENERIC_ERROR,
   LONG_TIMEOUT_MS,
+  NETWORK_ERROR,
   TIMEOUT_ERROR,
 } from '@/lib/api/client';
 
@@ -84,16 +85,29 @@ export async function streamAssistantAnswer(
   const timer = setTimeout(() => controller.abort(), LONG_TIMEOUT_MS);
 
   try {
-    const response = await expoFetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        operation: 'ask',
-        question,
-        ...(conversationId ? { conversation_id: conversationId } : {}),
-      }),
-      signal: controller.signal,
-    });
+    let response: Awaited<ReturnType<typeof expoFetch>>;
+    try {
+      response = await expoFetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          operation: 'ask',
+          question,
+          ...(conversationId ? { conversation_id: conversationId } : {}),
+        }),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      // Awaria samego transportu, a nie odpowiedź z błędem: zerwana sieć,
+      // przekroczony limit czasu albo odpowiedź bez nagłówków CORS (tak wygląda
+      // blokada zapory Cloudflare przed dotarciem do funkcji). `callEdge` ma tę
+      // warstwę od początku, strumień asystenta jej nie miał, więc do interfejsu
+      // wychodziło surowe „Failed to fetch” prosto z przeglądarki.
+      if (err instanceof Error && err.name === 'AbortError') {
+        throw new Error(TIMEOUT_ERROR);
+      }
+      throw new Error(NETWORK_ERROR);
+    }
 
     // Błąd przed startem strumienia przychodzi zwykłą kopertą JSON.
     if (!response.ok || !response.body) {

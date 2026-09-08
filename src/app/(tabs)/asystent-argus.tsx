@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { EyeDot } from '@/components/eye-dot';
+import { MarkdownText } from '@/components/markdown-text';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -36,6 +37,15 @@ import {
  *   - historia rozmów: `cid` (wczytanie wątku z bazy).
  * Projekt: docs/superpowers/specs/2026-07-27-asystent-argus-design.md
  */
+/**
+ * Ten sam limit, co w `argus-assistant` (QUESTION_MAX_LENGTH). Do tej pory
+ * istniał wyłącznie na serwerze, więc ktoś, kto wkleił dłuższy materiał,
+ * dowiadywał się o limicie dopiero po wysłaniu, komunikatem o błędzie.
+ */
+const QUESTION_MAX_LENGTH = 6000;
+/** Od tego miejsca pokazujemy licznik, żeby nie straszyć nim przy krótkich pytaniach. */
+const QUESTION_COUNTER_FROM = 4800;
+
 export default function AssistantScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -50,6 +60,12 @@ export default function AssistantScreen() {
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
   const scrollRef = useRef<ScrollView>(null);
+  /**
+   * Czy użytkownik ogląda koniec rozmowy. Gdy sam przewinął wyżej, żeby coś
+   * doczytać, nie ściągamy go z powrotem na dół przy każdym fragmencie
+   * strumienia.
+   */
+  const nearBottomRef = useRef(true);
   const mountedRef = useRef(true);
   /** Id wątku w refie: onMeta strumienia musi być widoczne synchronicznie. */
   const conversationIdRef = useRef<string | null>(null);
@@ -206,6 +222,16 @@ export default function AssistantScreen() {
     router.setParams({ cid: '', q: '', ts: '' });
   };
 
+  // `onContentSizeChange` ze `scrollToEnd` na web nie zadziałał ani razu:
+  // rozmowa stała na pozycji zero, mając kilka tysięcy pikseli treści poniżej
+  // ekranu, więc odpowiedź trzeba było doczytywać ręcznie. Przewijamy więc na
+  // każdą zmianę listy wiadomości, czyli także na każdy fragment strumienia.
+  useEffect(() => {
+    if (nearBottomRef.current) {
+      scrollRef.current?.scrollToEnd({ animated: false });
+    }
+  }, [messages]);
+
   const canSend = input.trim().length > 0 && !thinking;
 
   return (
@@ -261,7 +287,12 @@ export default function AssistantScreen() {
             ref={scrollRef}
             style={styles.messages}
             contentContainerStyle={styles.messagesContent}
-            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+            onScroll={({ nativeEvent }) => {
+              const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+              nearBottomRef.current =
+                contentSize.height - contentOffset.y - layoutMeasurement.height < 80;
+            }}
+            scrollEventThrottle={64}
             keyboardShouldPersistTaps="handled">
             {messages.length === 0 && !thinking ? (
               <View style={styles.emptyState}>
@@ -300,10 +331,10 @@ export default function AssistantScreen() {
                       Argus analizuje
                     </ThemedText>
                   </View>
+                ) : message.role === 'assistant' ? (
+                  <MarkdownText content={message.content} />
                 ) : (
-                  <ThemedText themeColor={message.role === 'user' ? 'onAccent' : 'text'}>
-                    {message.content}
-                  </ThemedText>
+                  <ThemedText themeColor="onAccent">{message.content}</ThemedText>
                 )}
               </View>
             ))}
@@ -324,7 +355,8 @@ export default function AssistantScreen() {
             ) : null}
           </ScrollView>
 
-          <View style={[styles.inputRow, { borderTopColor: theme.border }]}>
+          <View style={[styles.inputArea, { borderTopColor: theme.border }]}>
+            <View style={styles.inputRow}>
             <TextInput
               value={input}
               onChangeText={setInput}
@@ -339,6 +371,7 @@ export default function AssistantScreen() {
                 },
               ]}
               multiline
+              maxLength={QUESTION_MAX_LENGTH}
               accessibilityLabel="Pytanie do asystenta Argusa"
             />
             <Pressable
@@ -357,6 +390,14 @@ export default function AssistantScreen() {
                 color={canSend ? theme.onAccent : theme.textSecondary}
               />
             </Pressable>
+            </View>
+            {input.length >= QUESTION_COUNTER_FROM ? (
+              <ThemedText
+                type="small"
+                themeColor={input.length >= QUESTION_MAX_LENGTH ? 'error' : 'textSecondary'}>
+                {input.length} z {QUESTION_MAX_LENGTH} znaków
+              </ThemedText>
+            ) : null}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -450,13 +491,16 @@ const styles = StyleSheet.create({
   errorBlock: {
     gap: Spacing.two,
   },
+  inputArea: {
+    borderTopWidth: 1,
+    paddingTop: Spacing.three,
+    paddingBottom: Spacing.three,
+    gap: Spacing.one,
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.two,
-    borderTopWidth: 1,
-    paddingTop: Spacing.three,
-    paddingBottom: Spacing.three,
   },
   input: {
     flex: 1,
