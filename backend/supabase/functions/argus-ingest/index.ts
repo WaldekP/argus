@@ -13,7 +13,13 @@ import { jsonResponse } from "../_shared/types.ts";
 import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
-import { refreshOnet, refreshRmf, refreshWp } from "../_shared/media/refresh.ts";
+import {
+  refreshOnet,
+  refreshPolsat,
+  refreshRmf,
+  refreshTvn24,
+  refreshWp,
+} from "../_shared/media/refresh.ts";
 import { loadKnowledgeDocs, type KnowledgeRecord } from "../_shared/knowledge.ts";
 import {
   setupBrand24,
@@ -105,6 +111,8 @@ Deno.serve(async (req) => {
           onet: refreshOnet,
           wp: refreshWp,
           rmf24: refreshRmf,
+          tvn24: refreshTvn24,
+          polsatnews: refreshPolsat,
         } as const;
         const source = typeof body?.source === "string" ? body.source : "onet";
         const refresh = refreshers[source as keyof typeof refreshers];
@@ -163,12 +171,19 @@ Deno.serve(async (req) => {
       }
       // Sync wzmianek Brand24: bez tenant_id przebiega po wszystkich tenantach
       // z konfiguracją (cron), z tenant_id tylko jeden.
+      // Bez `date_from`/`date_to` bierze ostatnie 7 dni (tryb cronowy). Zakres
+      // podaje sie przy nadrabianiu historii; Brand24 przyjmuje max 31 dni na
+      // wywolanie, wiec kwartal wstecz to kilka kolejnych wywolan.
       case "brand24_sync": {
+        const okno = {
+          dateFrom: typeof body?.date_from === "string" ? body.date_from : undefined,
+          dateTo: typeof body?.date_to === "string" ? body.date_to : undefined,
+        };
         if (typeof body?.tenant_id === "string" && body.tenant_id) {
-          const result = await syncBrand24Tenant(supabase, body.tenant_id);
+          const result = await syncBrand24Tenant(supabase, body.tenant_id, okno);
           return jsonResponse({ ok: true, data: result });
         }
-        const results = await syncBrand24AllTenants(supabase);
+        const results = await syncBrand24AllTenants(supabase, okno);
         return jsonResponse({
           ok: true,
           data: {

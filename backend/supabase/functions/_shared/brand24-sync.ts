@@ -25,8 +25,10 @@ import {
 
 /** Nazwa syntetycznego hasła-rodzica pod wzmianki Brand24. */
 const PARENT_PHRASE = "Brand24 (monitoring)";
-/** Okno pobierania: ostatnie N dni (Data API pozwala max 31). */
+/** Okno pobierania w trybie cronowym: ostatnie N dni. */
 const WINDOW_DAYS = 7;
+/** Twardy limit Data API na jedno wywolanie. */
+const MAX_WINDOW_DAYS = 31;
 /** Ile wzmianek pobieramy i przetwarzamy na jedno wywołanie. */
 const MAX_MENTIONS_PER_RUN = 50;
 /** Ile wzmianek klasyfikujemy jednym wywołaniem Haiku. */
@@ -237,9 +239,44 @@ async function classifyBatch(
 // Sync jednego tenanta
 // ---------------------------------------------------------------------------
 
+/**
+ * Okno pobierania. Bez podania zakresu bierzemy ostatnie WINDOW_DAYS dni, czyli
+ * tryb cronowy. Zakres podaje się przy nadrabianiu historii: Data API przyjmuje
+ * najwyżej 31 dni na wywołanie, więc kwartał wstecz to kilka kolejnych wywołań,
+ * a nie jedno duże.
+ */
+export interface Brand24Window {
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Zwraca zakres do zapytania albo rzuca, gdy jest bez sensu. */
+function resolveWindow(okno: Brand24Window): { dateFrom: string; dateTo: string } {
+  const dateFrom = okno.dateFrom ?? daysAgo(WINDOW_DAYS);
+  const dateTo = okno.dateTo ?? today();
+  if (!DATE_RE.test(dateFrom) || !DATE_RE.test(dateTo)) {
+    throw new Error("Zakres dat: oczekuje RRRR-MM-DD w date_from i date_to.");
+  }
+  if (dateFrom > dateTo) {
+    throw new Error("Zakres dat: date_from jest po date_to.");
+  }
+  const dni = Math.round(
+    (Date.parse(`${dateTo}T00:00:00Z`) - Date.parse(`${dateFrom}T00:00:00Z`)) / 86_400_000,
+  );
+  if (dni > MAX_WINDOW_DAYS) {
+    throw new Error(
+      `Zakres dat: Brand24 przyjmuje najwyzej ${MAX_WINDOW_DAYS} dni na wywolanie, dostal ${dni}.`,
+    );
+  }
+  return { dateFrom, dateTo };
+}
+
 export async function syncBrand24Tenant(
   supabase: SupabaseClient,
   tenantId: string,
+  okno: Brand24Window = {},
 ): Promise<Brand24SyncResult> {
   const base: Brand24SyncResult = {
     tenant_id: tenantId,
@@ -274,9 +311,10 @@ export async function syncBrand24Tenant(
     }
 
     // 1. Pobranie porcji wzmianek (jedna strona, ograniczona liczbą na przebieg).
+    const zakres = resolveWindow(okno);
     const page = await getMentions(proj.project_id, {
-      dateFrom: daysAgo(WINDOW_DAYS),
-      dateTo: today(),
+      dateFrom: zakres.dateFrom,
+      dateTo: zakres.dateTo,
       limit: MAX_MENTIONS_PER_RUN,
     });
     base.fetched = page.mentions.length;
@@ -411,6 +449,7 @@ async function markSynced(
 
 export async function syncBrand24AllTenants(
   supabase: SupabaseClient,
+  okno: Brand24Window = {},
 ): Promise<Brand24SyncResult[]> {
   const { data, error } = await supabase
     .from("brand24_projects")
@@ -421,7 +460,7 @@ export async function syncBrand24AllTenants(
 
   const results: Brand24SyncResult[] = [];
   for (const row of (data ?? []) as { tenant_id: string }[]) {
-    results.push(await syncBrand24Tenant(supabase, row.tenant_id));
+    results.push(await syncBrand24Tenant(supabase, row.tenant_id, okno));
   }
   return results;
 }

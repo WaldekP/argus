@@ -6,6 +6,8 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crawlOnet } from "./onet.ts";
 import { crawlWp } from "./wp.ts";
 import { crawlRmf } from "./rmf24.ts";
+import { crawlTvn24 } from "./tvn24.ts";
+import { crawlPolsat } from "./polsatnews.ts";
 import { ensureOutlet, persistJournalists, type OutletSeed } from "./persist.ts";
 
 const ONET_SEED: OutletSeed = {
@@ -75,4 +77,49 @@ export async function refreshRmf(
   });
   const result = await persistJournalists(supabase, outletId, scraped);
   return { source: "rmf24", ...result };
+}
+
+const TVN24_SEED: OutletSeed = {
+  name: "TVN24",
+  type: "tv",
+  domain: "tvn24.pl",
+  // TVN24 nie publikuje osobistych adresow na profilach autorow, wiec wzorca
+  // nie ma (zasada: pattern dopiero po potwierdzeniu na opublikowanym adresie).
+  emailPattern: "",
+  authorUrlPattern: "https://tvn24.pl/autorzy/{slug}",
+};
+
+export async function refreshTvn24(
+  supabase: SupabaseClient,
+  opts: { sections?: string[]; maxAuthors?: number } = {},
+) {
+  const outletId = await ensureOutlet(supabase, TVN24_SEED);
+  const scraped = await crawlTvn24({
+    sections: opts.sections,
+    maxAuthors: opts.maxAuthors ?? 60,
+  });
+  const result = await persistJournalists(supabase, outletId, scraped);
+  return { source: "tvn24", ...result };
+}
+
+const POLSAT_SEED: OutletSeed = {
+  name: "Polsat News",
+  type: "tv",
+  domain: "polsatnews.pl",
+  // Jak wyzej: brak opublikowanych adresow osobistych, wiec brak wzorca.
+  emailPattern: "",
+  authorUrlPattern: "https://www.polsatnews.pl/autor/{slug}/",
+};
+
+export async function refreshPolsat(
+  supabase: SupabaseClient,
+  opts: { sections?: string[]; maxAuthors?: number } = {},
+) {
+  const outletId = await ensureOutlet(supabase, POLSAT_SEED);
+  const scraped = await crawlPolsat({
+    sections: opts.sections,
+    maxAuthors: opts.maxAuthors ?? 60,
+  });
+  const result = await persistJournalists(supabase, outletId, scraped);
+  return { source: "polsatnews", ...result };
 }
