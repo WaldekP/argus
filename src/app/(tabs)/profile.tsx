@@ -12,6 +12,9 @@ import { ThemedView } from '@/components/themed-view';
 import { FontFamily, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { getMpDetails, readMpIdentity, type MpDetails } from '@/lib/api/onboarding';
+import { getLoginStats, type LoginStats } from '@/lib/api/tenant';
+import { formatLongDate } from '@/lib/format-time';
+import { polishPlural } from '@/lib/format';
 import { signOut, useAuthStore } from '@/store/auth';
 import { resumeOnboarding, useOnboardingStore } from '@/store/onboarding';
 import { toggleThemeMode, useThemeMode } from '@/store/theme';
@@ -33,6 +36,9 @@ export default function ProfileScreen() {
   const [mpDetails, setMpDetails] = useState<MpDetails | null>(null);
   const [mpDetailsLoading, setMpDetailsLoading] = useState(true);
   const [mpDetailsError, setMpDetailsError] = useState<string | null>(null);
+
+  const [loginStats, setLoginStats] = useState<LoginStats | null>(null);
+  const [loginStatsError, setLoginStatsError] = useState<string | null>(null);
 
   const handleToggleTheme = () => {
     void toggleThemeMode();
@@ -66,6 +72,25 @@ export default function ProfileScreen() {
       active = false;
     };
   }, [mpId]);
+
+  // Licznik logowan calego biura. Pobierany raz przy wejsciu w Profil:
+  // to telemetria pilotazu, nie dane, ktore musza byc swieze co sekunde.
+  useEffect(() => {
+    let active = true;
+    getLoginStats()
+      .then((stats) => {
+        if (active) setLoginStats(stats);
+      })
+      .catch((err: unknown) => {
+        if (!active) return;
+        setLoginStatsError(
+          err instanceof Error ? err.message : 'Nie udało się pobrać licznika logowań.'
+        );
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleResumeOnboarding = async () => {
     await resumeOnboarding();
@@ -118,6 +143,33 @@ export default function ProfileScreen() {
           defaultQuery={typeof profile?.full_name === 'string' ? profile.full_name : ''}
           subjectId={typeof profile?.id === 'string' ? profile.id : null}
         />
+
+        <ThemedView
+          type="backgroundElement"
+          style={[styles.settingCard, styles.activityCard, { borderColor: theme.border }]}>
+          <ThemedText style={styles.settingTitle}>Logowania</ThemedText>
+          {loginStatsError ? (
+            <ThemedText type="small" themeColor="error">
+              {loginStatsError}
+            </ThemedText>
+          ) : loginStats ? (
+            loginStats.users.map((user) => (
+              <View key={user.user_id} style={styles.activityRow}>
+                <ThemedText type="small">{user.email ?? 'Konto bez adresu'}</ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {polishPlural(user.logins, 'logowanie', 'logowania', 'logowań')}
+                  {user.last_login_at
+                    ? `, ostatnie ${formatLongDate(user.last_login_at)}`
+                    : ', jeszcze ani razu'}
+                </ThemedText>
+              </View>
+            ))
+          ) : (
+            <ThemedText type="small" themeColor="textSecondary">
+              Wczytywanie licznika.
+            </ThemedText>
+          )}
+        </ThemedView>
 
         <ThemedView
           type="backgroundElement"
@@ -182,6 +234,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: Radius.card,
     padding: Spacing.four,
+  },
+  activityCard: {
+    gap: Spacing.two,
+  },
+  activityRow: {
+    gap: Spacing.half,
   },
   settingRow: {
     flexDirection: 'row',

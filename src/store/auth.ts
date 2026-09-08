@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
+import { recordLogin } from '@/lib/api/tenant';
 import { supabase } from '@/lib/supabase';
 import { resetOnboarding } from '@/store/onboarding';
 
@@ -81,7 +82,16 @@ export async function signIn(email: string, password: string): Promise<AuthResul
     email: email.trim(),
     password,
   });
-  return { error: error ? toPolishAuthError(error) : null };
+  if (error) {
+    return { error: toPolishAuthError(error) };
+  }
+
+  // Licznik logowan pilotazu. Celowo tutaj, a nie w onAuthStateChange:
+  // zdarzenie SIGNED_IN leci takze przy odtworzeniu sesji z pamieci i przy
+  // odswiezeniu tokena, wiec licznik zliczalby powroty do karty przegladarki
+  // jako kolejne logowania.
+  recordLogin();
+  return { error: null };
 }
 
 export async function signUp(email: string, password: string): Promise<AuthResult> {

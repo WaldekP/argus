@@ -28,6 +28,7 @@ export type EdgeFunctionName =
   | 'argus-morning-brief'
   | 'argus-onboarding'
   | 'argus-registry'
+  | 'argus-tenant'
   | 'argus-topics';
 
 /** Zwykły odczyt albo zapis. */

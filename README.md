@@ -34,14 +34,17 @@ w przeglądarce, bez instalowania czegokolwiek. Hosting: Vercel, deploy z gotowe
 buildu (nie z repozytorium), bo dzięki temu klucze `EXPO_PUBLIC_*` biorą się
 z lokalnego `.env` i nie trzeba ich duplikować w panelu Vercela.
 
+Stały adres pilotażu: **https://argus-pilotaz.vercel.app**
+
 ```bash
 npm run deploy:web
 ```
 
-Skrypt robi trzy rzeczy: `expo export --platform web` do katalogu `dist`,
-kopiuje `scripts/vercel-static.json` jako `dist/vercel.json` (czyste adresy,
-przekierowanie tras dynamicznych na `index.html`, nagłówek `X-Robots-Tag:
-noindex` i cache na `_expo/`), po czym wysyła `dist` na Vercela.
+Skrypt robi cztery rzeczy: `expo export --platform web` do katalogu `dist`,
+dokłada `dist/vercel.json` i dowiązanie do projektu (`scripts/prepare-web-deploy.mjs`),
+wysyła `dist` na Vercela i przepina stały adres na nowe wdrożenie
+(`scripts/deploy-web.mjs`). Oba dokładane pliki muszą powstawać po eksporcie,
+bo `expo export` kasuje cały katalog `dist` razem z `dist/.vercel/`.
 
 Pierwsze uruchomienie prosi o zalogowanie do Vercela (`vercel login`). Przed
 deployem warto puścić `npm run check`, bo ani `expo export`, ani Vercel nie
