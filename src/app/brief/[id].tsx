@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, FontSize, KickerStyle, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics/posthog';
 import {
   getBrief,
   markQuestionAsked,
@@ -45,6 +46,11 @@ export default function BriefDetailScreen() {
         setBrief(result.brief);
         setQuestions(result.questions);
         setRated(result.brief.rating);
+        track('brief_viewed', {
+          status: result.brief.status,
+          pytan: result.questions.length,
+          oceniony: result.brief.rating !== null,
+        });
       })
       .catch((err: unknown) => {
         if (!active) return;
@@ -62,6 +68,7 @@ export default function BriefDetailScreen() {
     async (rating: number) => {
       if (!brief) return;
       setRated(rating);
+      track('brief_rated', { ocena: rating });
       try {
         await rateBrief(brief.id, rating);
       } catch {
@@ -74,6 +81,8 @@ export default function BriefDetailScreen() {
 
   const handleAsked = useCallback(async (question: BriefQuestion) => {
     const next = !question.was_asked;
+    // Sygnal jakosci przewidywan: ile z pytan modelu naprawde padlo w studiu.
+    track('brief_question_feedback', { padlo: next });
     setQuestions((current) =>
       current.map((q) => (q.id === question.id ? { ...q, was_asked: next } : q))
     );

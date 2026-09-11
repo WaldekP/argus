@@ -111,6 +111,7 @@ export default function WatchedTermsScreen() {
     setError(null);
     try {
       const result = await syncMentions();
+      track('mentions_synced', { nowych: result.inserted });
       await reload();
       setSyncNote(
         result.inserted > 0

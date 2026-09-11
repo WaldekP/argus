@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -24,6 +24,7 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics/posthog';
 import { listJournalists, type JournalistListItem } from '@/lib/api/media';
 
 type OutletGroup = {
@@ -122,6 +123,23 @@ export default function JournalistsScreen() {
   }, [journalists, query]);
 
   const totalShown = groups.reduce((sum, group) => sum + group.journalists.length, 0);
+
+  /**
+   * `media_searched` po zatrzymaniu pisania, nie po kazdym znaku.
+   *
+   * Wysylamy dlugosc frazy i liczbe trafien, nigdy samej frazy: ludzie szukaja
+   * tu po nazwiskach, a to dane osobowe, ktore do odpowiedzi na pytanie
+   * „czy baza dziennikarzy jest uzywana i czy cokolwiek znajduje" nie sa
+   * potrzebne.
+   */
+  useEffect(() => {
+    const fraza = query.trim();
+    if (fraza.length < 2) return;
+    const id = setTimeout(() => {
+      track('media_searched', { dlugosc: fraza.length, wynikow: totalShown });
+    }, 1200);
+    return () => clearTimeout(id);
+  }, [query, totalShown]);
 
   return (
     <ThemedView style={styles.screen}>

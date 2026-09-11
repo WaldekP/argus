@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, FontSize, KickerStyle, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics/posthog';
 import { createBrief } from '@/lib/api/brief';
 import { listJournalists, type JournalistListItem } from '@/lib/api/media';
 
@@ -66,6 +67,13 @@ export default function NewBriefScreen() {
         topic: topic.trim(),
         ...(selected ? { journalist_id: selected.id } : {}),
         ...(!selected && manualName.trim() ? { journalist_name: manualName.trim() } : {}),
+      });
+      // North star produktu to liczba briefow tygodniowo per tenant, wiec to
+      // jest najwazniejsze zdarzenie w calej aplikacji. `zrodlo` rozroznia
+      // wejscie z Pulpitu od drogi przez zakladke Analizy.
+      track('brief_created', {
+        z_dziennikarzem: Boolean(selected) || manualName.trim().length > 0,
+        z_bazy: Boolean(selected),
       });
       router.replace(`/brief/${result.brief.id}`);
     } catch (err) {
