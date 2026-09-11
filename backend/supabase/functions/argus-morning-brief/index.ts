@@ -72,6 +72,38 @@ async function opList(supabase: SupabaseClient, tenantId: string) {
   return { briefs: data ?? [] };
 }
 
+/**
+ * Slad po kazdej probie generacji w access_logs.
+ *
+ * Powod: brief dnia trzyma w wierszu tylko OSTATNI zapis, wiec nieudana proba,
+ * po ktorej poszla udana, nie zostawiala zadnego sladu. Przy zgloszeniu
+ * "brief nie dziala" nie bylo czego szukac: ani kto kliknal, ani czy sie udalo,
+ * ani ile to trwalo. Logi Edge Functions na tym projekcie nie odpowiadaja.
+ *
+ * `resource` trzyma wynik i czas, bo to dwie rzeczy, ktore realnie tlumacza
+ * wrazenie uzytkownika: czy padlo i czy czekal minute, czy siedem.
+ */
+async function logGeneration(
+  supabase: SupabaseClient,
+  tenantId: string,
+  userId: string | null,
+  action: string,
+  status: "ready" | "error" | "ok",
+  startedAt: number,
+): Promise<void> {
+  const sekundy = Math.round((Date.now() - startedAt) / 1000);
+  try {
+    await supabase.from("access_logs").insert({
+      tenant_id: tenantId,
+      user_id: userId,
+      action,
+      resource: `${status === "error" ? "blad" : "ok"} ${sekundy}s`,
+    });
+  } catch {
+    // Audyt nie moze wywrocic generacji briefu.
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -91,10 +123,14 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
+      const start = Date.now();
       const results = await generateForAllTenants(
         supabase,
         optionalDate(body.date),
       );
+      for (const r of results) {
+        await logGeneration(supabase, r.tenant_id, null, "morning_brief_generate", r.status, start);
+      }
       return jsonResponse({ ok: true, data: { tenants: results.length, results } });
     } catch (err) {
       return serverErrorResponse("argus-morning-brief", err);
@@ -113,12 +149,23 @@ Deno.serve(async (req) => {
       case "list":
         return jsonResponse({ ok: true, data: await opList(supabase, tenantId) });
       case "generate": {
+        const start = Date.now();
         const result = await generateForTenant(supabase, tenantId, today());
+        await logGeneration(
+          supabase,
+          tenantId,
+          user.id,
+          "morning_brief_generate",
+          result.status,
+          start,
+        );
         return jsonResponse({ ok: true, data: result });
       }
       case "tweets": {
+        const start = Date.now();
         const date = optionalDate(body.date) ?? today();
         const result = await generateTweetsForTenant(supabase, tenantId, date);
+        await logGeneration(supabase, tenantId, user.id, "morning_brief_tweets", "ok", start);
         return jsonResponse({ ok: true, data: result });
       }
       default:

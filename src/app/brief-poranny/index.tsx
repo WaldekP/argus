@@ -215,6 +215,17 @@ export default function MorningBriefScreen() {
             ) : null}
           </View>
 
+          {briefGenerating && brief?.status === 'ready' ? (
+            // Samo kręcące się kółko przy przycisku nie mówi nic o tym, jak długo
+            // to potrwa, a generacja zajmuje około minuty. Przy zgłoszeniu
+            // „brief nie działa" okazało się, że użytkownik patrzył właśnie na
+            // nieruchomy ekran. Stary przegląd zostaje pod spodem czytelny.
+            <ThemedText type="small" themeColor="textSecondary">
+              Przygotowuję nowy przegląd, zwykle trwa to około minuty. Poprzedni zostaje
+              widoczny, dopóki nowy nie będzie gotowy.
+            </ThemedText>
+          ) : null}
+
           {briefError ? (
             <View style={[styles.alert, { borderLeftColor: theme.error }]}>
               <ThemedText type="small">{briefError}</ThemedText>
@@ -238,7 +249,7 @@ export default function MorningBriefScreen() {
             <View style={styles.briefEmpty}>
               <ThemedText type="small" themeColor="textSecondary" style={styles.centeredText}>
                 {briefGenerating
-                  ? 'Przygotowuję przegląd dnia. Potrafi to zająć kilkanaście minut, możesz zostawić ten ekran otwarty.'
+                  ? 'Przygotowuję przegląd dnia. Zwykle trwa to około minuty, możesz zostawić ten ekran otwarty.'
                   : brief?.status === 'error'
                     ? 'Ostatnia próba przygotowania przeglądu nie powiodła się.'
                     : 'Nie ma jeszcze przeglądu na dziś.'}
