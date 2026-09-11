@@ -23,11 +23,9 @@
 
 import type { ScrapedJournalist } from "./types.ts";
 import { mergeTopics } from "./topics.ts";
+import { fetchText, sleep } from "./html.ts";
 
 const HOST = "https://www.polsatnews.pl";
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 /**
  * Sekcje-ziarna. UWAGA: polsatnews.pl NIE ma sekcji /polityka/, /kraj/ ani
@@ -39,23 +37,6 @@ const UA =
 export const DEFAULT_SECTIONS = ["wiadomosci-najnowsze", "graffiti", "gosc-wydarzen"];
 
 const DELAY_MS = 400;
-
-async function fetchText(url: string): Promise<string | null> {
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "pl" },
-      redirect: "follow",
-    });
-    if (!r.ok) return null;
-    return await r.text();
-  } catch {
-    return null;
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
 
 /** Artykuly: /<sekcja>/<RRRR-MM-DD>/<slug>/. */
 export function extractArticleUrls(html: string): string[] {

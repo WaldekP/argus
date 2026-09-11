@@ -27,31 +27,12 @@
 
 import type { ScrapedJournalist } from "./types.ts";
 import { mergeTopics } from "./topics.ts";
+import { UA, deburrLatin, fetchText, firstMatch, isCollective, sleep } from "./html.ts";
 
 const HOST = "https://wiadomosci.wp.pl";
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 // Sekcje-ziarna, od ktorych startuje crawl (tam sa linki do artykulow).
 export const DEFAULT_SECTIONS = ["polityka", "swiat", "spoleczenstwo"];
-
-async function fetchText(url: string): Promise<string | null> {
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "pl" },
-      redirect: "follow",
-    });
-    if (!r.ok) return null;
-    return await r.text();
-  } catch {
-    return null;
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
 
 // Artykuly WP: /<slug>-<id>a (sufiks 'a'); 'v' (wideo) i 'k' (kategorie) odpadaja.
 function extractArticleUrls(html: string): string[] {
@@ -64,11 +45,6 @@ function extractArticleUrls(html: string): string[] {
 function extractAuthorRefs(html: string): string[] {
   const re = /(?:https:\/\/wiadomosci\.wp\.pl)?\/autor\/([a-z0-9-]+)\/(\d{6,})/g;
   return [...new Set([...html.matchAll(re)].map((m) => `${m[1]}/${m[2]}`))];
-}
-
-function firstMatch(html: string, re: RegExp): string | null {
-  const m = html.match(re);
-  return m ? m[1] : null;
 }
 
 function stripTags(s: string): string {
@@ -88,19 +64,6 @@ function decodeEntities(s: string): string {
 
 // Domena maili redakcyjnych WP (potwierdzona na publicznych adresach autorow).
 const WP_MAIL_DOMAIN = "grupawp.pl";
-
-// Zbiorowi "autorzy" (redakcja, agencja, materialy prasowe) odpadaja.
-function isCollective(name: string): boolean {
-  return /^(dziennikarze|redakcja|zesp[oó][łl]|agencja|materia[łl])\b/i.test(name);
-}
-
-function deburrLatin(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/ł/g, "l");
-}
 
 export function parseAuthorPage(
   slugId: string,

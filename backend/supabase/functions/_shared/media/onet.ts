@@ -15,31 +15,12 @@
 
 import type { ScrapedJournalist } from "./types.ts";
 import { mergeTopics } from "./topics.ts";
+import { UA, deburrLatin, fetchText, firstMatch, isCollective, sleep } from "./html.ts";
 
 const HOST = "https://wiadomosci.onet.pl";
-const UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 
 // Sekcje-ziarna, od ktorych startuje crawl (tam sa bylines dziennikarzy).
 export const DEFAULT_SECTIONS = ["kraj", "swiat", "gospodarka"];
-
-async function fetchText(url: string): Promise<string | null> {
-  try {
-    const r = await fetch(url, {
-      headers: { "User-Agent": UA, "Accept-Language": "pl" },
-      redirect: "follow",
-    });
-    if (!r.ok) return null;
-    return await r.text();
-  } catch {
-    return null;
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((res) => setTimeout(res, ms));
-}
 
 // Linki do artykulow Onetu maja postac .../<sekcja>/<slug>/<id[5-8 znakow]>.
 function extractArticleUrls(html: string): string[] {
@@ -51,11 +32,6 @@ function extractArticleUrls(html: string): string[] {
 function extractAuthorSlugs(html: string): string[] {
   const re = /href="https:\/\/wiadomosci\.onet\.pl\/autorzy\/([a-z0-9-]+)"/g;
   return [...new Set([...html.matchAll(re)].map((m) => m[1]))];
-}
-
-function firstMatch(html: string, re: RegExp): string | null {
-  const m = html.match(re);
-  return m ? m[1] : null;
 }
 
 function stripTags(s: string): string {
@@ -80,20 +56,6 @@ function sectionOf(url: string): string | null {
 
 // Domena maili redakcyjnych Onetu (potwierdzone na publicznym adresie autora).
 const ONET_MAIL_DOMAIN = "redakcjaonet.pl";
-
-// Zbiorowi "autorzy" (redakcja, agencja, syndykacja) to nie sa dziennikarze
-// do bazy kontaktowej. Odrzucamy po prefiksie nazwy.
-function isCollective(name: string): boolean {
-  return /^(dziennikarze|redakcja|zesp[oó][łl]|agencja|materia[łl])\b/i.test(name);
-}
-
-function deburrLatin(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/ł/g, "l");
-}
 
 export function parseAuthorPage(
   slug: string,
