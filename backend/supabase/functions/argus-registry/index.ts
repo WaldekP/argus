@@ -43,6 +43,7 @@ import {
 } from "../_shared/registry.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
+import { logAccess } from "../_shared/access-log.ts";
 import { z } from "npm:zod";
 
 const SUBJECT_TYPES = ["politician", "journalist", "outlet", "other"] as const;
@@ -76,21 +77,6 @@ function splitName(full: string): { firstName: string; lastName: string } {
     throw new HttpError(400, "Podaj imię i nazwisko, oddzielone spacją.");
   }
   return { firstName: parts[0], lastName: parts[parts.length - 1] };
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 // ---------------------------------------------------------------------------

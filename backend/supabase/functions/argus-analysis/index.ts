@@ -32,6 +32,7 @@ import {
   searchClubs,
   searchMps,
 } from "../_shared/sejm.ts";
+import { logAccess } from "../_shared/access-log.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const MAX_TARGET_MPS = 5;
@@ -255,21 +256,6 @@ async function listDocuments(
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Odczyt dokumentow: ${error.message}`);
   return data ?? [];
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 function normalizeForMatch(text: string): string {

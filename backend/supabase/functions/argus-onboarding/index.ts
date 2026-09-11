@@ -18,6 +18,7 @@ import {
   importMpVotingsForDays,
   searchMps,
 } from "../_shared/sejm.ts";
+import { logAccess } from "../_shared/access-log.ts";
 
 const MAX_INTERVIEW_QUESTIONS = 8;
 const MIN_INTERVIEW_QUESTIONS = 5;
@@ -251,21 +252,6 @@ async function saveInterviewState(
 
 function questionsAsked(state: InterviewState): number {
   return state.transcript.filter((e) => e.role === "assistant").length;
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 function profileContext(profile: {

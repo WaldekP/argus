@@ -25,6 +25,7 @@ import {
 } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
+import { logAccess } from "../_shared/access-log.ts";
 
 const VARIANTS_PER_CALL = 2; // limit zasobow workera Edge Functions
 const CONSISTENCY_MATCH_LIMIT = 8;
@@ -237,21 +238,6 @@ async function saveVariants(
     .eq("tenant_id", tenantId)
     .eq("id", draftId);
   if (error) throw new Error(`Zapis wariantow: ${error.message}`);
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 function profileContext(profile: {

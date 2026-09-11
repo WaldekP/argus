@@ -18,6 +18,7 @@ import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
+import { logAccess } from "../_shared/access-log.ts";
 
 const TITLE_MIN_LENGTH = 5;
 const QUESTION_MIN_LENGTH = 3;
@@ -139,21 +140,6 @@ async function getDocumentsText(
     .join("\n\n---\n\n");
   if (joined.length > CONTEXT_CAP) joined = joined.slice(0, CONTEXT_CAP);
   return joined;
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 function profileContext(profile: {

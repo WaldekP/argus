@@ -13,6 +13,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { syncTenant, type TopicSyncResult } from "../_shared/mentions.ts";
 import { syncBrand24Tenant } from "../_shared/brand24-sync.ts";
+import { logAccess } from "../_shared/access-log.ts";
 
 /** Ile hasel moze miec jeden tenant. Chroni przed zajezdzeniem crona. */
 const MAX_TOPICS_PER_TENANT = 25;
@@ -51,21 +52,6 @@ function clampWindowDays(value: unknown, fallback = 7): number {
   const days = typeof value === "number" ? Math.trunc(value) : Number.NaN;
   if (Number.isNaN(days)) return fallback;
   return Math.min(Math.max(days, 1), 30);
-}
-
-async function logAccess(
-  supabase: SupabaseClient,
-  tenantId: string,
-  userId: string,
-  action: string,
-  resource: string | null,
-) {
-  await supabase.from("access_logs").insert({
-    tenant_id: tenantId,
-    user_id: userId,
-    action,
-    resource,
-  });
 }
 
 // ---------------------------------------------------------------------------
