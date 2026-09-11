@@ -26,7 +26,7 @@ import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
-import { today } from "../_shared/daily-brief.ts";
+import { today } from "../_shared/date.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const QUESTIONS_COUNT = 10;

@@ -22,6 +22,7 @@ import {
   mentionExternalId,
   mentionUrl,
 } from "./brand24.ts";
+import { daysAgo, today } from "./date.ts";
 
 /** Nazwa syntetycznego hasła-rodzica pod wzmianki Brand24. */
 const PARENT_PHRASE = "Brand24 (monitoring)";
@@ -48,16 +49,6 @@ interface ProjectRow {
   account_id: string;
   project_id: string;
   watched_topic_id: string | null;
-}
-
-/** Logiczna „dziś" w strefie Warszawy (data, nie UTC). */
-function today(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Warsaw" });
-}
-
-function daysAgo(days: number): string {
-  const d = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-  return d.toLocaleDateString("en-CA", { timeZone: "Europe/Warsaw" });
 }
 
 /** date + time z Brand24 -> timestamptz. Czas traktujemy jako czas polski. */

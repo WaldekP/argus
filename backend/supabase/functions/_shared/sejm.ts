@@ -8,6 +8,8 @@
 //   GET /sejm/term10/proceedings/{num}/{date}/transcripts/{num}  — tresc (HTML)
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { today } from "./date.ts";
+
 const SEJM_API = "https://api.sejm.gov.pl/sejm/term10";
 const FETCH_TIMEOUT_MS = 25000;
 
@@ -285,13 +287,13 @@ export async function getPastProceedingDays(): Promise<ProceedingDay[]> {
   >("/proceedings");
   if (!proceedings) return [];
 
-  const today = new Date().toISOString().slice(0, 10);
+  const dzis = today();
   const days: ProceedingDay[] = [];
   const seen = new Set<string>();
   for (const p of proceedings) {
     if (!p.number || p.number <= 0) continue; // number 0 = tylko plan
     for (const date of p.dates ?? []) {
-      if (date > today) continue;
+      if (date > dzis) continue;
       const key = `${p.number}:${date}`;
       if (seen.has(key)) continue;
       seen.add(key);

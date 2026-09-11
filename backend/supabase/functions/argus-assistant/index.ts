@@ -15,7 +15,7 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { today } from "../_shared/daily-brief.ts";
+import { today } from "../_shared/date.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 import { describeAiError, jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 

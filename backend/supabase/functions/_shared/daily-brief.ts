@@ -17,6 +17,7 @@ import { fetchBingNews } from "./bing-news.ts";
 import { fetchGoogleNews } from "./google-news.ts";
 import { fetchFromSources, type NewsSource } from "./news-sources.ts";
 import { getProjectEvents, getTopics } from "./brand24.ts";
+import { today } from "./date.ts";
 
 const SOURCES: NewsSource[] = [
   { name: "bing_news", fetch: fetchBingNews },
@@ -450,10 +451,7 @@ export interface GenerateResult {
   error: string | null;
 }
 
-/** Domyślna doba briefu: dziś w strefie Warszawy (data logiczna, nie UTC). */
-export function today(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Warsaw" });
-}
+
 
 /**
  * Wygeneruj (albo zregeneruj) brief dnia dla jednego tenanta. Idempotentne per
