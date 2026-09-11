@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
 import { Colors } from '@/constants/theme';
+import { useScreenTracking } from '@/hooks/use-screen-tracking';
 import { initAnalytics } from '@/lib/analytics/posthog';
 import { initAuth } from '@/store/auth';
 import { loadThemeMode, useThemeStore } from '@/store/theme';
@@ -63,6 +64,8 @@ export default function RootLayout() {
     initAnalytics();
     void loadThemeMode();
   }, []);
+
+  useScreenTracking();
 
   const ready = fontsLoaded && themeLoaded;
 

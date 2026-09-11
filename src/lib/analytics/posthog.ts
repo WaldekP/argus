@@ -28,3 +28,20 @@ export function initAnalytics(): void {
 export function track(event: AnalyticsEvent, properties?: AnalyticsProperties): void {
   client?.capture(event, properties);
 }
+
+/**
+ * Wiąże dalsze zdarzenia z konkretnym kontem.
+ *
+ * Bez tego wszystko leci anonimowo per urządzenie i nie da się odróżnić, co
+ * robi polityk, a co asystent, mimo że dzielą jeden tenant. Wysyłamy wyłącznie
+ * identyfikator konta: adres e-mail to dane osobowe, a do odpowiedzi na
+ * pytanie „jak on z tego korzysta" nie jest potrzebny.
+ */
+export function identifyUser(userId: string | null): void {
+  if (!client) return;
+  if (userId) {
+    client.identify(userId);
+  } else {
+    client.reset();
+  }
+}

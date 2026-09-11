@@ -9,6 +9,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 
+import { identifyUser } from '@/lib/analytics/posthog';
 import { recordLogin } from '@/lib/api/tenant';
 import { supabase } from '@/lib/supabase';
 import { resetOnboarding } from '@/store/onboarding';
@@ -74,6 +75,9 @@ export function initAuth(): void {
 
   supabase.auth.onAuthStateChange((_event, session) => {
     useAuthStore.setState({ session, initialized: true });
+    // Bez tego analityka leci anonimowo per urządzenie i nie da się odróżnić,
+    // co w aplikacji robi polityk, a co asystent, mimo że dzielą jeden tenant.
+    identifyUser(session?.user?.id ?? null);
   });
 }
 

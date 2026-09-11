@@ -49,4 +49,11 @@ export type AnalyticsEvent =
   | 'election_program_downloaded'
   /** Badania opinii (CBOS): wejście w komunikat i wyszukiwanie na liście. */
   | 'knowledge_doc_viewed'
-  | 'badania_searched';
+  | 'badania_searched'
+  /**
+   * Wejście na ekran. Bez tego z analityki wynika, co ktoś kliknął, ale nie
+   * jak się po aplikacji porusza: czego szuka, gdzie zawraca, co pomija.
+   * Ścieżka jest znormalizowana (identyfikatory zamienione na `:id`), więc
+   * nie wynosimy do PostHoga numerów briefów ani analiz.
+   */
+  | 'screen_view';
