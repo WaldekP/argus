@@ -42,20 +42,22 @@ async function buildContext(
   supabase: SupabaseClient,
   tenantId: string,
 ): Promise<{ context: string; usedBrief: boolean }> {
-  const { data: profile } = await supabase
-    .from("politician_profiles")
-    .select(
-      "full_name, style_profile, goals, values, boundaries, bio, party_profile, topic_positions",
-    )
-    .eq("tenant_id", tenantId)
-    .maybeSingle();
-
-  const { data: brief } = await supabase
-    .from("daily_briefs")
-    .select("lead, items, status")
-    .eq("tenant_id", tenantId)
-    .eq("brief_date", today())
-    .maybeSingle();
+  // Profil i brief dnia nie zaleza od siebie, wiec jada rownolegle.
+  const [{ data: profile }, { data: brief }] = await Promise.all([
+    supabase
+      .from("politician_profiles")
+      .select(
+        "full_name, style_profile, goals, values, boundaries, bio, party_profile, topic_positions",
+      )
+      .eq("tenant_id", tenantId)
+      .maybeSingle(),
+    supabase
+      .from("daily_briefs")
+      .select("lead, items, status")
+      .eq("tenant_id", tenantId)
+      .eq("brief_date", today())
+      .maybeSingle(),
+  ]);
 
   const items = (brief?.items ?? []) as BriefItem[];
   const usedBrief = brief?.status === "ready" && items.length > 0;
@@ -193,22 +195,33 @@ async function opAskStream(
     conversationId = data.id;
   }
 
-  // Historia sprzed tego pytania + zapis pytania (przetrwa nawet padnięty stream).
-  const history = await loadHistory(supabase, tenantId, conversationId);
-  const { error: insertError } = await supabase
-    .from("assistant_messages")
-    .insert({
-      tenant_id: tenantId,
-      conversation_id: conversationId,
-      role: "user",
-      content: question,
-    });
-  if (insertError) throw new Error(insertError.message);
+  // Wszystko ponizej lecialo sekwencyjnie i skladalo sie na cisze przed
+  // pierwszym slowem odpowiedzi: historia watku, zapis pytania, profil polityka
+  // z briefem dnia oraz embedding pytania pod wyszukiwanie CBOS. Zadne z tych
+  // czterech nie potrzebuje wyniku pozostalych, wiec czekamy tyle, ile trwa
+  // najwolniejsze, a nie tyle, ile suma.
+  //
+  // Zapis pytania zostaje w tej paczce (a nie leci bez czekania), bo ma
+  // przetrwac nawet padniety stream, a blad zapisu ma przerwac odpowiedz,
+  // zanim model cokolwiek napisze.
+  const [history, zapisPytania, kontekst, opinion] = await Promise.all([
+    loadHistory(supabase, tenantId, conversationId),
+    supabase
+      .from("assistant_messages")
+      .insert({
+        tenant_id: tenantId,
+        conversation_id: conversationId,
+        role: "user",
+        content: question,
+      }),
+    buildContext(supabase, tenantId),
+    // Grounding w realnych badaniach opinii (CBOS) dopasowanych do pytania.
+    // Fail-soft: gdy brak trafien albo dane jeszcze niezaladowane, zwraca "".
+    searchOpinionContext(supabase, question),
+  ]);
+  if (zapisPytania.error) throw new Error(zapisPytania.error.message);
+  const { context, usedBrief } = kontekst;
 
-  const { context, usedBrief } = await buildContext(supabase, tenantId);
-  // Grounding w realnych badaniach opinii (CBOS) dopasowanych do pytania.
-  // Fail-soft: gdy brak trafien albo dane jeszcze niezaladowane, zwraca "".
-  const opinion = await searchOpinionContext(supabase, question);
   const systemPrompt = opinion
     ? `${loadPrompt("assistant-ask")}\n\n## Kontekst polityka i dnia\n\n${context}\n\n${opinion}`
     : `${loadPrompt("assistant-ask")}\n\n## Kontekst polityka i dnia\n\n${context}`;
