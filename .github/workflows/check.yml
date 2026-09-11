@@ -1,10 +1,12 @@
 name: Kontrola jakości
 
-# Bramka przed wdrożeniem. Push na main uruchamia deploy Edge Functions
-# (deploy-functions.yml) i deploy weba na Netlify, a żaden z nich nie
-# sprawdza typów: Metro i esbuild tylko zdejmują typy, `supabase functions
-# deploy` też nie typechecku­je. Bez tego workflow błąd typu jechał na
-# produkcję bez jednego ostrzeżenia.
+# Pełna kontrola jakości repo: front (typy, lint, testy), typy Edge Functions
+# i zgodność promptów ze źródłami. Chodzi na każdym pushu i każdym PR.
+#
+# Uwaga na zakres: ten workflow NIE blokuje wdrożenia. Startuje równolegle
+# z deploy-functions.yml, więc może skończyć się już po wgraniu funkcji.
+# Twardą bramkę przed produkcją trzyma job `typy` wewnątrz deploy-functions.yml.
+# Tutaj łapiemy resztę, czyli to, czego zepsucie nie wywala funkcji od razu.
 
 on:
   push:

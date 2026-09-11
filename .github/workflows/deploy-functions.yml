@@ -3,6 +3,14 @@ name: Deploy Edge Functions
 # Wdraża wszystkie Edge Functions na projekt Supabase przy każdym pushu na main.
 # Migracje bazy wdraża osobno integracja Supabase -> GitHub (Settings -> Integrations).
 # Ten workflow dokłada drugą połowę: kod funkcji.
+#
+# Typy sprawdzamy TUTAJ, przed wdrożeniem, a nie tylko w check.yml. Tamten
+# workflow chodził równolegle z tym, więc nazywał się bramką, nie będąc nią:
+# 2026-09-11 błąd TS2459 (import symbolu, który przestał być eksportowany)
+# przejechał na produkcję, bo deploy skończył się 40 sekund przed typecheckiem.
+# Funkcja z takim błędem nie wstaje w ogóle, więc to nie jest zmartwienie
+# teoretyczne. Osobny job plus `needs` kosztuje ~40 s i zdejmuje całą klasę
+# takich wpadek.
 
 on:
   push:
@@ -20,7 +28,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Bramka: bez zielonych typów nie ruszamy produkcji.
+  typy:
+    name: Typy Edge Functions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # Funkcje importują zależności przez specyfikatory npm:, więc Deno
+      # potrzebuje katalogu node_modules. Lock jest jednorazowy, nie trafia
+      # do repo (patrz .gitignore).
+      - name: deno check
+        run: deno check --node-modules-dir=auto backend/supabase/functions/*/index.ts
+
   deploy:
+    needs: typy
     runs-on: ubuntu-latest
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
