@@ -380,10 +380,32 @@ async function synthesize(
     name: "morning_brief",
   });
 
-  const result = await model.invoke([
-    ["system", system],
-    ["human", human],
-  ]);
+  // Model potrafi oddac `items` jako STRING z JSON-em zamiast tablicy
+  // (zaobserwowane 11.09.2026: `"items": "[{\"kategoria\":...}]"`). Walidacja
+  // odrzucala wtedy cala odpowiedz, generacja konczyla sie statusem `error`,
+  // a uzytkownik dostawal komunikat o nieudanej probie mimo poprawnie
+  // napisanej tresci. Naprawy nie da sie wpiac w sam schemat: z.preprocess
+  // nie przeklada sie na JSON Schema, ktorego wymaga withStructuredOutput
+  // ("Transforms cannot be represented in JSON Schema"). Zostaje ponowienie
+  // z wyrazna instrukcja, tak samo jak przy limicie znakow w argus-content.
+  let result;
+  try {
+    result = await model.invoke([
+      ["system", system],
+      ["human", human],
+    ]);
+  } catch (err) {
+    result = await model.invoke([
+      ["system", system],
+      [
+        "human",
+        `${human}
+
+Poprzednia odpowiedz nie przeszla walidacji. Pole "items" MUSI byc tablica obiektow JSON, a nie tekstem zawierajacym JSON. Nie opakowuj tablicy w cudzyslowy.`,
+      ],
+    ]);
+    console.error("morning-brief: pierwsza proba nie przeszla walidacji, ponowiono", err);
+  }
 
   return {
     lead: result.lead?.trim() ?? "",
@@ -449,10 +471,16 @@ export async function generateForTenant(
   );
 
   try {
-    const ctx = await loadTenantContext(supabase, tenantId);
-    const press = await collectPress();
-    const sejm = await collectSejm(supabase, briefDate);
-    const brand24 = await collectBrand24(supabase, tenantId);
+    // Cztery zrodla, zadne nie potrzebuje wyniku pozostalych: kontekst tenanta
+    // z bazy, prasa z RSS, Sejm z bazy i Brand24 z zewnetrznego API. Szly
+    // sekwencyjnie, wiec czas zbierania byl suma czekan, a nie czasem
+    // najwolniejszego (prasa: kilkanascie feedow po sieci).
+    const [ctx, press, sejm, brand24] = await Promise.all([
+      loadTenantContext(supabase, tenantId),
+      collectPress(),
+      collectSejm(supabase, briefDate),
+      collectBrand24(supabase, tenantId),
+    ]);
     const pool = [...press.items, ...sejm, ...brand24.items];
 
     const brief = await synthesize(ctx, pool, brand24);
