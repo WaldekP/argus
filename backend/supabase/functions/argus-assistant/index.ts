@@ -17,7 +17,7 @@ import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts"
 import { corsHeaders } from "../_shared/cors.ts";
 import { today } from "../_shared/daily-brief.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
-import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
+import { describeAiError, jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 
 const QUESTION_MIN_LENGTH = 3;
 /**
@@ -257,12 +257,16 @@ async function opAskStream(
 
         controller.enqueue(sseEvent({ type: "done", used_brief: usedBrief }));
       } catch (err) {
-        // Treść błędu zostaje w logach; do klienta idzie komunikat ogólny.
+        // Treść błędu zostaje w logach; do klienta idzie komunikat ogólny,
+        // CHYBA ze rozpoznajemy awarie Claude API. Wtedy mowimy wprost, co jest
+        // grane: przy pustym saldzie "spróbuj ponownie" jest zla rada, bo
+        // ponawianie nie ma prawa pomoc.
         console.error("argus-assistant stream error:", err);
         controller.enqueue(
           sseEvent({
             type: "error",
-            message: "Nie udało się dokończyć odpowiedzi. Spróbuj ponownie.",
+            message: describeAiError(err) ??
+              "Nie udało się dokończyć odpowiedzi. Spróbuj ponownie.",
           }),
         );
       } finally {
