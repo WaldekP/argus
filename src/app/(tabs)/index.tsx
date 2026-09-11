@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { AskArgusCard } from '@/components/ask-argus-card';
+import { BriefCard } from '@/components/brief-card';
 import { MorningBriefSection } from '@/components/morning-brief-section';
 import { MpMandateBar } from '@/components/mp-mandate';
 import { ScreenPlaceholder } from '@/components/screen-placeholder';
@@ -23,6 +24,8 @@ export default function TodayScreen() {
         ) : null}
 
         <AskArgusCard />
+
+        <BriefCard />
 
         <MorningBriefSection />
       </View>

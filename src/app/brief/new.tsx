@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,8 +26,10 @@ export default function NewBriefScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Temat moze przyjsc z karty na Pulpicie; `from` sluzy tylko analityce.
+  const params = useLocalSearchParams<{ topic?: string; from?: string }>();
 
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState(params.topic ?? '');
   const [query, setQuery] = useState('');
   const [manualName, setManualName] = useState('');
   const [selected, setSelected] = useState<JournalistListItem | null>(null);
@@ -74,13 +76,14 @@ export default function NewBriefScreen() {
       track('brief_created', {
         z_dziennikarzem: Boolean(selected) || manualName.trim().length > 0,
         z_bazy: Boolean(selected),
+        zrodlo: params.from === 'pulpit' ? 'pulpit' : 'analizy',
       });
       router.replace(`/brief/${result.brief.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się przygotować briefu.');
       setGenerating(false);
     }
-  }, [manualName, router, selected, topic]);
+  }, [manualName, params.from, router, selected, topic]);
 
   const canSubmit = topic.trim().length >= 5 && !generating;
 
