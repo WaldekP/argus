@@ -124,10 +124,10 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
       const start = Date.now();
-      const results = await generateForAllTenants(
-        supabase,
-        optionalDate(body.date),
-      );
+      // Tu logu przy wyjatku nie ma i to jest swiadome: cron leci bez usera,
+      // a tenant znamy dopiero po odczycie profili. Gdy wywroci sie wczesniej,
+      // nie ma czego przypisac do wiersza, wiec zostaje log funkcji i 5xx.
+      const results = await generateForAllTenants(supabase, optionalDate(body.date));
       for (const r of results) {
         await logGeneration(supabase, r.tenant_id, null, "morning_brief_generate", r.status, start);
       }
@@ -148,25 +148,47 @@ Deno.serve(async (req) => {
         return jsonResponse({ ok: true, data: await opGet(supabase, tenantId, body) });
       case "list":
         return jsonResponse({ ok: true, data: await opList(supabase, tenantId) });
+      // UWAGA na kolejnosc: log MUSI byc w catch, nie tylko po wywolaniu.
+      // Pierwsza wersja tej instrumentacji miala go dopiero za `await`, wiec
+      // przy wyjatku (a wlasnie tak konczyly sie tweety przy pustym saldzie
+      // Claude API) nie zapisywala niczego. Czyli mijala sie z celem: nie
+      // logowala dokladnie tych przebiegow, dla ktorych powstala.
       case "generate": {
         const start = Date.now();
-        const result = await generateForTenant(supabase, tenantId, today());
-        await logGeneration(
-          supabase,
-          tenantId,
-          user.id,
-          "morning_brief_generate",
-          result.status,
-          start,
-        );
-        return jsonResponse({ ok: true, data: result });
+        try {
+          const result = await generateForTenant(supabase, tenantId, today());
+          await logGeneration(
+            supabase,
+            tenantId,
+            user.id,
+            "morning_brief_generate",
+            result.status,
+            start,
+          );
+          return jsonResponse({ ok: true, data: result });
+        } catch (err) {
+          await logGeneration(
+            supabase,
+            tenantId,
+            user.id,
+            "morning_brief_generate",
+            "error",
+            start,
+          );
+          throw err;
+        }
       }
       case "tweets": {
         const start = Date.now();
         const date = optionalDate(body.date) ?? today();
-        const result = await generateTweetsForTenant(supabase, tenantId, date);
-        await logGeneration(supabase, tenantId, user.id, "morning_brief_tweets", "ok", start);
-        return jsonResponse({ ok: true, data: result });
+        try {
+          const result = await generateTweetsForTenant(supabase, tenantId, date);
+          await logGeneration(supabase, tenantId, user.id, "morning_brief_tweets", "ok", start);
+          return jsonResponse({ ok: true, data: result });
+        } catch (err) {
+          await logGeneration(supabase, tenantId, user.id, "morning_brief_tweets", "error", start);
+          throw err;
+        }
       }
       default:
         return jsonResponse(
