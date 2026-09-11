@@ -1,14 +1,15 @@
-import {
-  CormorantGaramond_600SemiBold,
-  CormorantGaramond_600SemiBold_Italic,
-  CormorantGaramond_700Bold,
-} from '@expo-google-fonts/cormorant-garamond';
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter';
+// Import z konkretnej wagi, NIE z indeksu pakietu. Indeks re-eksportuje
+// wszystkie kroje, przez co Metro widzi je wszystkie jako osiągalne i kopiuje
+// do `dist`: 10 wariantów Cormoranta i 18 wariantów Intera, czyli ponad 8 MB
+// plików, których aplikacja nigdy nie pobiera. Ścieżki per-waga zawężają to
+// do tych czterech i trzech, których faktycznie używamy.
+import { CormorantGaramond_600SemiBold } from '@expo-google-fonts/cormorant-garamond/600SemiBold';
+import { CormorantGaramond_600SemiBold_Italic } from '@expo-google-fonts/cormorant-garamond/600SemiBold_Italic';
+import { CormorantGaramond_700Bold } from '@expo-google-fonts/cormorant-garamond/700Bold';
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
