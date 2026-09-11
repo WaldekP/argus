@@ -18,8 +18,8 @@ import {
   generateForAllTenants,
   generateForTenant,
   generateTweetsForTenant,
-  today,
 } from "../_shared/daily-brief.ts";
+import { today } from "../_shared/date.ts";
 
 const BRIEF_COLUMNS =
   "brief_date, status, lead, items, model, generated_at, error";
