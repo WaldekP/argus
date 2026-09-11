@@ -26,6 +26,7 @@ import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
+import { today } from "../_shared/daily-brief.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const QUESTIONS_COUNT = 10;
@@ -120,13 +121,19 @@ async function getOwnStatements(
   }
 }
 
-/** Dzisiejszy przeglad dnia, zeby brief nie byl oderwany od biezacych wydarzen. */
+/**
+ * Dzisiejszy przeglad dnia, zeby brief nie byl oderwany od biezacych wydarzen.
+ *
+ * Date bierzemy z `today()` (Europe/Warsaw), tak jak reszta briefu dnia. Wlasne
+ * liczenie przez toISOString dawalo date UTC, wiec miedzy polnoca a druga w nocy
+ * czasu polskiego siegalo po wczorajszy wiersz.
+ */
 async function getTodayBrief(supabase: SupabaseClient, tenantId: string): Promise<string> {
   const { data } = await supabase
     .from("daily_briefs")
     .select("items, status")
     .eq("tenant_id", tenantId)
-    .eq("brief_date", new Date().toISOString().slice(0, 10))
+    .eq("brief_date", today())
     .maybeSingle();
   if (!data || data.status !== "ready" || !Array.isArray(data.items)) return "";
   const items = data.items as { naglowek?: string; streszczenie?: string }[];
