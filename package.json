@@ -52,8 +52,9 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "check:backend": "node scripts/check-backend-syntax.mjs",
     "test": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --import ./test/setup.mts --test \"src/**/*.test.ts\"",
-    "check": "npm run typecheck && npm run lint && npm test",
+    "check": "npm run typecheck && npm run check:backend && npm run lint && npm test",
     "build:web": "expo export --platform web && node scripts/prepare-web-deploy.mjs",
     "deploy:web": "npm run build:web && node scripts/deploy-web.mjs"
   },
