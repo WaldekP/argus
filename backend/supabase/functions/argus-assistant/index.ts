@@ -12,6 +12,7 @@
 // Model: Sonnet. Projekt: docs/superpowers/specs/2026-07-27-asystent-argus-design.md
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+import { logAccess } from "../_shared/access-log.ts";
 import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -168,6 +169,7 @@ function sseEvent(payload: Record<string, unknown>): Uint8Array {
 async function opAskStream(
   supabase: SupabaseClient,
   tenantId: string,
+  userId: string,
   body: Record<string, unknown>,
 ): Promise<Response> {
   const question = typeof body.question === "string" ? body.question.trim() : "";
@@ -234,6 +236,19 @@ async function opAskStream(
     ["human", question],
   ];
 
+  // Slad kazdej proby odpowiedzi. Asystent jest najczesciej uzywana funkcja
+  // w produkcie i jako jedyna nie zostawiala po sobie NICZEGO: logi funkcji
+  // brzegowych zyja okolo godziny, wiec pytanie "co sie wczoraj wysypalo"
+  // bylo bez odpowiedzi. Brak wiersza z odpowiedzia w assistant_messages tez
+  // nie wystarcza, bo nie odroznia awarii od zamkniecia karty w trakcie.
+  const start = Date.now();
+  const sekundy = () => Math.round((Date.now() - start) / 1000);
+  // Wynik ustawiamy w try/catch, a zapisujemy raz, w finally. Inaczej
+  // rozlaczenie klienta w ostatnim momencie (enqueue rzuca na zamknietym
+  // kontrolerze) zapisywaloby udana generacje jako blad, a przy zapisie
+  // w obu galeziach powstalyby dwa wiersze na jedno pytanie.
+  let wynik: string | null = null;
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
@@ -268,6 +283,7 @@ async function opAskStream(
           .eq("tenant_id", tenantId)
           .eq("id", conversationId);
 
+        wynik = `ok ${sekundy()}s`;
         controller.enqueue(sseEvent({ type: "done", used_brief: usedBrief }));
       } catch (err) {
         // Treść błędu zostaje w logach; do klienta idzie komunikat ogólny,
@@ -275,6 +291,8 @@ async function opAskStream(
         // grane: przy pustym saldzie "spróbuj ponownie" jest zla rada, bo
         // ponawianie nie ma prawa pomoc.
         console.error("argus-assistant stream error:", err);
+        const powod = describeAiError(err) ?? (err instanceof Error ? err.message : String(err));
+        wynik ??= `blad ${sekundy()}s: ${powod}`.slice(0, 300);
         controller.enqueue(
           sseEvent({
             type: "error",
@@ -284,6 +302,13 @@ async function opAskStream(
         );
       } finally {
         controller.close();
+        await logAccess(
+          supabase,
+          tenantId,
+          userId,
+          "assistant_answer",
+          wynik ?? `blad ${sekundy()}s: przerwane bez komunikatu`,
+        );
       }
     },
   });
@@ -339,7 +364,7 @@ Deno.serve(async (req) => {
 
     switch (body?.operation) {
       case "ask":
-        return await opAskStream(supabase, tenantId, body);
+        return await opAskStream(supabase, tenantId, user.id, body);
       case "list_conversations":
         return jsonResponse({ ok: true, data: await opListConversations(supabase, tenantId) });
       case "get_conversation":
