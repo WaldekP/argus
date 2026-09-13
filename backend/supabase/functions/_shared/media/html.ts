@@ -12,11 +12,14 @@
  *   \uXXXX, bo te dwa adaptery czytają JSON-LD, a nie goły HTML;
  * - `stripTags` w rmf24 zamienia znacznik na spację, a w onet i wp na pustkę.
  *
- * Ta ostatnia różnica jest podejrzana (przy układzie <span>Jan</span>
- * <span>Kowalski</span> onet sklei nazwisko w "JanKowalski"), ale obie wersje
- * zbierają dziś poprawne dane z żywych stron i nie mam jak tego sprawdzić
- * inaczej niż na produkcji. Ujednolicenie ich to osobna robota z ponownym
- * przejściem po serwisach, nie sprzątanie przy okazji.
+ * Ta ostatnia różnica wyglądała podejrzanie (przy układzie <span>Jan</span>
+ * <span>Kowalski</span> onet skleiłby nazwisko w "JanKowalski"), więc
+ * 2026-09-13 sprawdziłem to na wszystkich 127 zebranych dziennikarzach:
+ * zero nazwisk bez spacji, zero sklejeń małej z wielką literą w środku, zero
+ * duplikatów. Znaczniki w bylinach tych serwisów są rozdzielone białym
+ * znakiem, więc obie wersje dają ten sam wynik. Zostawiam je osobno, bo
+ * ujednolicanie działającego scrapera bez powodu to proszenie się o regresję,
+ * ale to już wybór, a nie niewiedza.
  */
 
 export const UA =
