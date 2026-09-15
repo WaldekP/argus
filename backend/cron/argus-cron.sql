@@ -19,8 +19,9 @@
 --    `supabase secrets set CRON_SECRET=...` (albo POST /v1/projects/{ref}/secrets).
 --
 -- Strefa czasowa: pg_cron liczy w UTC. Poniżej wariant letni (CEST, UTC+2).
--- Zimą (CET, UTC+1) przesuń `argus-sejm-sync` na '0 4 * * *', a
--- `argus-daily-brief` na '30 5 * * *', albo pogódź się z godziną w tę i we w tę.
+-- Zimą (CET, UTC+1) przesuń `argus-sejm-sync` na '0 4 * * *',
+-- `argus-daily-brief` na '30 5 * * *' i `argus-daily-brief-retry`
+-- na '30 7 * * *', albo pogódź się z godziną w tę i we w tę.
 --
 -- Podgląd i usunięcie:
 --   select jobname, schedule, active from cron.job order by jobname;
@@ -60,6 +61,32 @@ select cron.schedule('argus-daily-brief', '30 4 * * *', $job$
       'x-argus-cron', '<CRON_SECRET>'
     ),
     body := jsonb_build_object('operation', 'generate'),
+    timeout_milliseconds := 20000
+  );
+$job$);
+
+-- 06:30 UTC (08:30 Warszawa): siatka bezpieczeństwa pod przebieg z 04:30.
+--
+-- Po co: 14 września zadanie `argus-daily-brief` zaraportowało sukces, a briefu
+-- nie było, nawet w statusie `generating`. „Sukces" zadania cronowego znaczy
+-- tylko tyle, że pg_net przyjął żądanie do kolejki, nie że HTTP się udało.
+-- Przyczyny nie dało się ustalić, bo odpowiedzi z `net._http_response` żyją
+-- kilka godzin. Codzienny brief miał jeden strzał i nikt się nie dowiadywał,
+-- gdy chybił.
+--
+-- `generate_missing` generuje WYŁĄCZNIE tenantom bez gotowego briefu na dziś.
+-- Gdy poranny przebieg się udał, to zadanie kończy się w dwie sekundy i nie
+-- woła modelu ani razu, więc nie kosztuje nic poza jednym żądaniem HTTP.
+select cron.schedule('argus-daily-brief-retry', '30 6 * * *', $job$
+  select net.http_post(
+    url := 'https://jgwvtlghpkztivbhnofi.supabase.co/functions/v1/argus-morning-brief',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', '<ANON_KEY>',
+      'Authorization', 'Bearer <ANON_KEY>',
+      'x-argus-cron', '<CRON_SECRET>'
+    ),
+    body := jsonb_build_object('operation', 'generate_missing'),
     timeout_milliseconds := 20000
   );
 $job$);
