@@ -655,6 +655,58 @@ export async function generateTweetsForTenant(
  * Przebieg cronowy: brief na dziś dla wszystkich tenantów, które mają profil.
  * Sekwencyjnie — każdy tenant to osobne pobranie prasy i wywołanie Sonnet.
  */
+export interface MissingRunResult {
+  generated: GenerateResult[];
+  /** Tenanci, ktorzy mieli juz gotowy brief i zostali pominieci. */
+  skipped: string[];
+}
+
+/**
+ * Dogenerowanie briefow, ktorych brakuje na dany dzien.
+ *
+ * Po co osobno od `generateForAllTenants`: ten drugi generuje bezwarunkowo,
+ * wiec drugi przebieg crona kosztowalby drugi raz pelna synteze Sonneta dla
+ * kazdego tenanta i nadpisywal brief, ktory ktos mogl juz przeczytac.
+ *
+ * Skad potrzeba: 14 wrzesnia cron o 04:30 zaraportowal sukces (to znaczy
+ * tylko tyle, ze pg_net przyjal zadanie do kolejki), a briefu nie bylo, nawet
+ * w statusie `generating`. Przyczyny nie dalo sie ustalic, bo odpowiedzi
+ * pg_net zyja kilka godzin. Codzienny brief mial jeden strzal i nikt sie nie
+ * dowiadywal, gdy chybil.
+ *
+ * Pomijamy WYLACZNIE status `ready`. Wiersz w `generating` albo `error` znaczy,
+ * ze poprzednia proba sie nie skonczyla albo sie wywrocila, i wtedy ponowienie
+ * jest dokladnie tym, o co chodzi.
+ */
+export async function generateForMissingTenants(
+  supabase: SupabaseClient,
+  briefDate: string = today(),
+): Promise<MissingRunResult> {
+  const { data, error } = await supabase.from("politician_profiles").select("tenant_id");
+  if (error) throw new Error(error.message);
+
+  const generated: GenerateResult[] = [];
+  const skipped: string[] = [];
+
+  for (const row of (data ?? []) as { tenant_id: string }[]) {
+    const { data: istniejacy, error: readError } = await supabase
+      .from("daily_briefs")
+      .select("status")
+      .eq("tenant_id", row.tenant_id)
+      .eq("brief_date", briefDate)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+
+    if (istniejacy?.status === "ready") {
+      skipped.push(row.tenant_id);
+      continue;
+    }
+    generated.push(await generateForTenant(supabase, row.tenant_id, briefDate));
+  }
+
+  return { generated, skipped };
+}
+
 export async function generateForAllTenants(
   supabase: SupabaseClient,
   briefDate: string = today(),

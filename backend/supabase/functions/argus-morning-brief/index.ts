@@ -16,6 +16,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
 import {
   generateForAllTenants,
+  generateForMissingTenants,
   generateForTenant,
   generateTweetsForTenant,
 } from "../_shared/daily-brief.ts";
@@ -113,9 +114,10 @@ Deno.serve(async (req) => {
   if (isCronAuthorized(req)) {
     try {
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      if (body?.operation !== "generate") {
+      const cronOp = body?.operation;
+      if (cronOp !== "generate" && cronOp !== "generate_missing") {
         return jsonResponse(
-          { ok: false, error: "Cron obsługuje tylko operację generate." },
+          { ok: false, error: "Cron obsługuje operacje generate i generate_missing." },
           400,
         );
       }
@@ -124,6 +126,31 @@ Deno.serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       );
       const start = Date.now();
+
+      // Siatka bezpieczenstwa dla porannego przebiegu: generuje tylko tym,
+      // ktorzy briefu na dzis nie maja. Gdy wszyscy maja, nie wola modelu
+      // ani razu i konczy sie w ulamku sekundy.
+      if (cronOp === "generate_missing") {
+        const { generated, skipped } = await generateForMissingTenants(
+          supabase,
+          optionalDate(body.date),
+        );
+        for (const r of generated) {
+          await logGeneration(
+            supabase,
+            r.tenant_id,
+            null,
+            "morning_brief_retry",
+            r.status,
+            start,
+          );
+        }
+        return jsonResponse({
+          ok: true,
+          data: { generated: generated.length, skipped: skipped.length, results: generated },
+        });
+      }
+
       // Tu logu przy wyjatku nie ma i to jest swiadome: cron leci bez usera,
       // a tenant znamy dopiero po odczycie profili. Gdy wywroci sie wczesniej,
       // nie ma czego przypisac do wiersza, wiec zostaje log funkcji i 5xx.
