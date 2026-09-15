@@ -17,6 +17,7 @@ import { fetchBingNews } from "./bing-news.ts";
 import { fetchGoogleNews } from "./google-news.ts";
 import { fetchFromSources, type NewsSource } from "./news-sources.ts";
 import { getProjectEvents, getTopics } from "./brand24.ts";
+import { fetchPressFeeds } from "./press-feeds.ts";
 import { today } from "./date.ts";
 
 const SOURCES: NewsSource[] = [
@@ -68,17 +69,48 @@ export interface PressResult {
   items: RawItem[];
   queriesRun: number;
   failures: number;
+  /** Ile pozycji dolozyly feedy redakcji, a ile zrodla zapytaniowe. */
+  fromFeeds: number;
+  fromQueries: number;
+  /** Redakcje, ktorych feed sie nie wczytal. */
+  feedFailures: string[];
 }
 
 /**
- * Prasa: każde zapytanie osobno, sekwencyjnie (równoległe requesty z jednego
- * adresu to prosta droga do odcięcia — ta sama lekcja co przy wzmiankach).
- * Dedup po URL, najświeższe pierwsze, twardy limit pozycji.
+ * Prasa z dwoch noga.
+ *
+ * NOGA PIERWSZA, od 2026-09-15: feedy RSS szesciu redakcji, czytane wprost
+ * i rownolegle. To jest dzis glowne zrodlo. Powod zmiany opisuje naglowek
+ * `press-feeds.ts`: Bing zszedl do dwoch swiezych pozycji na osiem zapytan,
+ * przez co brief dnia mial 13 wrzesnia jedna pozycje, a 14 wrzesnia dwie.
+ *
+ * NOGA DRUGA: dotychczasowe zrodla zapytaniowe (Bing, Google jako zapas).
+ * Zostaja, bo potrafia wniesc tytul spoza tej szostki redakcji, a kosztuja
+ * osiem zapytan HTTP, ktore i tak lecialy. Kazde zapytanie osobno,
+ * sekwencyjnie: rownolegle requesty z jednego adresu to prosta droga do
+ * odciecia, ta sama lekcja co przy wzmiankach.
+ *
+ * Dedup po URL miedzy obiema nogami, najswiezsze pierwsze, twardy limit.
  */
 export async function collectPress(): Promise<PressResult> {
   const seen = new Set<string>();
   const items: RawItem[] = [];
   let failures = 0;
+
+  const feedy = await fetchPressFeeds(PRESS_WINDOW_DAYS);
+  for (const item of feedy.items) {
+    if (!item.url || seen.has(item.url)) continue;
+    seen.add(item.url);
+    items.push({
+      title: item.title,
+      url: item.url,
+      snippet: item.snippet,
+      publishedAt: item.publishedAt,
+      sourceName: item.sourceName,
+      source_type: "press",
+    });
+  }
+  const fromFeeds = items.length;
 
   for (const query of POLITYKA_QUERIES) {
     const outcome = await fetchFromSources(SOURCES, query, PRESS_WINDOW_DAYS);
@@ -110,6 +142,9 @@ export async function collectPress(): Promise<PressResult> {
     items: items.slice(0, MAX_PRESS_ITEMS),
     queriesRun: POLITYKA_QUERIES.length,
     failures,
+    fromFeeds,
+    fromQueries: items.length - fromFeeds,
+    feedFailures: feedy.bledy.map((b) => b.outlet),
   };
 }
 
@@ -498,6 +533,9 @@ export async function generateForTenant(
           brand24_events: brand24.events.length,
           press_queries: press.queriesRun,
           press_failures: press.failures,
+          press_feeds: press.fromFeeds,
+          press_from_queries: press.fromQueries,
+          press_feed_failures: press.feedFailures,
         },
         model: "claude-sonnet-5",
         error: null,
