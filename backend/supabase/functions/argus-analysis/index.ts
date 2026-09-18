@@ -1295,8 +1295,9 @@ async function opDivergenceGet(
       window: { from, to: new Date().toISOString().slice(0, 10), months },
       club_size: members.length,
       votings: rows.length,
+      // Bez nazwy operacji API: to jest tekst dla człowieka, nie dla klienta HTTP.
       message:
-        "Głosy klubu nie są jeszcze zebrane w komplecie. Uruchom divergence_collect_step dla wszystkich posłów klubu.",
+        "Głosy klubu nie są jeszcze zebrane w komplecie, więc nie ma z czym porównywać. Zbierz je i spróbuj ponownie.",
     };
   }
 
