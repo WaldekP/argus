@@ -30,12 +30,35 @@ async function loadChatAnthropic() {
   return mod.ChatAnthropic;
 }
 
+/**
+ * Gorny limit odpowiedzi modelu generujacego.
+ *
+ * Dotad nie bylo go tu wcale, wiec obowiazywal niski domyslny limit
+ * @langchain/anthropic. Do czasu, gdy brief przedwywiadowy dostal sekcje
+ * o oponencie, wszystko sie w nim miescilo. Potem odpowiedz urywala sie
+ * w polowie JSON-a i strukturalne wyjscie konczylo sie "Failed to parse",
+ * czyli bledem 500 po 99 sekundach i bez zadnej wskazowki w UI.
+ *
+ * Limit jest ustawiony jawnie, zeby taki sufit nie byl niewidzialny.
+ * Gdy brief znowu przestanie sie miescic, dzielimy generacje na dwa kroki
+ * (jak w argus-content), a nie podnosimy tej liczby w nieskonczonosc.
+ */
+const GENERATION_MAX_TOKENS = 8192;
+
+export interface GenerationOptions {
+  /** Nadpisanie limitu odpowiedzi dla wyjatkowo dlugich generacji. */
+  maxTokens?: number;
+}
+
 // Model for content generation (briefs, message variants, morning brief).
-export async function getGenerationModel(): Promise<ChatAnthropic> {
+export async function getGenerationModel(
+  options: GenerationOptions = {},
+): Promise<ChatAnthropic> {
   const Chat = await loadChatAnthropic();
   return new Chat({
     model: GENERATION_MODEL,
     apiKey: getApiKey(),
+    maxTokens: options.maxTokens ?? GENERATION_MAX_TOKENS,
   });
 }
 
