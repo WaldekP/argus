@@ -137,6 +137,17 @@ export default function BriefDetailScreen() {
             ) : (
               <>
                 <Sekcja tytul="KTO PYTA" tresc={brief.content.profil_rozmowcy} theme={theme} />
+                {/* Sekcja o oponencie pojawia sie tylko przy realnej obsadzie:
+                    przy rozmowie jeden na jeden model wpisuje zdanie o jej
+                    braku, a pusta sekcja wygladalaby jak brak danych. */}
+                {brief.participants && brief.participants.length > 0 &&
+                brief.content.profil_oponenta ? (
+                  <Sekcja
+                    tytul="KTO NAPRZECIWKO"
+                    tresc={brief.content.profil_oponenta}
+                    theme={theme}
+                  />
+                ) : null}
                 <Sekcja tytul="PUBLICZNOŚĆ" tresc={brief.content.publicznosc} theme={theme} />
 
                 <ThemedText type="small" themeColor="textSecondary" style={KickerStyle}>

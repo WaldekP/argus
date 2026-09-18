@@ -28,12 +28,30 @@ export type BriefQuestion = {
 
 export type BriefContent = {
   profil_rozmowcy: string;
+  /** Kto siedzi naprzeciwko. Puste przy rozmowie jeden na jeden. */
+  profil_oponenta?: string;
   publicznosc: string;
   pulapki: { pulapka: string; most: string }[];
   przekazy_dnia: string[];
 };
 
 export type BriefStatus = 'generating' | 'ready' | 'error';
+
+/** Uczestnik rozmowy poza prowadzącym (kolumna `participants`). */
+export type BriefParticipant = {
+  role: 'opponent' | 'guest';
+  kind: 'mp' | 'person';
+  mp_id?: number;
+  name: string;
+  club?: string | null;
+};
+
+type ProgramRef = {
+  name: string;
+  slug: string;
+  hosts?: string[] | null;
+  schedule_note?: string | null;
+} | null;
 
 type JournalistRef = {
   full_name: string;
@@ -52,6 +70,9 @@ export type InterviewBrief = {
   created_at: string;
   journalist_id: string | null;
   journalists: JournalistRef;
+  program_id: string | null;
+  programs: ProgramRef;
+  participants: BriefParticipant[] | null;
 };
 
 export type BriefListItem = {
@@ -62,6 +83,8 @@ export type BriefListItem = {
   scheduled_at: string | null;
   created_at: string;
   journalists: JournalistRef;
+  programs: ProgramRef;
+  participants: BriefParticipant[] | null;
 };
 
 type BriefOperation = 'create' | 'get' | 'list' | 'rate' | 'question_feedback';
@@ -74,8 +97,12 @@ const callBrief = edgeClient<BriefOperation>('argus-brief');
  */
 export function createBrief(params: {
   topic: string;
+  /** Slug programu. Podpowiada prowadzącego i ostatnie tematy pasma. */
+  program_slug?: string;
   journalist_id?: string;
   journalist_name?: string;
+  /** Oponenci i współgoście. Dla posłów backend dociąga dossier z sond. */
+  participants?: BriefParticipant[];
   scheduled_at?: string;
 }) {
   return callBrief<{ brief: InterviewBrief; questions: BriefQuestion[] }>(

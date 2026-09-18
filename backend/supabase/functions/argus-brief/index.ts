@@ -1,7 +1,10 @@
 // argus-brief — brief przedwywiadowy (TASK 5, serce MVP).
 // Operacje: create, get, list, rate, question_feedback.
 //
-// Wejscie to formularz "gdzie / kto / temat". Wyjscie: profil rozmowcy,
+// Wejscie to formularz "gdzie / kto prowadzi / kto jeszcze / temat". "Gdzie"
+// to program z tabeli `programs`, ktory sam podpowiada prowadzacego i ostatnie
+// tematy pasma; "kto jeszcze" to obsada (oponenci, wspolgoscie), dla poslow
+// wzbogacona dossier z rejestru sond (_shared/probes/). Wyjscie: profil rozmowcy,
 // publicznosc, 10 przewidywanych pytan z prawdopodobienstwem i rekomendowana
 // odpowiedzia, pulapki z mostami oraz 3 przekazy dnia.
 //
@@ -10,10 +13,13 @@
 //   - dziennikarz i redakcja z bazy globalnej + jego ostatnie materialy,
 //   - wlasne wypowiedzi sejmowe dopasowane do tematu (embedding + match_statements),
 //   - badania opinii CBOS dopasowane do tematu (knowledge-search, fail-soft),
-//   - dzisiejszy przeglad dnia, zeby brief znal biezace wydarzenia.
+//   - dzisiejszy przeglad dnia, zeby brief znal biezace wydarzenia,
+//   - program: prowadzacy, pasmo i osiem ostatnich odcinkow z goscmi,
+//   - obsada: dossier oponenta z rejestru sond (glosowania, rozjazdy z klubem,
+//     wystapienia, wejscia do programow) razem z jawna lista luk.
 //
-// Schemat bazy istnieje od migracji 001 (interview_briefs + brief_questions),
-// wiec ta funkcja NIE wymaga migracji.
+// Migracja 20260918100000 dolozyla `program_id` i `participants`
+// do interview_briefs; reszta schematu pochodzi z migracji 001.
 //
 // Zasoby workera: generacja to jedno wywolanie Sonneta ze strukturalnym
 // wyjsciem. Gdyby zaczelo przekraczac limit, dzielimy tak jak w argus-content
@@ -27,6 +33,8 @@ import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 import { today } from "../_shared/date.ts";
+import { runProbeSet } from "../_shared/probes/registry.ts";
+import { makeWindow } from "../_shared/probes/types.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const QUESTIONS_COUNT = 10;
@@ -40,6 +48,10 @@ const LIST_LIMIT = 50;
 
 const briefSchema = z.object({
   profil_rozmowcy: z.string(),
+  // Pole jest zawsze wymagane, a przy rozmowie jeden na jeden model wpisuje
+  // zdanie o braku drugiego gościa. Pole opcjonalne w strukturalnym wyjściu
+  // bywa pomijane losowo, a UI i tak ukrywa sekcję po pustej obsadzie.
+  profil_oponenta: z.string(),
   publicznosc: z.string(),
   pytania: z.array(
     z.object({
@@ -121,6 +133,131 @@ async function getOwnStatements(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Program i obsada
+// ---------------------------------------------------------------------------
+
+/** Ile ostatnich odcinków programu wchodzi do promptu. */
+const EPISODES_LIMIT = 8;
+/** Ile pozycji z dossier oponenta przekazujemy, żeby prompt nie spuchł. */
+const OPPONENT_ITEMS = 5;
+
+interface ProgramRow {
+  id: string;
+  name: string;
+  hosts: string[] | null;
+  schedule_note: string | null;
+  outlet_id: string | null;
+  outlets: { name: string } | { name: string }[] | null;
+}
+
+async function getProgram(supabase: SupabaseClient, slug: string) {
+  // UWAGA: lista kolumn musi byc JEDNYM literalem (patrz argus-media).
+  const { data, error } = await supabase
+    .from("programs")
+    .select("id, name, hosts, schedule_note, outlet_id, outlets ( name )")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (error) throw new Error(`Odczyt programu: ${error.message}`);
+  return (data ?? null) as ProgramRow | null;
+}
+
+async function getProgramEpisodes(supabase: SupabaseClient, programId: string) {
+  const { data } = await supabase
+    .from("program_episodes")
+    .select("title, guests, published_at")
+    .eq("program_id", programId)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .limit(EPISODES_LIMIT);
+  return (data ?? []) as { title: string; guests: string[] | null; published_at: string | null }[];
+}
+
+/** Uczestnik rozmowy poza prowadzącym (kształt kolumny `participants`). */
+interface Participant {
+  role: "opponent" | "guest";
+  kind: "mp" | "person";
+  mp_id?: number;
+  name: string;
+  club?: string | null;
+}
+
+function parseParticipants(raw: unknown): Participant[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Participant[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const row = item as Record<string, unknown>;
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    if (name === "") continue;
+    const mpId = typeof row.mp_id === "number" ? Math.trunc(row.mp_id) : undefined;
+    out.push({
+      role: row.role === "guest" ? "guest" : "opponent",
+      kind: mpId ? "mp" : "person",
+      mp_id: mpId,
+      name,
+      club: typeof row.club === "string" ? row.club : null,
+    });
+    if (out.length >= 3) break; // panel powyżej czwórki to już nie wywiad
+  }
+  return out;
+}
+
+/**
+ * Dossier oponenta z rejestru sond.
+ *
+ * Fail-soft w dwóch warstwach: `runProbeSet` łapie awarie pojedynczych sond,
+ * a tu łapiemy awarię całości. Brak dossier ma dać brief bez sekcji o oponencie,
+ * a nie brak briefu.
+ */
+async function getOpponentContext(
+  supabase: SupabaseClient,
+  participants: Participant[],
+): Promise<string> {
+  const blocks: string[] = [];
+  for (const person of participants) {
+    if (person.kind !== "mp" || !person.mp_id) {
+      blocks.push(
+        `## ${person.name}\n(Osoba spoza Sejmu. Brak danych w bazie, nie zmyslaj jego pogladow ani cytatow.)`,
+      );
+      continue;
+    }
+    try {
+      const dossier = await runProbeSet(
+        { supabase },
+        "karta-posla",
+        { kind: "mp", id: person.mp_id, name: person.name, club: person.club ?? null },
+        makeWindow(6),
+      );
+      const lines: string[] = [`## ${person.name}`];
+      for (const result of dossier.results) {
+        if (Object.keys(result.summary).length > 0) {
+          lines.push(`### ${result.label} (dane)\n${JSON.stringify(result.summary)}`);
+        }
+        if (result.findings.length > 0) {
+          lines.push(
+            `### ${result.label}\n` +
+              result.findings
+                .slice(0, OPPONENT_ITEMS)
+                .map((f) => {
+                  const quote = f.evidence[0]?.quote;
+                  const date = f.evidence[0]?.date ?? "bez daty";
+                  return `- [${date}] ${f.title}${quote ? `\n  cytat: ${quote.slice(0, 500)}` : ""}`;
+                })
+                .join("\n"),
+          );
+        }
+        if (result.coverage.gaps.length > 0) {
+          lines.push(`### ${result.label} (czego nie wiemy)\n- ${result.coverage.gaps.join("\n- ")}`);
+        }
+      }
+      blocks.push(lines.join("\n"));
+    } catch {
+      blocks.push(`## ${person.name}\n(Nie udalo sie zebrac danych. Nie zmyslaj ich.)`);
+    }
+  }
+  return blocks.join("\n\n");
+}
+
 /**
  * Dzisiejszy przeglad dnia, zeby brief nie byl oderwany od biezacych wydarzen.
  *
@@ -163,6 +300,10 @@ interface GenerateInput {
   statements: { text: string; date: string | null }[];
   opinion: string;
   dayBrief: string;
+  program: ProgramRow | null;
+  episodes: { title: string; guests: string[] | null; published_at: string | null }[];
+  participants: Participant[];
+  opponentContext: string;
 }
 
 function buildHuman(input: GenerateInput): string {
@@ -199,9 +340,52 @@ function buildHuman(input: GenerateInput): string {
       .join("\n")
     : "brak danych";
 
+  const programOutlet = Array.isArray(input.program?.outlets)
+    ? input.program?.outlets[0]
+    : input.program?.outlets;
+  const program = input.program
+    ? [
+      `Nazwa: ${input.program.name}`,
+      `Nadawca: ${opis(programOutlet?.name)}`,
+      `Pasmo: ${opis(input.program.schedule_note)}`,
+      `Prowadzacy: ${
+        Array.isArray(input.program.hosts) && input.program.hosts.length > 0
+          ? input.program.hosts.join(", ")
+          : "brak danych"
+      }`,
+    ].join("\n")
+    : "brak danych";
+
+  // Ostatnie odcinki niosa dwie rzeczy naraz: o co redakcja pyta w tym
+  // tygodniu i jak ustawia rozmowe z politykiem danej formacji.
+  const odcinki = input.episodes.length > 0
+    ? input.episodes
+      .map((e) => {
+        const guests = Array.isArray(e.guests) && e.guests.length > 0
+          ? e.guests.join(", ")
+          : "brak danych o gosciach";
+        return `- ${e.published_at?.slice(0, 10) ?? "bez daty"} (${guests}): ${e.title}`;
+      })
+      .join("\n")
+    : "brak danych";
+
+  const obsada = input.participants.length > 0
+    ? input.participants
+      .map((p) =>
+        `- ${p.name}${p.club ? ` (${p.club})` : ""}, rola: ${
+          p.role === "opponent" ? "oponent" : "wspolgosc"
+        }`
+      )
+      .join("\n")
+    : "brak, rozmowa jeden na jeden z prowadzacym";
+
   return [
     `# Temat rozmowy\n${input.topic}`,
     input.scheduledAt ? `# Termin\n${input.scheduledAt}` : "",
+    `# Program\n${program}`,
+    input.episodes.length > 0 ? `# Ostatnie odcinki tego programu\n${odcinki}` : "",
+    `# Obsada rozmowy poza prowadzacym\n${obsada}`,
+    input.opponentContext ? `# Co wiemy o osobach naprzeciwko\n${input.opponentContext}` : "",
     `# Polityk\nImie i nazwisko: ${opis(input.profile?.full_name)}\nOkreg: ${opis(input.profile?.district)}\nCele: ${opis(input.profile?.goals)}\nWartosci: ${opis(input.profile?.values)}\nGranice (nienaruszalne): ${opis(input.profile?.boundaries)}
 Stanowiska wobec tematow: ${opis(input.profile?.topic_positions)}\nProfil stylu jezykowego: ${opis(input.profile?.style_profile)}`,
     `# Dziennikarz\n${dziennikarz}`,
@@ -239,13 +423,28 @@ async function opCreate(
     throw new HttpError(400, `Temat jest za krotki (min ${TOPIC_MIN_LENGTH} znakow).`);
   }
   const journalistId = typeof body.journalist_id === "string" ? body.journalist_id : null;
-  const journalistName = typeof body.journalist_name === "string"
-    ? body.journalist_name.trim() || null
-    : null;
   const scheduledAt = typeof body.scheduled_at === "string" ? body.scheduled_at : null;
+  const participants = parseParticipants(body.participants);
+
+  const programSlug = typeof body.program_slug === "string" ? body.program_slug.trim() : "";
+  const program = programSlug ? await getProgram(supabase, programSlug) : null;
+
+  // Prowadzacego bierzemy z programu, gdy user go nie wskazal. To usuwa
+  // pulapke z imiennikami: w bazie dziennikarzy jest Magdalena Olejnik,
+  // a Kropke nad i prowadzi Monika, wiec wybor z listy budowal profil innej
+  // osoby i nic nie ostrzegalo.
+  const hostFromProgram = Array.isArray(program?.hosts) && program.hosts.length > 0
+    ? program.hosts[0]
+    : null;
+  const journalistName = typeof body.journalist_name === "string" && body.journalist_name.trim()
+    ? body.journalist_name.trim()
+    : journalistId
+    ? null
+    : hostFromProgram;
 
   const journalist = journalistId ? await getJournalist(supabase, journalistId) : null;
   const outletId = (journalist?.outlet_id as string | null) ??
+    (program?.outlet_id ?? null) ??
     (typeof body.outlet_id === "string" ? body.outlet_id : null);
 
   const { data: created, error: insertError } = await supabase
@@ -255,6 +454,8 @@ async function opCreate(
       topic,
       journalist_id: journalistId,
       outlet_id: outletId,
+      program_id: program?.id ?? null,
+      participants,
       scheduled_at: scheduledAt,
       status: "generating",
     })
@@ -264,13 +465,16 @@ async function opCreate(
   const briefId = created.id as string;
 
   try {
-    const [profile, materials, statements, opinion, dayBrief] = await Promise.all([
-      getProfile(supabase, tenantId),
-      journalistId ? getMaterials(supabase, journalistId) : Promise.resolve([]),
-      getOwnStatements(supabase, tenantId, topic),
-      searchOpinionContext(supabase, topic),
-      getTodayBrief(supabase, tenantId),
-    ]);
+    const [profile, materials, statements, opinion, dayBrief, episodes, opponentContext] =
+      await Promise.all([
+        getProfile(supabase, tenantId),
+        journalistId ? getMaterials(supabase, journalistId) : Promise.resolve([]),
+        getOwnStatements(supabase, tenantId, topic),
+        searchOpinionContext(supabase, topic),
+        getTodayBrief(supabase, tenantId),
+        program ? getProgramEpisodes(supabase, program.id) : Promise.resolve([]),
+        getOpponentContext(supabase, participants),
+      ]);
 
     const content = await generateBrief({
       topic,
@@ -282,6 +486,10 @@ async function opCreate(
       statements,
       opinion,
       dayBrief,
+      program,
+      episodes,
+      participants,
+      opponentContext,
     });
 
     await supabase
@@ -319,7 +527,7 @@ async function readBrief(supabase: SupabaseClient, tenantId: string, briefId: st
   const { data, error } = await supabase
     .from("interview_briefs")
     .select(
-      "id, topic, status, content, rating, feedback, scheduled_at, created_at, journalist_id, journalists ( full_name, role, outlets ( name ) )",
+      "id, topic, status, content, rating, feedback, scheduled_at, created_at, journalist_id, participants, program_id, journalists ( full_name, role, outlets ( name ) ), programs ( name, slug, hosts, schedule_note )",
     )
     .eq("tenant_id", tenantId)
     .eq("id", briefId)
@@ -341,7 +549,7 @@ async function opList(supabase: SupabaseClient, tenantId: string) {
   const { data, error } = await supabase
     .from("interview_briefs")
     .select(
-      "id, topic, status, rating, scheduled_at, created_at, journalists ( full_name, outlets ( name ) )",
+      "id, topic, status, rating, scheduled_at, created_at, participants, journalists ( full_name, outlets ( name ) ), programs ( name, slug )",
     )
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
