@@ -79,6 +79,33 @@ function lead(text: string, max = 400): string {
   return clean.length <= max ? clean : `${clean.slice(0, max).trimEnd()}...`;
 }
 
+/** Nagłówek punktu porządku obrad, który stenogram wkleja przed wypowiedzią. */
+const AGENDA_LINE =
+  /^(?:\d+\.\s|Sprawozdanie |Pierwsze czytanie|Drugie czytanie|Przedstawiony przez|Informacja |Pytania w sprawach|Wniosek )/;
+
+/**
+ * Rozdzielenie stenogramu na punkt obrad i samą wypowiedź.
+ *
+ * Bez tego tytułem ustalenia zostawał nagłówek w rodzaju „Sprawozdanie Komisji
+ * o rządowym projekcie ustawy...", jednakowy dla wszystkich mówców tego dnia,
+ * zamiast tego, co poseł faktycznie powiedział.
+ */
+export function splitAgenda(text: string): { agenda: string | null; speech: string } {
+  const lines = text.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+  if (lines.length < 2) return { agenda: null, speech: text.trim() };
+
+  const agenda: string[] = [];
+  let index = 0;
+  while (index < lines.length && AGENDA_LINE.test(lines[index])) {
+    agenda.push(lines[index]);
+    index++;
+  }
+  if (agenda.length === 0 || index >= lines.length) {
+    return { agenda: null, speech: text.trim() };
+  }
+  return { agenda: agenda.join(" "), speech: lines.slice(index).join("\n") };
+}
+
 export const statementsProbe: Probe = {
   id: "sejm.statements",
   label: "Co mówił z mównicy",
@@ -106,32 +133,51 @@ export const statementsProbe: Probe = {
       };
     }
 
+    // Ile wystąpień tego posła ma baza W OGÓLE, bez okna.
+    //
+    // Bez tego licznika sonda nie odróżnia „nie zabierał głosu" od „nie
+    // zaimportowaliśmy jego wystąpień", a to są zdania o czymś zupełnie innym.
+    // Pierwsza wersja twierdziła, że rzecznik Konfederacji milczał przez pół
+    // roku, podczas gdy miał cztery wystąpienia, tylko nie było ich w bazie.
+    const { count: everCount } = await ctx.supabase
+      .from("sejm_statements")
+      .select("id", { count: "exact", head: true })
+      .eq("mp_id", id);
+
     const rows = data ?? [];
-    const findings: Finding[] = rows.map((row) => ({
-      probe: statementsProbe.id,
-      kind: "wystapienie",
-      severity: 1 as const,
-      title: lead(row.text as string, 90),
-      description: lead(row.text as string),
-      evidence: [{
-        type: "statement",
-        quote: lead(row.text as string, 700),
-        date: (row.date as string) ?? null,
-        ref: row.id as string,
-      }],
-    }));
+    const findings: Finding[] = rows.map((row) => {
+      const { agenda, speech } = splitAgenda(row.text as string);
+      return {
+        probe: statementsProbe.id,
+        kind: "wystapienie",
+        severity: 1 as const,
+        title: lead(speech, 90),
+        description: agenda ?? lead(speech),
+        evidence: [{
+          type: "statement",
+          quote: lead(speech, 700),
+          date: (row.date as string) ?? null,
+          ref: row.id as string,
+        }],
+      };
+    });
 
     // Cztery wystąpienia w pół roku to nie jest awaria sondy, tylko fakt
     // o pośle, i karta musi to rozróżniać od braku danych.
     const gaps = ["Wystąpienia poza Sejmem (studia, podcasty, X) nie są w bazie."];
+    const imported = (everCount ?? 0) > 0;
     if (rows.length === 0) {
-      gaps.unshift("W tym oknie poseł nie zabierał głosu na sali.");
+      gaps.unshift(
+        imported
+          ? "W tym oknie poseł nie zabierał głosu na sali."
+          : "Wystąpienia tego posła nie zostały jeszcze zaimportowane, więc nie wiemy, czy zabierał głos.",
+      );
     }
 
     return {
       probe: statementsProbe.id,
       label: statementsProbe.label,
-      summary: { count: rows.length },
+      summary: { count: rows.length, imported },
       findings,
       coverage: {
         checked: rows.length,

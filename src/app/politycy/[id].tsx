@@ -284,7 +284,9 @@ export default function PoliticianScreen() {
                   statements.findings.map(renderFinding)
                 ) : (
                   <ThemedText type="small" themeColor="textSecondary">
-                    W tym okresie nie zabierał głosu na sali. To fakt o pośle, nie brak danych.
+                    {statements.summary.imported === true
+                      ? 'W tym okresie nie zabierał głosu na sali. To fakt o pośle, nie brak danych.'
+                      : 'Wystąpienia tego posła nie są jeszcze zaimportowane, więc nie wiemy, czy zabierał głos.'}
                   </ThemedText>
                 )}
               </View>
