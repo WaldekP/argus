@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackLink } from '@/components/back-link';
@@ -41,6 +41,7 @@ function normalize(text: string): string {
  */
 export default function PoliticiansScreen() {
   const theme = useTheme();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [mps, setMps] = useState<MpListItem[]>([]);
@@ -180,10 +181,17 @@ export default function PoliticiansScreen() {
           </View>
         )}
         renderItem={({ item }) => (
-          <View
-            style={[
+          <Pressable
+            onPress={() =>
+              router.push({ pathname: '/politycy/[id]', params: { id: String(item.mp_id) } })
+            }
+            style={({ pressed }: { pressed: boolean }) => [
               styles.row,
-              { backgroundColor: theme.backgroundElement, borderColor: theme.border },
+              {
+                backgroundColor: theme.backgroundElement,
+                borderColor: theme.border,
+                opacity: pressed ? 0.85 : 1,
+              },
             ]}>
             <View style={styles.rowTexts}>
               <ThemedText style={styles.rowName}>{item.full_name}</ThemedText>
@@ -203,7 +211,7 @@ export default function PoliticiansScreen() {
                 </ThemedText>
               </View>
             ) : null}
-          </View>
+          </Pressable>
         )}
       />
     </ThemedView>

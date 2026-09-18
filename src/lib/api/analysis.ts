@@ -161,6 +161,54 @@ export type AnalysisListItem = {
   documents_count: number;
 };
 
+/** Dowód pod ustaleniem sondy (kontrakt `_shared/probes/types.ts`). */
+export type ProbeEvidence = {
+  type: 'statement' | 'vote' | 'episode' | 'article' | 'document';
+  quote?: string;
+  date: string | null;
+  url?: string | null;
+  ref?: string | null;
+};
+
+/** Ustalenie zwrócone przez sondę. Ta sama skala wagi co w analizach. */
+export type ProbeFinding = {
+  probe: string;
+  kind: string;
+  severity: FindingSeverity;
+  title: string;
+  description: string;
+  evidence: ProbeEvidence[];
+};
+
+/**
+ * Co sonda sprawdziła i czego nie wie. Bez mianownika liczba ustaleń kłamie:
+ * jeden rozjazd na 853 głosowania znaczy co innego niż jeden na trzy.
+ */
+export type ProbeCoverage = {
+  checked: number;
+  unit: string;
+  from: string;
+  to: string;
+  gaps: string[];
+};
+
+export type ProbeResult = {
+  probe: string;
+  label: string;
+  summary: Record<string, unknown>;
+  findings: ProbeFinding[];
+  coverage: ProbeCoverage;
+  error?: string;
+};
+
+/** Dossier podmiotu: wynik zestawu sond (operation: dossier). */
+export type Dossier = {
+  subject: { kind: string; id?: string | number; name: string; club?: string | null };
+  window: { from: string; to: string; months: number };
+  results: ProbeResult[];
+  skipped: { probe: string; reason: string }[];
+};
+
 type AnalysisOperation =
   | 'targets_search'
   | 'create'
@@ -170,7 +218,10 @@ type AnalysisOperation =
   | 'reanalyze'
   | 'get'
   | 'list'
-  | 'delete';
+  | 'delete'
+  | 'dossier'
+  | 'divergence_collect_step'
+  | 'divergence_get';
 
 /** Kroki pętli wołają API Sejmu albo model, dajemy zapas czasu. */
 const STEP_TIMEOUT_MS = 120_000;
@@ -496,4 +547,51 @@ export function runAnalyze(
   onProgress: (step: AnalyzeStepResult) => void
 ): Promise<AnalyzeStepResult> {
   return runStepLoop(() => analyzeStep(analysisId), onProgress);
+}
+
+// ---------------------------------------------------------------------------
+// Karta posła (zestaw sond)
+// ---------------------------------------------------------------------------
+
+/** Dossier posła: jedno wywołanie, komplet sond z zestawu „karta-posla". */
+export function getDossier(mpId: number, months = 6): Promise<Dossier> {
+  return callAnalysis<Dossier>('dossier', { mp_id: mpId, months }, STEP_TIMEOUT_MS);
+}
+
+export type DivergenceCollectStep = {
+  club: string;
+  members: number;
+  member_index: number;
+  member_mp_id: number;
+  days_processed: number;
+  days_skipped: number;
+  votes: number;
+  next: boolean;
+  next_member_index: number;
+};
+
+/**
+ * Zebranie głosów całego klubu posła: pętla po jego członkach.
+ *
+ * Wołane tylko wtedy, gdy sonda rozjazdów zgłosi brak danych. Pierwszy przebieg
+ * klubu trwa, kolejne są niemal darmowe, bo import pomija dni już pokryte,
+ * a tabele są globalne.
+ */
+export async function collectClubVotes(
+  mpId: number,
+  months: number,
+  onProgress: (step: DivergenceCollectStep) => void
+): Promise<void> {
+  let index = 0;
+  for (let guard = 0; guard < 100; guard++) {
+    const step = await callAnalysis<DivergenceCollectStep>(
+      'divergence_collect_step',
+      { mp_id: mpId, months, member_index: index },
+      STEP_TIMEOUT_MS
+    );
+    onProgress(step);
+    if (!step.next) return;
+    index = step.next_member_index;
+  }
+  throw new Error(GENERIC_ERROR);
 }

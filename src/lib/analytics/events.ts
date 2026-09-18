@@ -28,6 +28,8 @@ export type AnalyticsEvent =
   | 'assistant_question_asked'
   | 'journalist_viewed'
   | 'media_searched'
+  /** Karta posła: dossier złożone z sond (zestaw „karta-posla"). */
+  | 'politician_dossier_viewed'
   /** Archiwum programów: wejście w program, w odcinek i wyszukanie gościa. */
   | 'program_viewed'
   | 'program_episode_opened'

@@ -39,6 +39,8 @@ import {
   findDivergences,
   loadClubVotingRows,
 } from "../_shared/vote-divergence.ts";
+import { runProbeSet } from "../_shared/probes/registry.ts";
+import { makeWindow } from "../_shared/probes/types.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const MAX_TARGET_MPS = 5;
@@ -1321,6 +1323,24 @@ async function opDivergenceGet(
   };
 }
 
+/**
+ * Dossier posła: zestaw sond na jednym podmiocie (`_shared/probes/`).
+ *
+ * Operacja jest cienka celowo. Cała wiedza o tym, CO sprawdzamy, siedzi
+ * w rejestrze sond, więc dołożenie źródła nie wymaga ruszania tej funkcji
+ * ani żadnego konsumenta.
+ */
+async function opDossier(supabase: SupabaseClient, body: Record<string, unknown>) {
+  const mp = await readMp(body);
+  const months = readMonths(body);
+  return await runProbeSet(
+    { supabase },
+    "karta-posla",
+    { kind: "mp", id: mp.id, name: mp.firstLastName, club: mp.club ?? null },
+    makeWindow(months),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -1346,6 +1366,8 @@ Deno.serve(async (req) => {
         });
       case "divergence_get":
         return jsonResponse({ ok: true, data: await opDivergenceGet(supabase, body) });
+      case "dossier":
+        return jsonResponse({ ok: true, data: await opDossier(supabase, body) });
       case "create":
         return jsonResponse({
           ok: true,
