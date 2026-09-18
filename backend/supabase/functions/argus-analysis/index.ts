@@ -1243,7 +1243,7 @@ async function opDivergenceCollectStep(
     .sort((a, b) => a - b);
   const index = typeof body.member_index === "number" ? Math.trunc(body.member_index) : 0;
   if (index < 0 || index >= members.length) {
-    throw new HttpError(400, "member_index poza zakresem listy klubu.");
+    throw new HttpError(400, "Ten klub nie ma tylu posłów.");
   }
 
   const days = (await getPastProceedingDays()).filter((d) => d.date >= from);

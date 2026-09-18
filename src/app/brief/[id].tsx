@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FontFamily, FontSize, KickerStyle, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
@@ -129,11 +130,28 @@ export default function BriefDetailScreen() {
             </View>
 
             {brief.status !== 'ready' ? (
-              <ThemedText type="small" themeColor="textSecondary">
-                {brief.status === 'generating'
-                  ? 'Brief jest w przygotowaniu. Wróć za chwilę.'
-                  : 'Przygotowanie briefu się nie powiodło. Zamów go ponownie.'}
-              </ThemedText>
+              /* Nieudany brief byl slepym zaulkiem: sam komunikat, bez wyjscia,
+                 a "zamow ponownie" znaczylo wypelnij caly formularz od nowa.
+                 Przycisk wraca do formularza z juz wpisanym tematem. */
+              <View style={styles.statusBox}>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {brief.status === 'generating'
+                    ? 'Brief jest w przygotowaniu. Wróć za chwilę.'
+                    : 'Przygotowanie briefu się nie powiodło. Temat i rozmówca są zapamiętane, możesz spróbować ponownie.'}
+                </ThemedText>
+                {brief.status === 'error' ? (
+                  <PrimaryButton
+                    title="Spróbuj ponownie"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/brief/new',
+                        params: { topic: brief.topic },
+                      })
+                    }
+                  />
+                ) : null}
+              </View>
             ) : (
               <>
                 <Sekcja tytul="KTO PYTA" tresc={brief.content.profil_rozmowcy} theme={theme} />
@@ -274,6 +292,7 @@ function Sekcja({
 }
 
 const styles = StyleSheet.create({
+  statusBox: { gap: Spacing.three },
   screen: { flex: 1 },
   content: {
     width: '100%',

@@ -37,6 +37,23 @@ import { runProbeSet } from "../_shared/probes/registry.ts";
 import { makeWindow } from "../_shared/probes/types.ts";
 
 const TOPIC_MIN_LENGTH = 5;
+
+/**
+ * Identyfikator briefu z ciala zadania.
+ *
+ * Bez sprawdzenia ksztaltu Postgres odrzuca zapytanie bledem skladni UUID,
+ * ten leci przez serverErrorResponse i uzytkownik dostaje 500 z numerem
+ * zgloszenia zamiast informacji, ze link jest nieprawidlowy. Zdarza sie
+ * przy starym albo przycietym linku, wiec nie jest to przypadek teoretyczny.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function readBriefId(value: unknown): string {
+  const id = typeof value === "string" ? value.trim() : "";
+  if (id === "") throw new HttpError(400, "Brak identyfikatora briefu.");
+  if (!UUID_RE.test(id)) throw new HttpError(404, "Nie znaleziono briefu.");
+  return id;
+}
 const QUESTIONS_COUNT = 10;
 const STATEMENTS_LIMIT = 8;
 const MATERIALS_LIMIT = 12;
@@ -419,7 +436,7 @@ async function opCreate(
 ) {
   const topic = typeof body.topic === "string" ? body.topic.trim() : "";
   if (topic.length < TOPIC_MIN_LENGTH) {
-    throw new HttpError(400, `Temat jest za krotki (min ${TOPIC_MIN_LENGTH} znakow).`);
+    throw new HttpError(400, `Temat jest za krótki (min ${TOPIC_MIN_LENGTH} znaków).`);
   }
   const journalistId = typeof body.journalist_id === "string" ? body.journalist_id : null;
   const scheduledAt = typeof body.scheduled_at === "string" ? body.scheduled_at : null;
@@ -569,10 +586,9 @@ async function opRate(
   tenantId: string,
   body: Record<string, unknown>,
 ) {
-  const briefId = typeof body.brief_id === "string" ? body.brief_id : "";
+  const briefId = readBriefId(body.brief_id);
   const rating = typeof body.rating === "number" ? Math.trunc(body.rating) : 0;
-  if (!briefId) throw new HttpError(400, "Brak brief_id.");
-  if (rating < 1 || rating > 5) throw new HttpError(400, "Ocena musi byc od 1 do 5.");
+  if (rating < 1 || rating > 5) throw new HttpError(400, "Ocena musi być od 1 do 5.");
   const feedback = typeof body.feedback === "string" ? body.feedback : null;
 
   const { error } = await supabase
@@ -589,8 +605,10 @@ async function opQuestionFeedback(
   tenantId: string,
   body: Record<string, unknown>,
 ) {
-  const questionId = typeof body.question_id === "string" ? body.question_id : "";
-  if (!questionId) throw new HttpError(400, "Brak question_id.");
+  const questionId = typeof body.question_id === "string" ? body.question_id.trim() : "";
+  if (questionId === "" || !UUID_RE.test(questionId)) {
+    throw new HttpError(400, "Nieprawidłowy identyfikator pytania.");
+  }
   const wasAsked = body.was_asked === true;
 
   const { error } = await supabase
@@ -616,8 +634,7 @@ Deno.serve(async (req) => {
       case "create":
         return jsonResponse({ ok: true, data: await opCreate(supabase, tenantId, body) });
       case "get": {
-        const briefId = typeof body.brief_id === "string" ? body.brief_id : "";
-        if (!briefId) throw new HttpError(400, "Brak brief_id.");
+        const briefId = readBriefId(body.brief_id);
         return jsonResponse({ ok: true, data: await readBrief(supabase, tenantId, briefId) });
       }
       case "list":

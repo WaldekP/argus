@@ -133,11 +133,16 @@ export async function callEdge<T>(
   }
 
   if (!body || body.ok !== true) {
-    if (body?.error && typeof body.error === 'string') {
-      throw new Error(body.error);
-    }
+    // Sesja najpierw, PRZED `body.error`. Przy wygasłym tokenie odpowiedź nie
+    // ma naszej koperty, tylko kształt bramki Supabase z angielskim tekstem
+    // („Invalid or expired token"), który wcześniej lądował wprost na ekranie.
+    // Wygaśnięcie sesji to najczęstszy błąd w pilotażu, więc to jest ten
+    // komunikat, który musi brzmieć po ludzku.
     if (response.status === 401 || response.status === 403) {
       throw new Error(SESSION_ERROR);
+    }
+    if (body?.error && typeof body.error === 'string') {
+      throw new Error(body.error);
     }
     // 404 to prawie zawsze niewdrożona funkcja, a "Coś poszło nie tak" wysyła
     // wtedy szukanie w złą stronę.
