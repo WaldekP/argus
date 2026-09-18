@@ -31,6 +31,12 @@ export default function DaneScreen() {
           onPress={() => router.push('/dziennikarze')}
         />
         <SectionCard
+          icon="tv-outline"
+          title="Programy"
+          description="Ostatnie odcinki programów publicystycznych: kto był gościem, o czym była rozmowa i kiedy."
+          onPress={() => router.push('/programy')}
+        />
+        <SectionCard
           icon="document-attach-outline"
           title="Programy wyborcze"
           description="Oficjalne dokumenty partii sejmowych z wyborów 2011, 2015, 2019 i 2023, do pobrania jako PDF."

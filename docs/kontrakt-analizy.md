@@ -135,3 +135,72 @@ z retry kroku do 3 razy).
 
 Eventy PostHog: użyj istniejącej unii — dodaj `analysis_created`, `analysis_viewed`,
 `analysis_document_added` do `src/lib/analytics/events.ts`.
+
+---
+
+# Rozjazdy z klubem (dodane 2026-09-18)
+
+Osobna ścieżka w tej samej funkcji, bo pracuje na tych samych tabelach globalnych
+(`sejm_votings`, `sejm_mp_votes`), ale nie tworzy analizy w tabeli `analyses`.
+Silnik: `_shared/vote-divergence.ts` (arytmetyka czysta, bez modelu i bez sieci).
+
+## Po co
+
+Pomiar z 17 września 2026 na rzeczniku Konfederacji: **4 wystąpienia sejmowe
+i 935 głosów** w pół roku. Karta polityka medialnego oparta na wystąpieniach
+byłaby pusta dokładnie dla tych osób, dla których ma powstać. Materiał jest
+w głosowaniach.
+
+## Punkt odniesienia: stanowisko większości klubu (decyzja usera 2026-09-18)
+
+Nie lider klubu. API Sejmu nie zna pojęcia lidera, lista liderów wymagałaby
+ręcznego utrzymania, a lider bywa nieobecny (Mentzen opuścił 263 z 935 głosowań).
+Przy trójwartościowym głosie mediana sprowadza się do dominanty, dlatego w kodzie
+mowa o stanowisku większości.
+
+Pomiar pokazał, że to nie jest kosmetyczna różnica. Wawer kontra Mentzen daje
+**45 rozjazdów**, Wawer kontra stanowisko klubu daje **1 na 853**. Pierwsza liczba
+mierzyła odchylenie Mentzena, nie Wawra.
+
+Dwa parametry w `vote-divergence.ts`:
+
+- `MIN_CLUB_SHARE` = 0,75. Bez progu podział klubu 9 do 7 produkowałby „rozjazd"
+  dla siedmiu posłów naraz. Czułość sprawdzona na Konfederacji: próg 0,6 daje
+  3 rozjazdy Wawra, 0,75 daje 1, 0,9 daje 0.
+- `MIN_CLUB_CASTING` = 3. Kluby kilkuosobowe nie mają „większości".
+
+Stanowisko klubu liczymy **bez głosu badanego posła**. Inaczej pojedynczy
+odszczepieniec obniżałby próg sam sobie i w małym klubie chował własny rozjazd.
+
+## `divergence_collect_step` — porcjowane zbieranie głosów klubu
+
+Req: `{ operation: "divergence_collect_step", mp_id: number, months?: 1-12 (domyślnie 6), member_index?: number }`
+Res data: `{ club, members, member_index, member_mp_id, days_processed, days_skipped, votes, next, next_member_index }`
+
+Jeden poseł klubu na wywołanie, klient woła w pętli aż `next` będzie fałszywe.
+`importGlobalMpVotesForDays` pomija dni już pokryte, więc drugi przebieg tego
+samego klubu jest niemal darmowy. Dane globalne: raz zebrany klub służy każdemu
+tenantowi i każdemu swojemu członkowi.
+
+Dlaczego per poseł, a nie przez pełne wyniki głosowań (`/votings/{sitting}/{nr}`):
+pełny wynik to około 200 kB na głosowanie (460 posłów), czyli ~187 MB na pół roku.
+Zapytania per poseł to 18 × 76 lekkich odpowiedzi, około 6 MB. Dwa rzędy wielkości.
+
+## `divergence_get` — wynik
+
+Req: `{ operation: "divergence_get", mp_id: number, months?: 1-12 }`
+Res data (status `ready`):
+`{ status, mp, window, club_size, votings, comparable, club_split, mp_absent,
+   attendance: { total, cast, absent, share }, divergences, groups[] }`
+
+`groups[]` to rozjazdy **zwinięte do spraw** (`collapseByBill`): jedna ustawa to
+jedno ustalenie, nie kilkadziesiąt. 17 lipca 2026 rzecznik wstrzymał się przy
+28 kolejnych poprawkach do jednego druku; to jedna decyzja polityczna.
+
+Status `needs_collect` oznacza, że głosy klubu nie są jeszcze zebrane. Bez tego
+bezpiecznika funkcja zwracałaby „zero rozjazdów", co wygląda jak wynik, a jest
+brakiem danych.
+
+**Mianownik jest częścią wyniku.** Liczba rozjazdów bez `comparable` nie znaczy nic:
+1 na 853 to informacja o żelaznej dyscyplinie, nie o odszczepieństwie, i UI musi
+umieć pokazać jedno i drugie.

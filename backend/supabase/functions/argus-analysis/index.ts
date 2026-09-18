@@ -33,6 +33,12 @@ import {
   searchMps,
 } from "../_shared/sejm.ts";
 import { logAccess } from "../_shared/access-log.ts";
+import {
+  attendance,
+  collapseByBill,
+  findDivergences,
+  loadClubVotingRows,
+} from "../_shared/vote-divergence.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 const MAX_TARGET_MPS = 5;
@@ -1184,6 +1190,138 @@ async function opDelete(
 }
 
 // ---------------------------------------------------------------------------
+// Rozjazdy z klubem (silnik: _shared/vote-divergence.ts)
+// ---------------------------------------------------------------------------
+
+/** Domyślne i maksymalne okno analizy, w miesiącach. */
+const DIVERGENCE_MONTHS_DEFAULT = 6;
+const DIVERGENCE_MONTHS_MAX = 12;
+
+function windowStart(months: number): string {
+  const from = new Date();
+  from.setMonth(from.getMonth() - months);
+  return from.toISOString().slice(0, 10);
+}
+
+function readMonths(body: Record<string, unknown>): number {
+  const raw = typeof body.months === "number" ? Math.trunc(body.months) : DIVERGENCE_MONTHS_DEFAULT;
+  return Math.min(Math.max(raw, 1), DIVERGENCE_MONTHS_MAX);
+}
+
+async function readMp(body: Record<string, unknown>) {
+  const mpId = typeof body.mp_id === "number" ? Math.trunc(body.mp_id) : NaN;
+  if (!Number.isFinite(mpId) || mpId <= 0) {
+    throw new HttpError(400, "Podaj mp_id posła.");
+  }
+  const mp = await getMp(mpId);
+  if (!mp) throw new HttpError(404, "Nie znamy posła o tym numerze.");
+  if (!mp.club) throw new HttpError(400, "Ten poseł nie należy do klubu, nie ma z czym porównywać.");
+  return mp;
+}
+
+/**
+ * Porcjowane zbieranie głosów klubu: jeden poseł na wywołanie.
+ *
+ * Klient woła w pętli, aż `next` będzie fałszywe. Jeden krok to do kilkudziesięciu
+ * lekkich zapytań do API Sejmu, a `importGlobalMpVotesForDays` pomija dni już
+ * pokryte, więc drugi przebieg tego samego klubu jest niemal darmowy. Dane lądują
+ * w globalnych `sejm_votings` i `sejm_mp_votes`, czyli raz zebrany klub służy
+ * każdemu tenantowi i każdemu członkowi tego klubu.
+ */
+async function opDivergenceCollectStep(
+  supabase: SupabaseClient,
+  body: Record<string, unknown>,
+) {
+  const mp = await readMp(body);
+  const months = readMonths(body);
+  const from = windowStart(months);
+
+  const members = (await getClubMps(mp.club as string))
+    .map((m) => m.id)
+    .sort((a, b) => a - b);
+  const index = typeof body.member_index === "number" ? Math.trunc(body.member_index) : 0;
+  if (index < 0 || index >= members.length) {
+    throw new HttpError(400, "member_index poza zakresem listy klubu.");
+  }
+
+  const days = (await getPastProceedingDays()).filter((d) => d.date >= from);
+  const result = await importGlobalMpVotesForDays(supabase, members[index], days);
+
+  return {
+    club: mp.club,
+    members: members.length,
+    member_index: index,
+    member_mp_id: members[index],
+    days_processed: result.daysProcessed,
+    days_skipped: result.daysSkipped,
+    votes: result.votes,
+    next: index + 1 < members.length,
+    next_member_index: index + 1,
+  };
+}
+
+/**
+ * Wynik: czym poseł różni się od stanowiska większości własnego klubu.
+ *
+ * Zwracamy także `comparable` i `club_split`, bo bez mianownika liczba rozjazdów
+ * nie znaczy nic. Jeden rozjazd na 853 porównywalne głosowania to informacja
+ * o żelaznej dyscyplinie, a nie o odszczepieństwie, i UI musi móc to pokazać.
+ */
+async function opDivergenceGet(
+  supabase: SupabaseClient,
+  body: Record<string, unknown>,
+) {
+  const mp = await readMp(body);
+  const months = readMonths(body);
+  const from = windowStart(months);
+
+  const members = (await getClubMps(mp.club as string)).map((m) => m.id);
+  const rows = await loadClubVotingRows(supabase, mp.id, members, from);
+
+  // Bezpiecznik przeciw cichej nieprawdzie. Gdy głosy klubu nie są jeszcze
+  // zebrane, `clubVotes` jest puste, stanowisko klubu wychodzi null przy każdym
+  // głosowaniu i funkcja zwróciłaby „zero rozjazdów", co wygląda jak wynik,
+  // a jest brakiem danych. Wolimy powiedzieć wprost, że trzeba dokończyć zbieranie.
+  const covered = new Set<number>();
+  for (const row of rows) {
+    if (row.clubVotes.length > 0) covered.add(row.votingNo);
+  }
+  if (rows.length === 0 || covered.size < rows.length / 2) {
+    return {
+      status: "needs_collect" as const,
+      mp: { mp_id: mp.id, full_name: mp.firstLastName, club: mp.club },
+      window: { from, to: new Date().toISOString().slice(0, 10), months },
+      club_size: members.length,
+      votings: rows.length,
+      message:
+        "Głosy klubu nie są jeszcze zebrane w komplecie. Uruchom divergence_collect_step dla wszystkich posłów klubu.",
+    };
+  }
+
+  const summary = findDivergences(rows);
+  const stats = attendance(rows.map((r) => r.mpVote));
+
+  return {
+    status: "ready" as const,
+    mp: { mp_id: mp.id, full_name: mp.firstLastName, club: mp.club },
+    window: { from, to: new Date().toISOString().slice(0, 10), months },
+    club_size: members.length,
+    votings: rows.length,
+    comparable: summary.comparable,
+    club_split: summary.clubSplit,
+    mp_absent: summary.mpAbsent,
+    attendance: {
+      total: stats.total,
+      cast: stats.cast,
+      absent: stats.absent,
+      share: Math.round(stats.share * 1000) / 1000,
+    },
+    divergences: summary.divergences.length,
+    groups: collapseByBill(summary.divergences),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -1201,6 +1339,13 @@ Deno.serve(async (req) => {
     switch (operation) {
       case "targets_search":
         return jsonResponse({ ok: true, data: await opTargetsSearch(body) });
+      case "divergence_collect_step":
+        return jsonResponse({
+          ok: true,
+          data: await opDivergenceCollectStep(supabase, body),
+        });
+      case "divergence_get":
+        return jsonResponse({ ok: true, data: await opDivergenceGet(supabase, body) });
       case "create":
         return jsonResponse({
           ok: true,

@@ -1,6 +1,9 @@
-// Orkiestracja odswiezania bazy dziennikarzy per medium.
-// Adaptery: Onet, WP Wiadomosci, RMF24; kolejne (tvn24, prasa) dojda tak samo:
+// Orkiestracja odswiezania danych o mediach.
+// Dziennikarze per medium (Onet, WP Wiadomosci, RMF24, TVN24, Polsat News):
 // crawl -> ensureOutlet -> persist.
+// Archiwum programow publicystycznych (refreshProgram nizej): crawl strony
+// programu -> ensureProgram -> persistEpisodes. Osobna sciezka, bo prowadzacy
+// programu nie jest autorem artykulow i crawl stron autorskich go nie widzi.
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { crawlOnet } from "./onet.ts";
@@ -8,7 +11,15 @@ import { crawlWp } from "./wp.ts";
 import { crawlRmf } from "./rmf24.ts";
 import { crawlTvn24 } from "./tvn24.ts";
 import { crawlPolsat } from "./polsatnews.ts";
-import { ensureOutlet, persistJournalists, type OutletSeed } from "./persist.ts";
+import { crawlProgram, PROGRAM_SEEDS, type ProgramSeed } from "./programs.ts";
+import {
+  ensureOutlet,
+  ensureProgram,
+  knownEpisodeIds,
+  persistEpisodes,
+  persistJournalists,
+  type OutletSeed,
+} from "./persist.ts";
 
 const ONET_SEED: OutletSeed = {
   name: "Onet Wiadomosci",
@@ -122,4 +133,60 @@ export async function refreshPolsat(
   });
   const result = await persistJournalists(supabase, outletId, scraped);
   return { source: "polsatnews", ...result };
+}
+
+// ---------------------------------------------------------------------------
+// Archiwum programow publicystycznych
+// ---------------------------------------------------------------------------
+
+/** Redakcja programu. Na razie wszystkie programy w adapterze sa z TVN24. */
+const PROGRAM_OUTLET_SEEDS: Record<ProgramSeed["source"], OutletSeed> = {
+  tvn24: TVN24_SEED,
+};
+
+export interface ProgramRefreshResult {
+  slug: string;
+  name: string;
+  programId: string;
+  upserted: number;
+  failed: number;
+}
+
+/**
+ * Odswiezenie archiwum jednego programu: strona programu -> odcinki -> baza.
+ * Odcinki juz zapisane sa pomijane przed dociagnieciem ich stron, wiec kolejny
+ * przebieg kosztuje tyle, ile przybylo nowych wejsc.
+ */
+export async function refreshProgram(
+  supabase: SupabaseClient,
+  seed: ProgramSeed,
+  opts: { maxEpisodes?: number } = {},
+): Promise<ProgramRefreshResult> {
+  const outletId = await ensureOutlet(supabase, PROGRAM_OUTLET_SEEDS[seed.source]);
+  const programId = await ensureProgram(supabase, seed, outletId);
+  const known = await knownEpisodeIds(supabase, programId);
+  const episodes = await crawlProgram(seed, {
+    maxEpisodes: opts.maxEpisodes,
+    knownIds: known,
+  });
+  const result = await persistEpisodes(supabase, programId, episodes);
+  return {
+    slug: seed.slug,
+    name: seed.name,
+    programId: result.programId,
+    upserted: result.upserted,
+    failed: result.failed,
+  };
+}
+
+/** Wszystkie znane programy, jeden po drugim. Wolane z crona. */
+export async function refreshAllPrograms(
+  supabase: SupabaseClient,
+  opts: { maxEpisodes?: number } = {},
+): Promise<ProgramRefreshResult[]> {
+  const results: ProgramRefreshResult[] = [];
+  for (const seed of PROGRAM_SEEDS) {
+    results.push(await refreshProgram(supabase, seed, opts));
+  }
+  return results;
 }

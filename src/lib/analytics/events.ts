@@ -28,6 +28,10 @@ export type AnalyticsEvent =
   | 'assistant_question_asked'
   | 'journalist_viewed'
   | 'media_searched'
+  /** Archiwum programów: wejście w program, w odcinek i wyszukanie gościa. */
+  | 'program_viewed'
+  | 'program_episode_opened'
+  | 'program_guest_searched'
   | 'analysis_created'
   | 'analysis_viewed'
   | 'analysis_document_added'

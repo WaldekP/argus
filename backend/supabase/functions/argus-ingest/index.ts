@@ -1,8 +1,9 @@
 // argus-ingest — ingest danych globalnych (cron / service only).
 // Operacje: sejm_sync (nowe glosowania globalne od ostatniego znanego
 // posiedzenia), registry_scan (zmiany w KRS dla obserwowanych podmiotow),
-// mentions_sync (wzmianki z Google News dla hasel wszystkich tenantow).
-// rss_sync i journalist_refresh dojda w pozniejszych taskach.
+// mentions_sync (wzmianki z Google News dla hasel wszystkich tenantow),
+// journalist_refresh (baza dziennikarzy ze stron autorskich),
+// program_refresh (archiwum odcinkow programow publicystycznych).
 //
 // Zabezpieczenie: wymaga naglowka `x-argus-cron: <CRON_SECRET>` ALBO tokena
 // service_role w Authorization. Zwykly user dostaje 403.
@@ -14,12 +15,15 @@ import { syncSejmVotings } from "../_shared/sejm.ts";
 import { scanBulletin } from "../_shared/registry.ts";
 import { MAX_TOPICS_PER_RUN, syncAllTenants } from "../_shared/mentions.ts";
 import {
+  refreshAllPrograms,
   refreshOnet,
   refreshPolsat,
+  refreshProgram,
   refreshRmf,
   refreshTvn24,
   refreshWp,
 } from "../_shared/media/refresh.ts";
+import { DEFAULT_MAX_EPISODES, programSeed } from "../_shared/media/programs.ts";
 import { loadKnowledgeDocs, type KnowledgeRecord } from "../_shared/knowledge.ts";
 import {
   setupBrand24,
@@ -123,6 +127,39 @@ Deno.serve(async (req) => {
           );
         }
         const result = await refresh(supabase, { sections, maxAuthors });
+        return jsonResponse({ ok: true, data: result });
+      }
+      // Archiwum programow publicystycznych: ostatnie odcinki z gosciem,
+      // tematem i data. body.program to slug z PROGRAM_SEEDS, brak pola
+      // oznacza wszystkie znane programy (tak wola cron).
+      // Przebieg jest przyrostowy: znane odcinki pomijamy przed pobraniem
+      // ich stron, wiec codzienny cron kosztuje tyle, ile przybylo wejsc.
+      case "program_refresh": {
+        const maxEpisodes =
+          typeof body?.maxEpisodes === "number" && body.maxEpisodes > 0
+            ? Math.min(Math.trunc(body.maxEpisodes), DEFAULT_MAX_EPISODES)
+            : undefined;
+        const slug = typeof body?.program === "string" ? body.program.trim() : "";
+        if (slug === "") {
+          const results = await refreshAllPrograms(supabase, { maxEpisodes });
+          return jsonResponse({
+            ok: true,
+            data: {
+              programs: results.length,
+              upserted: results.reduce((sum, item) => sum + item.upserted, 0),
+              failed: results.reduce((sum, item) => sum + item.failed, 0),
+              results,
+            },
+          });
+        }
+        const seed = programSeed(slug);
+        if (!seed) {
+          return jsonResponse(
+            { ok: false, error: `Nieznany program: ${slug}` },
+            400,
+          );
+        }
+        const result = await refreshProgram(supabase, seed, { maxEpisodes });
         return jsonResponse({ ok: true, data: result });
       }
       // Zaladunek badan opinii publicznej (CBOS + ...) do knowledge_docs.

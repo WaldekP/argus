@@ -235,7 +235,8 @@ draftów generatora) oraz zaślepki „Wkrótce" (wystąpienia, sentyment; wyst�
 świadomie nieaktywne, bo YouTube blokuje transkrypty z centrów danych jak Google News).
 **Dane** (`(tabs)/dane.tsx`) to katalog danych referencyjnych: Politycy (`/politycy`,
 pełna lista posłów na żywo z API Sejmu, operation `list_mps` w argus-onboarding),
-Dziennikarze (`/dziennikarze`, `argus-media`), Programy wyborcze. Zakładki Tematy,
+Dziennikarze (`/dziennikarze`, `argus-media`), Programy (`/programy`, archiwum
+odcinków programów publicystycznych), Programy wyborcze. Zakładki Tematy,
 Briefy i Media nie istnieją. Spec: `docs/superpowers/specs/2026-07-27-nawigacja-analizy-dane-design.md`.
 
 ## Analizy niespójności (feature poza briefem, 2026-07-24)
@@ -247,6 +248,16 @@ i głosowań z API Sejmu do tabel globalnych (`sejm_statements` z dedupem po has
 źródłom — niedosłowny cytat odrzuca ustalenie) i wagą 1-3. Dokumenty usera
 (PDF przez `npm:unpdf`, TXT, MD) → werdykty twierdzeń: potwierdzone / sprzeczne /
 brak danych. Wejście: karta na ekranie Dziś. Brak niespójności to poprawny wynik.
+
+**Rozjazdy z klubem (2026-09-18):** osobna ścieżka w `argus-analysis` (operacje
+`divergence_collect_step`, `divergence_get`), silnik `_shared/vote-divergence.ts`,
+kontrakt w `docs/kontrakt-analizy.md`. Punkt odniesienia to **stanowisko większości
+klubu, nie lider** (decyzja usera): lider bywa nieobecny, a porównanie z nim mierzy
+jego odchylenie, nie badanego posła. Pomiar: Wawer kontra Mentzen to 45 rozjazdów,
+Wawer kontra klub to 1 na 853. Arytmetyka czysta, bez modelu, więc wynik jest
+powtarzalny. Powód istnienia: politycy medialni prawie nie mówią z mównicy
+(rzecznik Konfederacji: 4 wystąpienia i 935 głosów w pół roku), więc karta oparta
+na wystąpieniach byłaby dla nich pusta.
 
 **UWAGA, historia migracji rozjechana**: zdalna baza ma migracje z innych sesji
 (registry/mentions), których nie ma w tym repo — `supabase db push` odmawia.
@@ -260,6 +271,19 @@ Do uporządkowania (`supabase db pull` w repo z kompletem migracji).
 - [x] TASK 2 — ingest Sejm API + embeddingi. Embeddingi: **gte-small (384 wymiary)** przez wbudowane `Supabase.ai.Session` (bez zewnętrznego klucza; słabszy dla polskiego — ewentualna wymiana modelu = migracja + re-embed). Funkcje RPC wyszukiwania wektorowego: `match_statements`, `match_sejm_statements`, `match_news_items`. Import działa w **pętli porcjowanej** (limit zasobów workera Edge Functions; patrz kontrakt `docs/kontrakt-task-2-3.md`).
 - [x] TASK 3 — onboarding (import, wywiad AI, profil stylu, segmenty). **Żaden krok onboardingu nie jest obowiązkowy** (decyzja usera 2026-07-23): każdy ekran ma link pominięcia, całość można pominąć z ekranu startowego (trwała flaga na urządzeniu, powrót z zakładki Profil). Odpowiedzi AI normalizowane po stronie klienta (`normalizeStyleProfile`, `normalizeSegment`). Prompty: źródło w `.md`, ale bundlowane jako moduł TS (`_shared/prompts/index.ts`) — deploy nie pakuje luźnych plików. Zdjęcia posłów: wprost z API Sejmu (`/MP/{id}/photo`, `photo-mini`), URL liczony z `mp_id` w `src/lib/sejm-photo.ts`, bez kopii w Storage (decyzja usera 2026-07-24; API odbija CORS, ale nie daje ETag, więc fallbackiem są inicjały). **Zdjęcie pokazujemy wyłącznie na karcie mandatu w zakładce Profil** (decyzja usera 2026-07-24), nigdzie indziej: ani na liście posłów w onboardingu, ani na pasku w zakładce Dziś. Karta mandatu (`MpMandateCard`) bierze pełne dane osobowe z operacji `mp_details` na żywo z API Sejmu; licznik wystąpień prowadzi do ekranu `src/app/wystapienia/` (operacje `list_statements` i `get_statement`).
 - [~] TASK 4 — baza mediów CZĘŚCIOWO (2026-07-27): globalna baza dziennikarzy budowana scrapingiem publicznych stron autorów. Adaptery w `_shared/media/` (onet.ts, wp.ts, rmf24.ts; czysty fetch+regex, robots.txt sprawdzone, maile ze wzorca jawnie `pattern`), orkiestracja `refresh.ts`, wywołanie: `argus-ingest` operation `journalist_refresh` z `source` ("onet"|"wp"|"rmf24") — service role albo nagłówek crona. UWAGA: `persistJournalists` celowo NIE używa `.upsert(onConflict)`, bo indeks unikalny (outlet_id, outlet_author_slug) jest częściowy i ON CONFLICT go nie widzi (cichy brak zapisu); jest select→update/insert. Odczyt dla UI: Edge Function `argus-media` (operation `list_journalists`, filtruje `takedown_requested`), ekran Dane → Dziennikarze. Profile stylu, playbooki i pełny seed redakcji nadal otwarte.
+  **Archiwum programów (2026-09-17):** prowadzący programu nie jest autorem artykułów, więc crawl stron
+  autorskich go nie widzi (Monika Olejnik nie pisze tekstów). Program jest osobnym bytem: tabele
+  `programs` + `program_episodes` (globalne, read-only dla zalogowanych), adapter `_shared/media/programs.ts`,
+  orkiestracja `refreshProgram`/`refreshAllPrograms` w `refresh.ts`, wywołanie: `argus-ingest` operation
+  `program_refresh` (`program` = slug albo brak pola = wszystkie). Źródło: `tvn24.pl/plus/programy/<slug>`,
+  atrybut `title` linku to goście, strona odcinka daje datę i lead z JSON-LD. Pięć programów
+  (Kropka nad i, Jeden na jeden, Rozmowa Piaseckiego, Tak jest, Fakty po Faktach).
+  **Granica świadoma:** robots.txt TVN24 blokuje `*?page=*`, więc archiwum to ostatnie ~24 odcinki
+  i nic głębiej; to pokrywa się z zakresem funkcji („ostatnia seria tematów"), nie obchodzimy tego.
+  Przebieg jest przyrostowy (znane `external_id` pomijane przed pobraniem stron odcinków).
+  W przeciwieństwie do `persistJournalists` tutaj `.upsert(onConflict)` jest poprawny, bo indeks
+  unikalny (program_id, external_id) jest pełny. Odczyt: `argus-media` (`list_programs`, `get_program`,
+  `episodes_by_guest`), ekrany Dane → Programy.
 - [ ] TASK 5 — brief przedwywiadowy (pipeline + ekrany + push)
 - [ ] TASK 6 — strażnik spójności (pełny; wersja lite działa w generatorze przekazu)
 - [x] TASK 7 — generator przekazu (wyciągnięty przed TASK 4-6 na życzenie usera). Edge Function `argus-content` (kontrakt: `docs/kontrakt-task-7.md`): draft → porcjowana generacja wariantów per segment × kanał (Sonnet, styl + wartości z profilu; max 2 warianty na wywołanie), na końcu kontrola spójności lite (embedding tematu → `match_statements` → Haiku ocenia sprzeczności → `consistency_alerts`). Limity kanałów: X twardo ≤ 280 znaków, reszta promptem. Ekrany: lista draftów, formularz (segmenty opcjonalne — tryb ogólny), widok wariantów z kopiowaniem i regeneracją. Segmenty z danych PKW/GUS — nadal otwarte (obecnie suggest AI z onboardingu)

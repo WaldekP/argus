@@ -123,3 +123,23 @@ select cron.schedule('argus-brand24-sync', '30 */3 * * *', $job$
     timeout_milliseconds := 20000
   );
 $job$);
+
+-- 21:30 UTC (23:30 Warszawa): archiwum programów publicystycznych, po tym jak
+-- zejdą z anteny wieczorne pasma. Przebieg jest przyrostowy (znane odcinki
+-- pomijamy przed pobraniem ich stron), więc kosztuje tyle, ile przybyło wejść:
+-- w dzień powszedni kilka stron, w weekend zwykle zero.
+-- Timeout większy niż w pozostałych zadaniach, bo jedno wywołanie chodzi po
+-- pięciu programach z odstępem między żądaniami.
+select cron.schedule('argus-program-refresh', '30 21 * * *', $job$
+  select net.http_post(
+    url := 'https://jgwvtlghpkztivbhnofi.supabase.co/functions/v1/argus-ingest',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'apikey', '<ANON_KEY>',
+      'Authorization', 'Bearer <ANON_KEY>',
+      'x-argus-cron', '<CRON_SECRET>'
+    ),
+    body := jsonb_build_object('operation', 'program_refresh'),
+    timeout_milliseconds := 60000
+  );
+$job$);
