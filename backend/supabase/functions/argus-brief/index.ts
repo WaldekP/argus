@@ -340,9 +340,8 @@ function buildHuman(input: GenerateInput): string {
       .join("\n")
     : "brak danych";
 
-  const programOutlet = Array.isArray(input.program?.outlets)
-    ? input.program?.outlets[0]
-    : input.program?.outlets;
+  const programOutlets = input.program ? input.program.outlets : null;
+  const programOutlet = Array.isArray(programOutlets) ? programOutlets[0] : programOutlets;
   const program = input.program
     ? [
       `Nazwa: ${input.program.name}`,
@@ -433,7 +432,7 @@ async function opCreate(
   // pulapke z imiennikami: w bazie dziennikarzy jest Magdalena Olejnik,
   // a Kropke nad i prowadzi Monika, wiec wybor z listy budowal profil innej
   // osoby i nic nie ostrzegalo.
-  const hostFromProgram = Array.isArray(program?.hosts) && program.hosts.length > 0
+  const hostFromProgram = program && Array.isArray(program.hosts) && program.hosts.length > 0
     ? program.hosts[0]
     : null;
   const journalistName = typeof body.journalist_name === "string" && body.journalist_name.trim()
@@ -443,9 +442,16 @@ async function opCreate(
     : hostFromProgram;
 
   const journalist = journalistId ? await getJournalist(supabase, journalistId) : null;
-  const outletId = (journalist?.outlet_id as string | null) ??
-    (program?.outlet_id ?? null) ??
-    (typeof body.outlet_id === "string" ? body.outlet_id : null);
+  // Trzy zrodla redakcji, po kolei. Jawne kroki zamiast lancucha `??`, bo
+  // Deno zglasza na nim TS2871 (wyrazenie zawsze nullowe), a `tsc` na `src/`
+  // tego nie widzi: typy backendu sprawdza wylacznie CI.
+  let outletId: string | null = null;
+  const journalistOutlet = journalist?.outlet_id;
+  if (typeof journalistOutlet === "string") outletId = journalistOutlet;
+  if (outletId === null && program && typeof program.outlet_id === "string") {
+    outletId = program.outlet_id;
+  }
+  if (outletId === null && typeof body.outlet_id === "string") outletId = body.outlet_id;
 
   const { data: created, error: insertError } = await supabase
     .from("interview_briefs")

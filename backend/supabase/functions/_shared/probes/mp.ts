@@ -156,7 +156,7 @@ export const statementsProbe: Probe = {
         evidence: [{
           type: "statement",
           quote: lead(speech, 700),
-          date: (row.date as string) ?? null,
+          date: (row.date as string | null) ?? null,
           ref: row.id as string,
         }],
       };
