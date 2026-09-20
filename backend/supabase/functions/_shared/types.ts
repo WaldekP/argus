@@ -58,9 +58,32 @@ export function describeAiError(err: unknown): string | null {
   return null;
 }
 
+/**
+ * Ile znakow komunikatu logujemy z poczatku i z konca, gdy jest dlugi.
+ *
+ * Powod: kolektor logow Supabase ucina wpis okolo 10 tysiecy znakow, a
+ * LangChain sklada komunikat jako "Failed to parse. Text: <CALA odpowiedz
+ * modelu>. Error: <wlasciwy powod>". Przy dlugiej odpowiedzi powod wypadal
+ * poza limit i w logach zostawala sama tresc bez wyjasnienia, czyli
+ * diagnozowanie po omacku. Logujemy oba konce.
+ */
+const LOG_EDGE_CHARS = 700;
+
 export function serverErrorResponse(functionName: string, err: unknown): Response {
   const incidentId = crypto.randomUUID().slice(0, 8);
-  console.error(`${functionName} error [${incidentId}]:`, err);
+  const tresc = err instanceof Error ? err.message : String(err ?? "");
+  if (tresc.length > LOG_EDGE_CHARS * 2) {
+    console.error(
+      `${functionName} error [${incidentId}] (poczatek):`,
+      tresc.slice(0, LOG_EDGE_CHARS),
+    );
+    console.error(
+      `${functionName} error [${incidentId}] (koniec):`,
+      tresc.slice(-LOG_EDGE_CHARS),
+    );
+  } else {
+    console.error(`${functionName} error [${incidentId}]:`, err);
+  }
 
   const znany = describeAiError(err);
   if (znany) {
