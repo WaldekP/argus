@@ -40,10 +40,14 @@ async function loadChatAnthropic() {
  * czyli bledem 500 po 99 sekundach i bez zadnej wskazowki w UI.
  *
  * Limit jest ustawiony jawnie, zeby taki sufit nie byl niewidzialny.
- * Gdy brief znowu przestanie sie miescic, dzielimy generacje na dwa kroki
- * (jak w argus-content), a nie podnosimy tej liczby w nieskonczonosc.
+ *
+ * 8192 tez okazalo sie za malo: przy szerokim temacie (trzy obszary naraz)
+ * model pisze duzo dluzsze sekcje i odpowiedz znowu sie urwala. 16384 daje
+ * zapas, ale to JEST podnoszenie sufitu, nie rozwiazanie. Wlasciwe wyjscie to
+ * podzial generacji na dwa kroki (jak w argus-content: osobny krok na pytania)
+ * i to nalezy zrobic, zanim ten limit trzeba bedzie ruszyc po raz trzeci.
  */
-const GENERATION_MAX_TOKENS = 8192;
+const GENERATION_MAX_TOKENS = 16384;
 
 export interface GenerationOptions {
   /** Nadpisanie limitu odpowiedzi dla wyjatkowo dlugich generacji. */

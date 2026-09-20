@@ -43,11 +43,36 @@ export const identityProbe: Probe = {
     if (id === null) {
       return emptyResult(identityProbe, window, "poseł", ["Brak numeru posła."]);
     }
+    // `getMp` zwraca null i przy nieznanym numerze, i przy nieudanym pobraniu.
+    // Wczesniej obie sytuacje dawaly zdanie "API Sejmu nie zna posla o tym
+    // numerze", ktore trafialo do briefu jako fakt o czlowieku. Przy chwilowej
+    // awarii API Sejmu brief informowal, ze poslowi nie da sie potwierdzic
+    // tozsamosci, co jest nieprawda. Opadamy na dane, ktore juz mamy z wyboru
+    // uzytkownika, i mowimy wprost, czego nie udalo sie potwierdzic.
     const mp = await getMp(id);
     if (!mp) {
-      return emptyResult(identityProbe, window, "poseł", [
-        "API Sejmu nie zna posła o tym numerze.",
-      ]);
+      return {
+        probe: identityProbe.id,
+        label: identityProbe.label,
+        summary: {
+          mp_id: id,
+          full_name: subject.name,
+          club: subject.club ?? null,
+          district: null,
+          profession: null,
+          active: null,
+        },
+        findings: [],
+        coverage: {
+          checked: 0,
+          unit: "poseł",
+          from: window.from,
+          to: window.to,
+          gaps: [
+            "Nie udało się pobrać danych osobowych z API Sejmu, więc okręg i zawód są nieznane. To awaria połączenia, a nie informacja o tym pośle.",
+          ],
+        },
+      };
     }
     return {
       probe: identityProbe.id,
