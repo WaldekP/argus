@@ -41,8 +41,12 @@ async function loadChatAnthropic() {
  *
  * Limit jest ustawiony jawnie, zeby taki sufit nie byl niewidzialny.
  *
- * Historia tej liczby: brak limitu, potem 8192, 16384, 32000, teraz 20000.
- * Przy 16384 odpowiedz dochodzila juz do pulapek, czyli brakowalo niewiele.
+ * Historia tej liczby, w kolejnosci prob: brak limitu, 8192, 16384, 32000,
+ * 20000, z powrotem 8192. Przy 8192 brief z 18 wrzesnia wygenerowal sie
+ * poprawnie w 139 sekund. Podnoszenie sufitu NIE pomoglo, a przy 20000 model
+ * zaczal zwracac puste wejscie narzedzia ("Failed to parse. Text: \"\"")
+ * nawet dla tematu, ktory wczesniej przechodzil. Czyli wyzszy limit sam
+ * w sobie pogarszal sprawe, a nie tylko nie pomagal.
  *
  * GORNA GRANICA NIE JEST DOWOLNA. SDK Anthropica liczy, czy zadanie moze
  * trwac dluzej niz dziesiec minut, i powyzej pewnego `max_tokens` ODMAWIA
@@ -58,7 +62,7 @@ async function loadChatAnthropic() {
  * Prawdziwym ograniczeniem dlugosci sa twarde limity zdan w promptcie briefu,
  * dodane razem z ta zmiana. Ten sufit ma tylko nie ucinac poprawnej odpowiedzi.
  */
-const GENERATION_MAX_TOKENS = 20000;
+const GENERATION_MAX_TOKENS = 8192;
 
 export interface GenerationOptions {
   /** Nadpisanie limitu odpowiedzi dla wyjatkowo dlugich generacji. */
