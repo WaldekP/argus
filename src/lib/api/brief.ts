@@ -7,7 +7,7 @@
  * oraz trzy przekazy dnia.
  */
 
-import { edgeClient, LONG_TIMEOUT_MS } from '@/lib/api/client';
+import { edgeClient } from '@/lib/api/client';
 
 /** Rekomendacja do jednego pytania. Trzyma się kształtu z `recommended_answer`. */
 export type RecommendedAnswer = {
@@ -92,9 +92,15 @@ type BriefOperation = 'create' | 'get' | 'list' | 'rate' | 'question_feedback';
 const callBrief = edgeClient<BriefOperation>('argus-brief');
 
 /**
- * Zamawia brief. Generacja to jedno wywołanie modelu na pełnym kontekście,
- * więc trwa około półtorej minuty. Stąd dłuższy limit czasu.
+ * Zamawia brief.
+ *
+ * Generacja to jedno wywołanie modelu na pełnym kontekście. Zmierzone przebiegi
+ * na produkcji: od 85 do 140 sekund, czyli PONAD `LONG_TIMEOUT_MS` (dwie minuty).
+ * Przy dłuższym przebiegu klient przerywał żądanie i pokazywał „Operacja trwała
+ * zbyt długo", mimo że funkcja kończyła pracę i zapisywała gotowy brief, który
+ * pojawiał się na liście chwilę później. Stąd własny, dłuższy limit.
  */
+const BRIEF_TIMEOUT_MS = 300_000;
 export function createBrief(params: {
   topic: string;
   /** Slug programu. Podpowiada prowadzącego i ostatnie tematy pasma. */
@@ -108,7 +114,7 @@ export function createBrief(params: {
   return callBrief<{ brief: InterviewBrief; questions: BriefQuestion[] }>(
     'create',
     params,
-    LONG_TIMEOUT_MS
+    BRIEF_TIMEOUT_MS
   );
 }
 

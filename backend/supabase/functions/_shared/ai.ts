@@ -41,13 +41,19 @@ async function loadChatAnthropic() {
  *
  * Limit jest ustawiony jawnie, zeby taki sufit nie byl niewidzialny.
  *
- * 8192 tez okazalo sie za malo: przy szerokim temacie (trzy obszary naraz)
- * model pisze duzo dluzsze sekcje i odpowiedz znowu sie urwala. 16384 daje
- * zapas, ale to JEST podnoszenie sufitu, nie rozwiazanie. Wlasciwe wyjscie to
- * podzial generacji na dwa kroki (jak w argus-content: osobny krok na pytania)
- * i to nalezy zrobic, zanim ten limit trzeba bedzie ruszyc po raz trzeci.
+ * Historia tej liczby: brak limitu, potem 8192, potem 16384, teraz 32000.
+ * Przy 16384 odpowiedz dochodzila juz do pulapek, czyli brakowalo niewiele.
+ *
+ * Napisalem wczesniej, ze zamiast podnosic sufit trzeba podzielic generacje
+ * na dwa wywolania, i zmienilem zdanie z konkretnego powodu: jedno wywolanie
+ * trwa 85-140 sekund, wiec dwa sekwencyjne podchodza pod limit czasu workera.
+ * Ryzyko przekroczenia zegara jest wieksze niz ryzyko dluzszej odpowiedzi,
+ * a limit wyjscia i tak nie jest waskim gardlem kosztowym.
+ *
+ * Prawdziwym ograniczeniem dlugosci sa twarde limity zdan w promptcie briefu,
+ * dodane razem z ta zmiana. Ten sufit ma tylko nie ucinac poprawnej odpowiedzi.
  */
-const GENERATION_MAX_TOKENS = 16384;
+const GENERATION_MAX_TOKENS = 32000;
 
 export interface GenerationOptions {
   /** Nadpisanie limitu odpowiedzi dla wyjatkowo dlugich generacji. */
