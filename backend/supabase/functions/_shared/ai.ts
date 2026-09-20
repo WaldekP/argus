@@ -69,6 +69,17 @@ export async function getGenerationModel(
     model: GENERATION_MODEL,
     apiKey: getApiKey(),
     maxTokens: options.maxTokens ?? GENERATION_MAX_TOKENS,
+    // Strumieniowanie jest WYMAGANE przy wysokim `maxTokens`, a nie tylko
+    // wygodne. SDK Anthropica liczy, czy zadanie moze trwac dluzej niz
+    // dziesiec minut, i przy 32000 tokenach odmawia wykonania wywolania
+    // nieblokowanego: "Streaming is required for operations that may take
+    // longer than 10 minutes". Bez tej flagi podniesienie sufitu zamienialo
+    // jeden blad (urwana odpowiedz) na drugi (odmowa SDK), obydwa widziane
+    // przez uzytkownika jako 500 z numerem zgloszenia.
+    //
+    // Odpowiedz i tak skladamy w calosc po stronie funkcji, wiec dla
+    // wywolujacego nic sie nie zmienia.
+    streaming: true,
   });
 }
 
