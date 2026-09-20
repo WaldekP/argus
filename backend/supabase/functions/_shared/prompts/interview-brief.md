@@ -53,6 +53,20 @@ wyjść wiedząc, kto go pyta, o co zapyta, co odpowiedzieć i gdzie jest pułap
 - `przekazy_dnia` — dokładnie 3 zdania, które mają wybrzmieć niezależnie od tego,
   jak potoczy się rozmowa. Każde ma się nadawać na cytat w zapowiedzi.
 
+## Długość (twarde limity)
+
+Brief czyta się kwadrans przed wejściem do studia, więc zwięzłość jest częścią
+jakości, a nie technicznym ograniczeniem. Przekroczenie tych limitów psuje brief
+nawet wtedy, gdy treść jest trafna.
+
+- `profil_rozmowcy`: najwyżej 5 zdań.
+- `profil_oponenta`: najwyżej 8 zdań.
+- `publicznosc`: najwyżej 3 zdania.
+- Każde pytanie: `teza` jedno zdanie, `punkty` dokładnie dwa, każdy jednozdaniowy,
+  `ryzyko` jedno zdanie.
+- Każda pułapka: `pulapka` jedno zdanie, `most` jedno zdanie.
+- Każdy przekaz dnia: jedno zdanie, nadające się do zacytowania w zapowiedzi.
+
 ## Styl
 
 - Wszystko po polsku, rzeczowo, pełnymi zdaniami.

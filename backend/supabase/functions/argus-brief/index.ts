@@ -155,9 +155,17 @@ async function getOwnStatements(
 // ---------------------------------------------------------------------------
 
 /** Ile ostatnich odcinków programu wchodzi do promptu. */
-const EPISODES_LIMIT = 8;
-/** Ile pozycji z dossier oponenta przekazujemy, żeby prompt nie spuchł. */
-const OPPONENT_ITEMS = 5;
+const EPISODES_LIMIT = 5;
+/**
+ * Ile pozycji z dossier oponenta przekazujemy.
+ *
+ * Im więcej materiału wejściowego, tym dłuższe sekcje pisze model, a długa
+ * odpowiedź przestaje się mieścić w limicie i cała generacja pada. Cztery
+ * pozycje z cytatem po 320 znaków wystarczają, żeby brief miał czym poprzeć
+ * tezę, i nie prowokują modelu do wypracowania.
+ */
+const OPPONENT_ITEMS = 4;
+const OPPONENT_QUOTE_CHARS = 320;
 
 interface ProgramRow {
   id: string;
