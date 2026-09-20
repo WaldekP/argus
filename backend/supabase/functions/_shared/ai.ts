@@ -41,19 +41,24 @@ async function loadChatAnthropic() {
  *
  * Limit jest ustawiony jawnie, zeby taki sufit nie byl niewidzialny.
  *
- * Historia tej liczby: brak limitu, potem 8192, potem 16384, teraz 32000.
+ * Historia tej liczby: brak limitu, potem 8192, 16384, 32000, teraz 20000.
  * Przy 16384 odpowiedz dochodzila juz do pulapek, czyli brakowalo niewiele.
  *
- * Napisalem wczesniej, ze zamiast podnosic sufit trzeba podzielic generacje
- * na dwa wywolania, i zmienilem zdanie z konkretnego powodu: jedno wywolanie
- * trwa 85-140 sekund, wiec dwa sekwencyjne podchodza pod limit czasu workera.
- * Ryzyko przekroczenia zegara jest wieksze niz ryzyko dluzszej odpowiedzi,
- * a limit wyjscia i tak nie jest waskim gardlem kosztowym.
+ * GORNA GRANICA NIE JEST DOWOLNA. SDK Anthropica liczy, czy zadanie moze
+ * trwac dluzej niz dziesiec minut, i powyzej pewnego `max_tokens` ODMAWIA
+ * wykonania wywolania nieblokowanego: "Streaming is required for operations
+ * that may take longer than 10 minutes". Przy 32000 wywolanie nie wychodzilo
+ * w ogole. Flaga `streaming: true` tego NIE zdejmuje, bo strukturalne wyjscie
+ * LangChaina idzie przez nieblokowane `Messages.create` niezaleznie od niej
+ * (widac w sladzie stosu: makeCompletionRequest -> Messages.create).
+ *
+ * Czyli sufit ma dwie strony: za nisko ucina odpowiedz, za wysoko blokuje
+ * wywolanie. 20000 miesci sie miedzy nimi.
  *
  * Prawdziwym ograniczeniem dlugosci sa twarde limity zdan w promptcie briefu,
  * dodane razem z ta zmiana. Ten sufit ma tylko nie ucinac poprawnej odpowiedzi.
  */
-const GENERATION_MAX_TOKENS = 32000;
+const GENERATION_MAX_TOKENS = 20000;
 
 export interface GenerationOptions {
   /** Nadpisanie limitu odpowiedzi dla wyjatkowo dlugich generacji. */
@@ -69,17 +74,6 @@ export async function getGenerationModel(
     model: GENERATION_MODEL,
     apiKey: getApiKey(),
     maxTokens: options.maxTokens ?? GENERATION_MAX_TOKENS,
-    // Strumieniowanie jest WYMAGANE przy wysokim `maxTokens`, a nie tylko
-    // wygodne. SDK Anthropica liczy, czy zadanie moze trwac dluzej niz
-    // dziesiec minut, i przy 32000 tokenach odmawia wykonania wywolania
-    // nieblokowanego: "Streaming is required for operations that may take
-    // longer than 10 minutes". Bez tej flagi podniesienie sufitu zamienialo
-    // jeden blad (urwana odpowiedz) na drugi (odmowa SDK), obydwa widziane
-    // przez uzytkownika jako 500 z numerem zgloszenia.
-    //
-    // Odpowiedz i tak skladamy w calosc po stronie funkcji, wiec dla
-    // wywolujacego nic sie nie zmienia.
-    streaming: true,
   });
 }
 
