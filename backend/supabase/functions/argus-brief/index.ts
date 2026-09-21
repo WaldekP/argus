@@ -65,10 +65,19 @@ const LIST_LIMIT = 50;
 
 const briefSchema = z.object({
   profil_rozmowcy: z.string(),
-  // Pole jest zawsze wymagane, a przy rozmowie jeden na jeden model wpisuje
-  // zdanie o braku drugiego gościa. Pole opcjonalne w strukturalnym wyjściu
-  // bywa pomijane losowo, a UI i tak ukrywa sekcję po pustej obsadzie.
-  profil_oponenta: z.string(),
+  /**
+   * Opisowe, a przez to pomijalne.
+   *
+   * Reszta schematu jest twardo wymagana (zasada z analiz: braki wykrywamy,
+   * zamiast maskowac defaultami) i tak zostaje. Tu robimy wyjatek, bo
+   * 21 wrzesnia model zwrocil kompletna, poprawna odpowiedz BEZ tego pola
+   * i Zod wywrocil cala generacje: polityk na godziny przed wywiadem stracil
+   * dziesiec pytan, pulapki i przekazy dnia przez jedna brakujaca sekcje.
+   *
+   * Utrata jednej sekcji jest akceptowalna, utrata calego briefu nie. Brak
+   * uzupelniamy w kodzie zdaniem, ktore mowi wprost, ze sekcji nie ma.
+   */
+  profil_oponenta: z.string().optional(),
   publicznosc: z.string(),
   pytania: z.array(
     z.object({
@@ -473,7 +482,19 @@ async function generateBrief(input: GenerateInput): Promise<BriefContent> {
       ],
     ]);
 
-  return { ...core, ...questions } as BriefContent;
+  // Uzupelnienie pomijalnej sekcji. Piszemy wprost, ze jej nie ma, zamiast
+  // zostawiac puste miejsce, ktore czyta sie jak brak danych o czlowieku.
+  const opisObsady = input.participants
+    .map((p) => `${p.name}${p.club ? ` (${p.club})` : ""}`)
+    .join(", ");
+  const profilOponenta = core.profil_oponenta?.trim()
+    ? core.profil_oponenta
+    : input.participants.length === 0
+    ? "Rozmowa jeden na jeden z prowadzącym, bez drugiego gościa."
+    : `Obsada: ${opisObsady}. Tej sekcji nie udało się przygotować, więc nie opieraj ` +
+      "się na niej. Dane o rozmówcy sprawdź na jego karcie w zakładce Dane.";
+
+  return { ...core, profil_oponenta: profilOponenta, ...questions } as BriefContent;
 }
 
 // ---------------------------------------------------------------------------

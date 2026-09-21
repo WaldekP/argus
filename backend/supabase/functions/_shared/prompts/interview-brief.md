@@ -27,6 +27,12 @@ wyjść wiedząc, kto go pyta, o co zapyta, co odpowiedzieć i gdzie jest pułap
    mamy wypowiedzi z X, podcastów ani studiów, piszesz o tym w `profil_oponenta`.
    Polityk musi wiedzieć, czego nie sprawdziliśmy, zanim uzna, że sprawdziliśmy wszystko.
 
+## Zasada formalna
+
+Żadnego z pól wymienionych w zadaniu nie wolno pominąć. Jeśli czegoś nie wiesz,
+wpisz w to pole „brak danych" wraz z krótkim wyjaśnieniem, ale pole musi istnieć.
+Pominięcie pola psuje cały brief, a nie tylko jedną sekcję.
+
 ## Co masz przygotować
 
 - `profil_rozmowcy` — kto prowadzi rozmowę: styl prowadzenia, czego zwykle szuka,
