@@ -21,9 +21,9 @@
 // Migracja 20260918100000 dolozyla `program_id` i `participants`
 // do interview_briefs; reszta schematu pochodzi z migracji 001.
 //
-// Zasoby workera: generacja to jedno wywolanie Sonneta ze strukturalnym
-// wyjsciem. Gdyby zaczelo przekraczac limit, dzielimy tak jak w argus-content
-// (osobny krok na pytania), na razie miesci sie w jednym przebiegu.
+// Zasoby workera: generacja to DWA wywolania Sonneta ze strukturalnym wyjsciem
+// (rdzen i osobno pytania), bo jedno przestalo sie miescic przy temacie
+// zlozonym z kilku watkow. Szczegoly przy briefCoreSchema nizej.
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
@@ -89,6 +89,23 @@ const briefSchema = z.object({
 });
 
 type BriefContent = z.infer<typeof briefSchema>;
+
+/**
+ * Brief powstaje w DWOCH wywolaniach modelu, nie w jednym.
+ *
+ * Powod jest zmierzony, nie teoretyczny. 21 wrzesnia polityk wpisal cztery
+ * watki naraz ("ceny paliw, Berek do TK, bezpieczenstwo, pakiety fundacji"),
+ * bo tak wlasnie wyglada prawdziwa rozmowa w studiu. Odpowiedz na taki temat
+ * nie miescila sie w jednym wywolaniu i urywala sie w polowie JSON-a, a
+ * uzytkownik dostawal 500 z numerem zgloszenia. Podnoszenie limitu tokenow
+ * nie pomoglo: powyzej pewnej wartosci SDK Anthropica w ogole odmawia
+ * wywolania nieblokowanego.
+ *
+ * Dlatego dzielimy odpowiedz na polowy, kazda z wlasnym schematem. Zadna
+ * z nich nie zbliza sie do sufitu, a wejscie (ten sam material) jest wspolne.
+ */
+const briefCoreSchema = briefSchema.omit({ pytania: true });
+const briefQuestionsSchema = briefSchema.pick({ pytania: true });
 
 // ---------------------------------------------------------------------------
 // Retrieve
@@ -331,7 +348,7 @@ interface GenerateInput {
   opponentContext: string;
 }
 
-function buildHuman(input: GenerateInput): string {
+function buildHuman(input: GenerateInput, zadanie: string): string {
   const outlet = (input.journalist?.outlets ?? null) as Record<string, unknown> | null;
   const dziennikarz = input.journalist
     ? [
@@ -423,14 +440,40 @@ Stanowiska wobec tematow: ${opis(input.profile?.topic_positions)}\nProfil stylu 
 }
 
 async function generateBrief(input: GenerateInput): Promise<BriefContent> {
-  const model = (await getGenerationModel()).withStructuredOutput(briefSchema, {
-    name: "brief_przedwywiadowy",
-  });
-  const result = await model.invoke([
-    ["system", loadPrompt("interview-brief")],
-    ["human", buildHuman(input)],
-  ]);
-  return result as BriefContent;
+  const model = await getGenerationModel();
+  const system = loadPrompt("interview-brief");
+
+  // Krok 1: wszystko poza pytaniami.
+  const core = await model
+    .withStructuredOutput(briefCoreSchema, { name: "brief_rdzen" })
+    .invoke([
+      ["system", system],
+      [
+        "human",
+        buildHuman(
+          input,
+          "Przygotuj WYLACZNIE: profil_rozmowcy, profil_oponenta, publicznosc, " +
+            "pulapki oraz przekazy_dnia. Pytan NIE pisz w tym kroku, powstana osobno.",
+        ),
+      ],
+    ]);
+
+  // Krok 2: same pytania, na tym samym materiale.
+  const questions = await model
+    .withStructuredOutput(briefQuestionsSchema, { name: "brief_pytania" })
+    .invoke([
+      ["system", system],
+      [
+        "human",
+        buildHuman(
+          input,
+          `Przygotuj WYLACZNIE ${QUESTIONS_COUNT} przewidywanych pytan, uszeregowanych ` +
+            "od najbardziej prawdopodobnego. Nie pisz profili, pulapek ani przekazow dnia.",
+        ),
+      ],
+    ]);
+
+  return { ...core, ...questions } as BriefContent;
 }
 
 // ---------------------------------------------------------------------------
