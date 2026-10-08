@@ -12,7 +12,7 @@ import { prompts } from "./prompts/index.ts";
 
 // Models per CLAUDE.md: sonnet 5 for generation (briefs, content),
 // haiku 4.5 for classification.
-const GENERATION_MODEL = "claude-sonnet-5";
+export const GENERATION_MODEL = "claude-sonnet-5";
 const CLASSIFICATION_MODEL = "claude-haiku-4-5";
 
 function getApiKey(): string {
@@ -90,6 +90,26 @@ export async function getClassificationModel(): Promise<ChatAnthropic> {
   });
 }
 
+
+/**
+ * Surowy klient SDK Anthropica, ladowany leniwie jak LangChain.
+ *
+ * Do wywolan z narzedziem serwerowym web search (teczka oponenta). LangChain
+ * nie typuje blokow `server_tool_use` / `web_search_tool_result` ani cytowan,
+ * a to z nich walidujemy zrodla, wiec tu czytamy odpowiedz wprost z SDK.
+ * Reszta generacji zostaje na LangChainie.
+ */
+export async function getAnthropicClient(options: { timeoutMs?: number } = {}) {
+  const mod = await import("npm:@anthropic-ai/sdk@0.122.0");
+  const Anthropic = mod.default;
+  return new Anthropic({
+    apiKey: getApiKey(),
+    timeout: options.timeoutMs ?? 120_000,
+    // Ponowienie przebiegu z wyszukiwaniem kosztuje drugi raz i nie miesci
+    // sie w limicie czasu workera, wiec bez ponowien po stronie SDK.
+    maxRetries: 0,
+  });
+}
 
 export function loadPrompt(name: string): string {
   const text = prompts[name];

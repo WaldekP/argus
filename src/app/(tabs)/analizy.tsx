@@ -31,6 +31,12 @@ export default function AnalizyScreen() {
           onPress={() => router.push('/brief')}
         />
         <SectionCard
+          icon="person-outline"
+          title="Teczka oponenta"
+          description="Wypowiedzi przeciwnika z ostatniego roku, zebrane z sieci: kontrowersje, sprzeczności z programem jego partii i to, co podważyły fakty."
+          onPress={() => router.push('/oponenci')}
+        />
+        <SectionCard
           icon="search-outline"
           title="Analiza niespójności"
           description="Wskaż temat i cel, a Argus znajdzie sprzeczności w wypowiedziach i głosowaniach z Sejmu."

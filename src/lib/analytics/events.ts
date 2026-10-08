@@ -34,6 +34,11 @@ export type AnalyticsEvent =
   | 'program_viewed'
   | 'program_episode_opened'
   | 'program_guest_searched'
+  /** Teczka oponenta: nowa, odświeżona, otwarta i wejście w źródło wypowiedzi. */
+  | 'opponent_dossier_created'
+  | 'opponent_dossier_refreshed'
+  | 'opponent_dossier_viewed'
+  | 'opponent_item_source_opened'
   | 'analysis_created'
   | 'analysis_viewed'
   | 'analysis_document_added'

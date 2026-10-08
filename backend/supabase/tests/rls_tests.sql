@@ -41,6 +41,10 @@ insert into public.analyses (tenant_id, topic, target_type, target_name, target_
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'analiza tenanta A', 'mps', 'Jan Testowy', '{1}'),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'analiza tenanta B', 'mps', 'Anna Testowa', '{2}');
 
+insert into public.opponent_dossiers (tenant_id, full_name) values
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Oponent tenanta A'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Oponent tenanta B');
+
 insert into public.sejm_votings (id, sitting, voting_no, date, title) values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 999, 999, '2026-01-01', 'Testowe glosowanie RLS');
 
@@ -189,6 +193,12 @@ begin
 
   select count(*) into c from public.analyses;
   if c <> 1 then raise exception 'FAIL: user B widzi % analiz (oczekiwano 1)', c; end if;
+
+  select count(*) into c from public.opponent_dossiers where full_name = 'Oponent tenanta A';
+  if c <> 0 then raise exception 'FAIL: user B widzi teczke oponenta tenanta A'; end if;
+
+  select count(*) into c from public.opponent_dossiers;
+  if c <> 1 then raise exception 'FAIL: user B widzi % teczek (oczekiwano 1)', c; end if;
 end $$;
 
 -- ---------------------------------------------------------------------------

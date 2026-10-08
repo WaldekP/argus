@@ -241,7 +241,129 @@ function parseParticipants(raw: unknown): Participant[] {
 }
 
 /**
- * Dossier oponenta z rejestru sond.
+ * Gotowa teczka oponenta (argus-opponents) w kształcie, którego potrzebuje brief.
+ * Brief nie liczy teczki sam, bo to kilka minut i 1-2 USD: bierze ostatnią
+ * gotową teczkę tenanta dla tej osoby, jeśli jest.
+ */
+interface DossierForBrief {
+  id: string;
+  full_name: string;
+  mp_id: number | null;
+  updated_at: string;
+  items: {
+    id: string;
+    date: string | null;
+    quote: string;
+    context: string;
+    source_title: string;
+    category: string;
+    later_facts: string | null;
+  }[];
+  summary: {
+    linia?: string;
+    punkty_ataku?: { teza: string; item_ids: string[]; obrona_przeciwnika?: string }[];
+    czego_unikac?: string[];
+    luki?: string[];
+    failed_passes?: string[];
+  } | null;
+}
+
+const DOSSIER_ITEMS_IN_BRIEF = 12;
+const CATEGORY_PRIORITY = [
+  "kontrowersja",
+  "sprzecznosc-z-programem",
+  "zmiana-zdania",
+  "zweryfikowane-przez-fakty",
+  "wypowiedz",
+];
+
+async function getTenantDossiers(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<DossierForBrief[]> {
+  const { data, error } = await supabase
+    .from("opponent_dossiers")
+    .select("id, full_name, mp_id, updated_at, items, summary")
+    .eq("tenant_id", tenantId)
+    .eq("status", "done")
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  // Fail-soft: brak teczek to brief bez nich, nie brak briefu.
+  if (error) {
+    console.error("argus-brief: odczyt teczek", error.message);
+    return [];
+  }
+  return (data ?? []) as unknown as DossierForBrief[];
+}
+
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L} ]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchDossier(
+  dossiers: DossierForBrief[],
+  person: { name: string; mp_id?: number },
+): DossierForBrief | null {
+  const name = normalizeName(person.name);
+  return dossiers.find((d) =>
+    (person.mp_id !== undefined && d.mp_id === person.mp_id) ||
+    normalizeName(d.full_name) === name
+  ) ?? null;
+}
+
+function formatDossier(dossier: DossierForBrief): string {
+  const summary = dossier.summary ?? {};
+  const lines: string[] = [
+    `### Teczka oponenta (wyszukiwanie w sieci, stan na ${dossier.updated_at.slice(0, 10)})`,
+  ];
+  if (summary.linia) lines.push(`Linia: ${summary.linia}`);
+  if (summary.punkty_ataku && summary.punkty_ataku.length > 0) {
+    lines.push(
+      "Punkty ataku (z odwolaniem do pozycji):\n" +
+        summary.punkty_ataku
+          .map((p) =>
+            `- ${p.teza} [${p.item_ids.join(", ")}]` +
+            (p.obrona_przeciwnika ? `\n  obrona przeciwnika: ${p.obrona_przeciwnika}` : "")
+          )
+          .join("\n"),
+    );
+  }
+  const items = [...(dossier.items ?? [])]
+    .sort((a, b) =>
+      CATEGORY_PRIORITY.indexOf(a.category) - CATEGORY_PRIORITY.indexOf(b.category)
+    )
+    .slice(0, DOSSIER_ITEMS_IN_BRIEF);
+  if (items.length > 0) {
+    lines.push(
+      "Wypowiedzi:\n" +
+        items
+          .map((i) =>
+            `- ${i.id} [${i.date ?? "bez daty"}] (${i.category}) ${i.quote.slice(0, 300)}` +
+            `\n  zrodlo: ${i.source_title}` +
+            (i.context ? `\n  kontekst: ${i.context}` : "") +
+            (i.later_facts ? `\n  pozniej: ${i.later_facts}` : "")
+          )
+          .join("\n"),
+    );
+  }
+  const gaps = [
+    ...(summary.luki ?? []),
+    ...(summary.failed_passes ?? []).map((p) => `przebieg "${p}" sie nie powiodl`),
+  ];
+  if (gaps.length > 0) lines.push(`Czego teczka nie obejmuje:\n- ${gaps.join("\n- ")}`);
+  if (summary.czego_unikac && summary.czego_unikac.length > 0) {
+    lines.push(`Czego nie probowac:\n- ${summary.czego_unikac.join("\n- ")}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Dossier oponenta z rejestru sond, uzupełnione teczką z sieci, gdy jest.
  *
  * Fail-soft w dwóch warstwach: `runProbeSet` łapie awarie pojedynczych sond,
  * a tu łapiemy awarię całości. Brak dossier ma dać brief bez sekcji o oponencie,
@@ -249,13 +371,19 @@ function parseParticipants(raw: unknown): Participant[] {
  */
 async function getOpponentContext(
   supabase: SupabaseClient,
+  tenantId: string,
   participants: Participant[],
 ): Promise<string> {
+  const dossiers = participants.length > 0 ? await getTenantDossiers(supabase, tenantId) : [];
   const blocks: string[] = [];
   for (const person of participants) {
+    const opponentDossier = matchDossier(dossiers, person);
+    const dossierBlock = opponentDossier ? formatDossier(opponentDossier) : "";
     if (person.kind !== "mp" || !person.mp_id) {
       blocks.push(
-        `## ${person.name}\n(Osoba spoza Sejmu. Brak danych w bazie, nie zmyslaj jego pogladow ani cytatow.)`,
+        dossierBlock
+          ? `## ${person.name}\n${dossierBlock}`
+          : `## ${person.name}\n(Osoba spoza Sejmu bez teczki oponenta. Brak danych w bazie, nie zmyslaj jego pogladow ani cytatow.)`,
       );
       continue;
     }
@@ -288,9 +416,12 @@ async function getOpponentContext(
           lines.push(`### ${result.label} (czego nie wiemy)\n- ${result.coverage.gaps.join("\n- ")}`);
         }
       }
+      if (dossierBlock) lines.push(dossierBlock);
       blocks.push(lines.join("\n"));
     } catch {
-      blocks.push(`## ${person.name}\n(Nie udalo sie zebrac danych. Nie zmyslaj ich.)`);
+      blocks.push(
+        `## ${person.name}\n${dossierBlock || "(Nie udalo sie zebrac danych. Nie zmyslaj ich.)"}`,
+      );
     }
   }
   return blocks.join("\n\n");
@@ -536,7 +667,7 @@ async function opCreate(
         searchOpinionContext(supabase, topic),
         getTodayBrief(supabase, tenantId),
         program ? getProgramEpisodes(supabase, program.id) : Promise.resolve([]),
-        getOpponentContext(supabase, participants),
+        getOpponentContext(supabase, tenantId, participants),
       ]);
 
     const content = await generateBrief({
@@ -605,7 +736,22 @@ async function readBrief(supabase: SupabaseClient, tenantId: string, briefId: st
     .eq("brief_id", briefId)
     .order("probability", { ascending: false, nullsFirst: false });
 
-  return { brief: data, questions: questions ?? [] };
+  // Teczki oponentów z obsady, żeby ekran briefu mógł do nich prowadzić.
+  const participants = Array.isArray(data.participants) ? data.participants as Participant[] : [];
+  const dossiers = participants.length > 0 ? await getTenantDossiers(supabase, tenantId) : [];
+  const opponentDossiers: { participant_name: string; id: string; items_count: number }[] = [];
+  for (const person of participants) {
+    const match = matchDossier(dossiers, { name: person.name, mp_id: person.mp_id });
+    if (match) {
+      opponentDossiers.push({
+        participant_name: person.name,
+        id: match.id,
+        items_count: match.items?.length ?? 0,
+      });
+    }
+  }
+
+  return { brief: data, questions: questions ?? [], opponent_dossiers: opponentDossiers };
 }
 
 async function opList(supabase: SupabaseClient, tenantId: string) {

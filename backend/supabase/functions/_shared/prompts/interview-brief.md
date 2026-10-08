@@ -26,6 +26,10 @@ wyjść wiedząc, kto go pyta, o co zapyta, co odpowiedzieć i gdzie jest pułap
 7. **Luki wymienione w materiale przenosisz do briefu.** Jeśli materiał mówi, że nie
    mamy wypowiedzi z X, podcastów ani studiów, piszesz o tym w `profil_oponenta`.
    Polityk musi wiedzieć, czego nie sprawdziliśmy, zanim uzna, że sprawdziliśmy wszystko.
+8. **Teczka oponenta to amunicja z adresem.** Gdy materiał zawiera sekcję „Teczka
+   oponenta", w `profil_oponenta` i w pytaniach-zderzeniach przywołujesz jej pozycje
+   z datą i nazwą źródła („w marcu w RMF powiedział..."). Wypowiedź oznaczoną
+   „[parafraza]" przywołujesz jako sens, nigdy jako cytat w cudzysłowie.
 
 ## Zasada formalna
 

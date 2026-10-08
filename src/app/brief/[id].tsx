@@ -14,6 +14,7 @@ import {
   getBrief,
   markQuestionAsked,
   rateBrief,
+  type BriefOpponentDossier,
   type BriefQuestion,
   type InterviewBrief,
 } from '@/lib/api/brief';
@@ -34,6 +35,7 @@ export default function BriefDetailScreen() {
 
   const [brief, setBrief] = useState<InterviewBrief | null>(null);
   const [questions, setQuestions] = useState<BriefQuestion[]>([]);
+  const [dossiers, setDossiers] = useState<BriefOpponentDossier[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [rated, setRated] = useState<number | null>(null);
@@ -46,6 +48,7 @@ export default function BriefDetailScreen() {
         if (!active) return;
         setBrief(result.brief);
         setQuestions(result.questions);
+        setDossiers(result.opponent_dossiers ?? []);
         setRated(result.brief.rating);
         track('brief_viewed', {
           status: result.brief.status,
@@ -165,6 +168,40 @@ export default function BriefDetailScreen() {
                     tresc={brief.content.profil_oponenta}
                     theme={theme}
                   />
+                ) : null}
+                {brief.participants && brief.participants.length > 0 ? (
+                  <View style={styles.section}>
+                    {brief.participants.map((person) => {
+                      const dossier = dossiers.find((d) => d.participant_name === person.name);
+                      return dossier ? (
+                        <PrimaryButton
+                          key={person.name}
+                          variant="secondary"
+                          title={`Teczka oponenta: ${person.name}`}
+                          onPress={() => router.push(`/oponenci/${dossier.id}`)}
+                        />
+                      ) : (
+                        /* Brief bez teczki zna oponenta tylko z Sejmu albo wcale.
+                           Teczka liczy się kilka minut, więc nie robimy jej
+                           w tle briefu, tylko proponujemy wprost. */
+                        <PrimaryButton
+                          key={person.name}
+                          variant="secondary"
+                          title={`Przygotuj teczkę: ${person.name}`}
+                          onPress={() =>
+                            router.push({
+                              pathname: '/oponenci/nowa',
+                              params: {
+                                name: person.name,
+                                ...(person.club ? { party: person.club } : {}),
+                                ...(person.mp_id ? { mp_id: String(person.mp_id) } : {}),
+                              },
+                            })
+                          }
+                        />
+                      );
+                    })}
+                  </View>
                 ) : null}
                 <Sekcja tytul="PUBLICZNOŚĆ" tresc={brief.content.publicznosc} theme={theme} />
 

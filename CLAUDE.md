@@ -119,7 +119,7 @@ nałożyć. Nie nakładaj migracji po cichu i nie zostawiaj utworzonej migracji 
 zadania pytania „migrować?". User zatwierdza, Claude wykonuje. Migracje na żywo
 w bazie (poza plikami) tworzą dryft, dlatego jedynym źródłem prawdy są pliki.
 
-Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych), `argus-knowledge` (badania opinii publicznej / CBOS, read-only).
+Jedna funkcja per domena, pole `operation` w body. Każda: CORS preflight → weryfikacja tokena → walidacja tenant_id → operacja. Funkcje: `argus-onboarding`, `argus-brief`, `argus-content`, `argus-consistency`, `argus-practice`, `argus-media`, `argus-morning-brief`, `argus-registry` (powiązania z KRS), `argus-mentions` (wzmianki prasowe), `argus-ingest` (cron, service-only), `argus-segments`, `argus-tenant` (eksport / twarde usunięcie danych), `argus-knowledge` (badania opinii publicznej / CBOS, read-only), `argus-opponents` (teczka oponenta z wyszukiwania w sieci).
 
 **Zasada, którą łatwo złamać:** operacja działająca na danych WSZYSTKICH tenantów
 (przebiegi cronowe) nie może istnieć w funkcji użytkownika, nawet „do testów".
@@ -229,7 +229,7 @@ Eventy: `onboarding_started/completed`, `sejm_import_completed`, `brief_created`
 ## Nawigacja (przebudowa 2026-07-27)
 
 Pasek zakładek: Pulpit | Analizy | Asystent (środkowy przycisk) | Dane | Profil.
-**Analizy** (`(tabs)/analizy.tsx`) to hub typów analiz: niespójności (`/analysis`),
+**Analizy** (`(tabs)/analizy.tsx`) to hub typów analiz: teczka oponenta (`/oponenci`), niespójności (`/analysis`),
 zagadnień (`/topics`, dawna zakładka Tematy), przekazu (`/content`, globalna lista
 draftów generatora) oraz zaślepki „Wkrótce" (wystąpienia, sentyment; wystąpienia
 świadomie nieaktywne, bo YouTube blokuje transkrypty z centrów danych jak Google News).
@@ -238,6 +238,20 @@ pełna lista posłów na żywo z API Sejmu, operation `list_mps` w argus-onboard
 Dziennikarze (`/dziennikarze`, `argus-media`), Programy (`/programy`, archiwum
 odcinków programów publicystycznych), Programy wyborcze. Zakładki Tematy,
 Briefy i Media nie istnieją. Spec: `docs/superpowers/specs/2026-07-27-nawigacja-analizy-dane-design.md`.
+
+## Teczka oponenta (2026-10-08)
+
+Kontrakt: `docs/kontrakt-teczka-oponenta.md`. Prośba Petru: przed debatą wszystkie
+wypowiedzi przeciwnika z ostatniego roku, zwłaszcza kontrowersyjne, sprzeczne
+z programem jego partii albo podważone przez późniejsze fakty. Edge Function
+`argus-opponents` (porcjowana pętla `step`), tabela tenanta `opponent_dossiers`,
+ekrany `src/app/oponenci/`. Wyszukiwanie przez web search API Claude, wołane
+**surowym SDK** (`getAnthropicClient` w `_shared/ai.ts`, `npm:@anthropic-ai/sdk@0.122.0`),
+nie LangChainem, bo z bloków `web_search_tool_result` walidujemy źródła.
+**Nie przechodź na `web_search_20260209`:** dynamiczne filtrowanie trwało ponad 300 s
+na przebieg, podstawowe `web_search_20250305` z effort medium 40-80 s. Pozycja ze
+źródłem spoza wyników wyszukiwarki jest odrzucana w kodzie. Brief z oponentem bierze
+gotową teczkę (po `mp_id` albo nazwisku) i linkuje do niej.
 
 ## Analizy niespójności (feature poza briefem, 2026-07-24)
 

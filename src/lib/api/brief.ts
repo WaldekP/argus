@@ -111,15 +111,29 @@ export function createBrief(params: {
   participants?: BriefParticipant[];
   scheduled_at?: string;
 }) {
-  return callBrief<{ brief: InterviewBrief; questions: BriefQuestion[] }>(
+  return callBrief<BriefDetail>(
     'create',
     params,
     BRIEF_TIMEOUT_MS
   );
 }
 
+/** Gotowa teczka oponenta dopasowana do osoby z obsady (po mp_id albo nazwisku). */
+export type BriefOpponentDossier = {
+  participant_name: string;
+  id: string;
+  items_count: number;
+};
+
+export type BriefDetail = {
+  brief: InterviewBrief;
+  questions: BriefQuestion[];
+  /** Brak pola u starszego backendu traktujemy jak pustą listę. */
+  opponent_dossiers?: BriefOpponentDossier[];
+};
+
 export function getBrief(briefId: string) {
-  return callBrief<{ brief: InterviewBrief; questions: BriefQuestion[] }>('get', {
+  return callBrief<BriefDetail>('get', {
     brief_id: briefId,
   });
 }
