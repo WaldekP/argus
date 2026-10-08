@@ -33,7 +33,7 @@ import { z } from "npm:zod";
 import { authenticateRequest, getTenantId, HttpError } from "../_shared/auth.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { jsonResponse, serverErrorResponse } from "../_shared/types.ts";
-import { getGenerationModel, loadPrompt } from "../_shared/ai.ts";
+import { GENERATION_MODEL, getAnthropicClient, loadPrompt } from "../_shared/ai.ts";
 import { embedText } from "../_shared/embeddings.ts";
 import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 import { today } from "../_shared/date.ts";
@@ -459,7 +459,7 @@ function opis(wartosc: unknown): string {
   return JSON.stringify(wartosc);
 }
 
-interface GenerateInput {
+export interface GenerateInput {
   topic: string;
   scheduledAt: string | null;
   profile: Record<string, unknown> | null;
@@ -566,20 +566,132 @@ Stanowiska wobec tematow: ${opis(input.profile?.topic_positions)}\nProfil stylu 
   ].filter((s) => s !== "").join("\n\n");
 }
 
-async function generateBrief(input: GenerateInput): Promise<BriefContent> {
-  const model = (await getGenerationModel()).withStructuredOutput(briefSchema, {
-    name: "brief_przedwywiadowy",
+/**
+ * Schemat odpowiedzi dla natywnych structured outputs API.
+ *
+ * Dotąd brief szedł przez `withStructuredOutput` LangChaina, które kształtu
+ * NIE wymusza, tylko sprawdza go po fakcie. 8 października model zwrócił
+ * brief bez całej tablicy `pytania` (rdzeń briefu) i Zod wywrócił generację.
+ * To ten sam tryb awarii co 21 września z `profil_oponenta`, łatany wtedy
+ * promptem i opcjonalnością pola. `output_config.format` ogranicza samo
+ * dekodowanie do schematu, więc pominięcie wymaganego pola przestaje być
+ * możliwe. Bez `minimum`/`maximum`: API ich nie obsługuje, zakres
+ * prawdopodobieństwa pilnuje kod (`normalizeProbability`) i Zod.
+ */
+const BRIEF_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "profil_rozmowcy",
+    "profil_oponenta",
+    "publicznosc",
+    "pytania",
+    "pulapki",
+    "przekazy_dnia",
+  ],
+  properties: {
+    profil_rozmowcy: { type: "string" },
+    profil_oponenta: { type: "string" },
+    publicznosc: { type: "string" },
+    pytania: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["pytanie", "prawdopodobienstwo", "teza", "punkty", "ryzyko"],
+        properties: {
+          pytanie: { type: "string" },
+          prawdopodobienstwo: { type: "number" },
+          teza: { type: "string" },
+          punkty: { type: "array", items: { type: "string" } },
+          ryzyko: { type: "string" },
+        },
+      },
+    },
+    pulapki: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["pulapka", "most"],
+        properties: {
+          pulapka: { type: "string" },
+          most: { type: "string" },
+        },
+      },
+    },
+    przekazy_dnia: { type: "array", items: { type: "string" } },
+  },
+};
+
+/** 0-1; wartość podana w procentach (np. 80) sprowadzamy do ułamka. */
+function normalizeProbability(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : 0.5;
+  const fraction = n > 1 && n <= 100 ? n / 100 : n;
+  return Math.min(1, Math.max(0, fraction));
+}
+
+/**
+ * Wywołanie modelu przez surowe SDK ze structured outputs.
+ *
+ * Błędy rzucamy w treści, którą rozpoznaje `describeOutputError`, żeby
+ * użytkownik dostał ten sam, już sprawdzony komunikat: urwana odpowiedź
+ * znaczy „temat za szeroki".
+ */
+async function callBriefModel(system: string, human: string): Promise<BriefContent> {
+  // Generacja trwa 85-140 s, a worker ma ok. 150 s, stąd sufit tuż pod nim.
+  const client = await getAnthropicClient({ timeoutMs: 148_000 });
+  const response = await client.messages.create({
+    model: GENERATION_MODEL,
+    max_tokens: 8192,
+    system,
+    // Bez myślenia, jak dotąd: ścieżka LangChaina wymuszała narzędzie, a przy
+    // wymuszonym narzędziu myślenia nie ma. Włączone domyślnie myślenie Sonneta 5
+    // zjada limit 8192 i odpowiedź urywała się w próbie 8 października.
+    thinking: { type: "disabled" },
+    output_config: { format: { type: "json_schema", schema: BRIEF_JSON_SCHEMA } },
+    messages: [{ role: "user", content: human }],
   });
-  const result = (await model.invoke([
-    ["system", loadPrompt("interview-brief")],
-    [
-      "human",
-      buildHuman(
-        input,
-        `Przygotuj brief przedwywiadowy. Dokladnie ${QUESTIONS_COUNT} pytan, 3 przekazy dnia.`,
-      ),
-    ],
-  ])) as BriefContent;
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("Failed to parse. Unexpected end of JSON input (stop: max_tokens)");
+  }
+  let text = "";
+  for (const block of response.content) {
+    if (block.type === "text") text += block.text;
+  }
+  let raw: Record<string, unknown>;
+  try {
+    raw = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Failed to parse. Unexpected end of JSON input (stop: ${response.stop_reason})`);
+  }
+  if (Array.isArray(raw.pytania)) {
+    raw.pytania = raw.pytania.map((p) =>
+      typeof p === "object" && p !== null
+        ? {
+          ...(p as Record<string, unknown>),
+          prawdopodobienstwo: normalizeProbability(
+            (p as Record<string, unknown>).prawdopodobienstwo,
+          ),
+        }
+        : p
+    );
+  }
+  const parsed = briefSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(`Failed to parse. invalid_type: ${parsed.error.message}`);
+  }
+  return parsed.data;
+}
+
+export async function generateBrief(input: GenerateInput): Promise<BriefContent> {
+  const result = await callBriefModel(
+    loadPrompt("interview-brief"),
+    buildHuman(
+      input,
+      `Przygotuj brief przedwywiadowy. Dokladnie ${QUESTIONS_COUNT} pytan, 3 przekazy dnia.`,
+    ),
+  );
 
   // Uzupelnienie pomijalnej sekcji. Piszemy wprost, ze jej nie ma, zamiast
   // zostawiac puste miejsce, ktore czyta sie jak brak danych o czlowieku.
