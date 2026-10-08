@@ -91,3 +91,23 @@ albo „Przygotuj teczkę" (formularz wypełniony imieniem, klubem i `mp_id`).
 - Cytat pochodzi z wyszukiwarki, nie z pobranej strony, więc brzmienie trzeba sprawdzić
   w źródle przed użyciem na antenie. Ekran mówi to wprost.
 - Teczka nie pobiera wystąpień sejmowych; dla posłów brief łączy ją z danymi z sond.
+
+## Nieścisłości oponenta w briefie (2026-10-08)
+
+Prośba Petru: brief ma pokazywać, gdzie oponent mija się z programem swojej partii
+albo z własnymi wcześniejszymi słowami, w formie pytań, które polityk zadaje w studiu.
+Decyzje usera: brief sam zbiera teczkę, pytań prowadzącego 5 zamiast 10, pełny zestaw
+na punkt.
+
+- **Przepływ:** formularz briefu dla każdego oponenta woła `argus-opponents` operację
+  `ensure` (gotowa teczka, potem w trakcie, potem zatrzymana z odświeżeniem, na końcu
+  nowa), dokańcza ją pętlą `step` z paskiem postępu i dopiero wtedy woła `argus-brief`
+  `create`. Pierwszy brief z daną osobą trwa więc ok. 7 minut, kolejne ok. minuty.
+  Błąd teczki nie blokuje briefu.
+- **Sekcja `niescislosci_oponenta`** (3-5 punktów albo pusta lista): model podaje
+  `oponent`, `item_id`, `sprzecznosc`, `pytanie`, `obrona`, `riposta`. Kod
+  (`resolveInconsistencies`) dokleja z teczki `wypowiedz`, `data`, `zrodlo`, `zrodlo_url`,
+  `dossier_id`. Punkt z identyfikatorem spoza teczki wypada: cytat na antenę pochodzi
+  z teczki, nie z przepisania przez model.
+- Próba na żywym API (Wawer, temat budżet i obronność): 3 punkty, wszystkie przeszły
+  walidację, brief w 59 s.

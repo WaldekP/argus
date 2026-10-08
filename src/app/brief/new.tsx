@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FormTextInput } from '@/components/form-text-input';
+import { InlineProgress } from '@/components/progress';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -20,6 +21,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics/posthog';
 import { searchTargets, type TargetMp } from '@/lib/api/analysis';
 import { createBrief, type BriefParticipant } from '@/lib/api/brief';
+import { ensureDossier, runDossier } from '@/lib/api/opponents';
 import {
   getProgram,
   listJournalists,
@@ -52,6 +54,12 @@ export default function NewBriefScreen() {
 
   const [topic, setTopic] = useState(params.topic ?? '');
   const [generating, setGenerating] = useState(false);
+  /** Postęp zbierania teczki oponenta przed briefem; null = etap briefu. */
+  const [dossierProgress, setDossierProgress] = useState<{
+    name: string;
+    processed: number;
+    total: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Gdzie
@@ -142,6 +150,22 @@ export default function NewBriefScreen() {
     setGuestResults([]);
   }, []);
 
+  /**
+   * Oponent spoza Sejmu (europoseł, rzecznik, samorządowiec). Szukajka zna
+   * tylko posłów, a teczka oponenta działa dla każdego, kogo opisuje prasa.
+   */
+  const addManualGuest = useCallback(() => {
+    const name = guestQuery.trim();
+    if (name.length < 5) return;
+    setParticipants((current) =>
+      current.some((p) => p.name.toLowerCase() === name.toLowerCase())
+        ? current
+        : [...current, { role: 'opponent', kind: 'person', name }]
+    );
+    setGuestQuery('');
+    setGuestResults([]);
+  }, [guestQuery]);
+
   /** Prowadzący pokazywany pod polem: z bazy, z ręki albo z programu. */
   const hostLabel =
     selected?.full_name ??
@@ -152,6 +176,32 @@ export default function NewBriefScreen() {
     setGenerating(true);
     setError(null);
     try {
+      // Najpierw teczki oponentów (decyzja usera 2026-10-08: brief sam je
+      // zbiera). Gotowa teczka wraca od razu, nowa to ok. 6 minut przebiegów.
+      // Błąd teczki nie blokuje briefu: wyjdzie bez sekcji o nieścisłościach.
+      for (const person of participants.filter((p) => p.role === 'opponent')) {
+        try {
+          const dossier = await ensureDossier({
+            full_name: person.name,
+            ...(person.club ? { party: person.club } : {}),
+            ...(person.mp_id ? { mp_id: person.mp_id, role_hint: 'poseł na Sejm RP' } : {}),
+          });
+          if (dossier.status === 'collecting') {
+            setDossierProgress({ name: person.name, processed: 0, total: 0 });
+            await runDossier(dossier.id, (step) =>
+              setDossierProgress({
+                name: person.name,
+                processed: step.processed,
+                total: step.total,
+              })
+            );
+          }
+        } catch {
+          // jak wyżej: brief bez teczki zamiast braku briefu
+        }
+      }
+      setDossierProgress(null);
+
       const result = await createBrief({
         topic: topic.trim(),
         ...(program ? { program_slug: program.slug } : {}),
@@ -172,6 +222,7 @@ export default function NewBriefScreen() {
       router.replace(`/brief/${result.brief.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nie udało się przygotować briefu.');
+      setDossierProgress(null);
       setGenerating(false);
     }
   }, [hostLabel, manualName, params.from, participants, program, router, selected, topic]);
@@ -379,10 +430,19 @@ export default function NewBriefScreen() {
                 setGuestQuery(value);
                 if (value.trim().length < 3) setGuestResults([]);
               }}
-              placeholder="Nazwisko posła"
+              placeholder="Nazwisko posła albo osoby spoza Sejmu"
               autoCapitalize="none"
               editable={!generating}
             />
+            {guestQuery.trim().length >= 5 ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Dodaj spoza Sejmu: ${guestQuery.trim()}`}
+                onPress={addManualGuest}
+                style={[styles.result, { borderColor: theme.border }]}>
+                <ThemedText type="small">Dodaj „{guestQuery.trim()}” spoza Sejmu</ThemedText>
+              </Pressable>
+            ) : null}
             {guestResults.map((mp) => (
               <Pressable
                 key={mp.mp_id}
@@ -397,8 +457,9 @@ export default function NewBriefScreen() {
               </Pressable>
             ))}
             <ThemedText type="small" themeColor="textSecondary">
-              Dla posła Argus dociągnie jego głosowania, rozjazdy z klubem i wystąpienia,
-              razem z listą tego, czego o nim nie wiemy.
+              Dla oponenta Argus zbierze teczkę jego wypowiedzi z ostatniego roku i wskaże
+              nieścisłości wobec programu jego partii, z gotowymi pytaniami. Przy pierwszym
+              briefie z daną osobą trwa to około sześciu minut, potem brief bierze gotową teczkę.
             </ThemedText>
           </View>
 
@@ -414,11 +475,17 @@ export default function NewBriefScreen() {
             disabled={!canSubmit}
             loading={generating}
           />
-          {generating ? (
+          {generating && dossierProgress ? (
+            <InlineProgress
+              label={`Zbieram teczkę: ${dossierProgress.name}. Około sześciu minut, nie zamykaj ekranu.`}
+              processed={dossierProgress.processed}
+              total={dossierProgress.total}
+            />
+          ) : generating ? (
             <View style={styles.centered}>
               <ActivityIndicator color={theme.accent} />
               <ThemedText type="small" themeColor="textSecondary">
-                Zbieram materiały i piszę brief. To potrwa około dwóch minut.
+                Zbieram materiały i piszę brief. To potrwa około minuty.
               </ThemedText>
             </View>
           ) : null}

@@ -1,5 +1,5 @@
 // argus-opponents — teczka oponenta.
-// Operacje: create, step, get, list, refresh, delete.
+// Operacje: create, ensure, step, get, list, refresh, delete.
 // Kontrakt: docs/kontrakt-teczka-oponenta.md
 //
 // Petru chce przed debatą albo wywiadem dostać wszystkie dostępne wypowiedzi
@@ -25,6 +25,7 @@ import { logAccess } from "../_shared/access-log.ts";
 import { today } from "../_shared/date.ts";
 import {
   applyLaterFacts,
+  dossierMatches,
   type DossierItem,
   type DossierSource,
   mergeItems,
@@ -161,6 +162,54 @@ async function opCreate(
   if (error) throw new Error(`Zapis teczki: ${error.message}`);
   await logAccess(supabase, tenantId, userId, "opponent_dossier_create", data.id as string);
   return { id: data.id as string };
+}
+
+/**
+ * Teczka dla osoby z obsady briefu: istniejąca albo nowa.
+ *
+ * Brief z oponentem sam zbiera teczkę (decyzja usera 2026-10-08), więc
+ * formularz briefu woła to przed generacją i dopiero potem pętlę `step`.
+ * Kolejność wyboru: gotowa teczka, potem teczka w trakcie (dokończymy ją,
+ * zamiast płacić drugi raz), potem zatrzymana (odświeżamy ją), na końcu
+ * nowa. Gotowej nie odświeżamy sami, bo to 1-2 USD: robi to człowiek.
+ */
+async function opEnsure(
+  supabase: SupabaseClient,
+  tenantId: string,
+  userId: string,
+  body: Record<string, unknown>,
+) {
+  const fullName = optionalText(body.full_name, 120) ?? "";
+  if (fullName.length < NAME_MIN_LENGTH) {
+    throw new HttpError(400, "Podaj imię i nazwisko oponenta.");
+  }
+  const mpId = typeof body.mp_id === "number" ? Math.trunc(body.mp_id) : null;
+
+  const { data, error } = await supabase
+    .from("opponent_dossiers")
+    .select("id, full_name, mp_id, status, updated_at")
+    .eq("tenant_id", tenantId)
+    .order("updated_at", { ascending: false })
+    .limit(LIST_LIMIT);
+  if (error) throw new Error(`Szukanie teczki: ${error.message}`);
+  const matching = (data ?? []).filter((d) =>
+    dossierMatches(d as { full_name: string; mp_id: number | null }, {
+      name: fullName,
+      mp_id: mpId,
+    })
+  ) as { id: string; status: string }[];
+
+  for (const status of ["done", "collecting"]) {
+    const found = matching.find((d) => d.status === status);
+    if (found) return { id: found.id, status, created: false };
+  }
+  const stopped = matching.find((d) => d.status === "error");
+  if (stopped) {
+    await opRefresh(supabase, tenantId, userId, stopped.id);
+    return { id: stopped.id, status: "collecting", created: false };
+  }
+  const { id } = await opCreate(supabase, tenantId, userId, body);
+  return { id, status: "collecting", created: true };
 }
 
 /** Jeden przebieg porcjowanej pętli. Zwraca stan postępu dla UI. */
@@ -356,6 +405,8 @@ Deno.serve(async (req) => {
     switch (body?.operation) {
       case "create":
         return jsonResponse({ ok: true, data: await opCreate(supabase, tenantId, user.id, body) });
+      case "ensure":
+        return jsonResponse({ ok: true, data: await opEnsure(supabase, tenantId, user.id, body) });
       case "step":
         return jsonResponse({ ok: true, data: await opStep(supabase, tenantId, readId(body.id)) });
       case "get":

@@ -12,7 +12,7 @@
 
 import { edgeClient, GENERIC_ERROR } from '@/lib/api/client';
 
-type OpponentsOperation = 'create' | 'step' | 'get' | 'list' | 'refresh' | 'delete';
+type OpponentsOperation = 'create' | 'ensure' | 'step' | 'get' | 'list' | 'refresh' | 'delete';
 
 const callOpponents = edgeClient<OpponentsOperation>('argus-opponents');
 
@@ -132,6 +132,16 @@ export type NewDossierInput = {
 
 export function createDossier(input: NewDossierInput): Promise<{ id: string }> {
   return callOpponents<{ id: string }>('create', input);
+}
+
+/**
+ * Teczka dla oponenta z briefu: gotowa, w trakcie albo nowa (backend wybiera).
+ * Gdy `status` to `collecting`, trzeba ją dokończyć pętlą `runDossier`.
+ */
+export function ensureDossier(
+  input: NewDossierInput
+): Promise<{ id: string; status: DossierStatus; created: boolean }> {
+  return callOpponents<{ id: string; status: DossierStatus; created: boolean }>('ensure', input);
 }
 
 export function getDossier(id: string): Promise<OpponentDossier> {

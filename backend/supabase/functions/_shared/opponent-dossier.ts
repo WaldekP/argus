@@ -298,3 +298,25 @@ export function normalizeSummary(
     failed_passes: extra.failed_passes,
   };
 }
+
+/**
+ * Klucz porównania nazwisk: małe litery, bez znaków diakrytycznych
+ * i interpunkcji. „Konrad Berkowicz" i „konrad  berkowicz," to ta sama osoba.
+ */
+export function normalizePersonName(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^\p{L} ]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Czy teczka dotyczy tej osoby: po `mp_id`, a bez niego po nazwisku. */
+export function dossierMatches(
+  dossier: { full_name: string; mp_id: number | null },
+  person: { name: string; mp_id?: number | null },
+): boolean {
+  if (person.mp_id && dossier.mp_id === person.mp_id) return true;
+  return normalizePersonName(dossier.full_name) === normalizePersonName(person.name);
+}

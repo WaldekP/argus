@@ -5,7 +5,7 @@
 // to program z tabeli `programs`, ktory sam podpowiada prowadzacego i ostatnie
 // tematy pasma; "kto jeszcze" to obsada (oponenci, wspolgoscie), dla poslow
 // wzbogacona dossier z rejestru sond (_shared/probes/). Wyjscie: profil rozmowcy,
-// publicznosc, 10 przewidywanych pytan z prawdopodobienstwem i rekomendowana
+// publicznosc, 5 przewidywanych pytan z prawdopodobienstwem i rekomendowana
 // odpowiedzia, pulapki z mostami oraz 3 przekazy dnia.
 //
 // Skad bierzemy kontekst (retrieve):
@@ -39,6 +39,7 @@ import { searchOpinionContext } from "../_shared/knowledge-search.ts";
 import { today } from "../_shared/date.ts";
 import { runProbeSet } from "../_shared/probes/registry.ts";
 import { makeWindow } from "../_shared/probes/types.ts";
+import { dossierMatches } from "../_shared/opponent-dossier.ts";
 
 const TOPIC_MIN_LENGTH = 5;
 
@@ -58,7 +59,11 @@ function readBriefId(value: unknown): string {
   if (!UUID_RE.test(id)) throw new HttpError(404, "Nie znaleziono briefu.");
   return id;
 }
-const QUESTIONS_COUNT = 10;
+/**
+ * Pięć, nie dziesięć (decyzja usera 2026-10-08): miejsce po pytaniach
+ * prowadzącego zajmuje sekcja o nieścisłościach oponenta.
+ */
+const QUESTIONS_COUNT = 5;
 const STATEMENTS_LIMIT = 8;
 const MATERIALS_LIMIT = 12;
 const LIST_LIMIT = 50;
@@ -99,6 +104,22 @@ const briefSchema = z.object({
     }),
   ),
   przekazy_dnia: z.array(z.string()),
+  /**
+   * Nieścisłości oponenta: z czym jego wypowiedź się kłóci i jak go o to
+   * zapytać. Opcjonalne dla briefów sprzed 8 października. Cytat, datę
+   * i źródło dokleja kod z teczki (`resolveInconsistencies`), model podaje
+   * tylko identyfikator pozycji.
+   */
+  niescislosci_oponenta: z.array(
+    z.object({
+      oponent: z.string(),
+      item_id: z.string(),
+      sprzecznosc: z.string(),
+      pytanie: z.string(),
+      obrona: z.string(),
+      riposta: z.string(),
+    }),
+  ).optional(),
 });
 
 type BriefContent = z.infer<typeof briefSchema>;
@@ -211,7 +232,7 @@ async function getProgramEpisodes(supabase: SupabaseClient, programId: string) {
 }
 
 /** Uczestnik rozmowy poza prowadzącym (kształt kolumny `participants`). */
-interface Participant {
+export interface Participant {
   role: "opponent" | "guest";
   kind: "mp" | "person";
   mp_id?: number;
@@ -245,7 +266,7 @@ function parseParticipants(raw: unknown): Participant[] {
  * Brief nie liczy teczki sam, bo to kilka minut i 1-2 USD: bierze ostatnią
  * gotową teczkę tenanta dla tej osoby, jeśli jest.
  */
-interface DossierForBrief {
+export interface DossierForBrief {
   id: string;
   full_name: string;
   mp_id: number | null;
@@ -255,6 +276,7 @@ interface DossierForBrief {
     date: string | null;
     quote: string;
     context: string;
+    source_url: string;
     source_title: string;
     category: string;
     later_facts: string | null;
@@ -268,7 +290,8 @@ interface DossierForBrief {
   } | null;
 }
 
-const DOSSIER_ITEMS_IN_BRIEF = 12;
+/** Ile pozycji teczki trafia do kontekstu: najpierw kontrowersje i sprzeczności. */
+const DOSSIER_ITEMS_IN_BRIEF = 15;
 const CATEGORY_PRIORITY = [
   "kontrowersja",
   "sprzecznosc-z-programem",
@@ -284,6 +307,7 @@ async function getTenantDossiers(
   const { data, error } = await supabase
     .from("opponent_dossiers")
     .select("id, full_name, mp_id, updated_at, items, summary")
+    // Teczka w trakcie zbierania nie wchodzi: brief poczeka na nią w kliencie.
     .eq("tenant_id", tenantId)
     .eq("status", "done")
     .order("updated_at", { ascending: false })
@@ -296,27 +320,14 @@ async function getTenantDossiers(
   return (data ?? []) as unknown as DossierForBrief[];
 }
 
-function normalizeName(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\p{L} ]/gu, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function matchDossier(
   dossiers: DossierForBrief[],
   person: { name: string; mp_id?: number },
 ): DossierForBrief | null {
-  const name = normalizeName(person.name);
-  return dossiers.find((d) =>
-    (person.mp_id !== undefined && d.mp_id === person.mp_id) ||
-    normalizeName(d.full_name) === name
-  ) ?? null;
+  return dossiers.find((d) => dossierMatches(d, person)) ?? null;
 }
 
-function formatDossier(dossier: DossierForBrief): string {
+export function formatDossier(dossier: DossierForBrief): string {
   const summary = dossier.summary ?? {};
   const lines: string[] = [
     `### Teczka oponenta (wyszukiwanie w sieci, stan na ${dossier.updated_at.slice(0, 10)})`,
@@ -371,10 +382,9 @@ function formatDossier(dossier: DossierForBrief): string {
  */
 async function getOpponentContext(
   supabase: SupabaseClient,
-  tenantId: string,
+  dossiers: DossierForBrief[],
   participants: Participant[],
 ): Promise<string> {
-  const dossiers = participants.length > 0 ? await getTenantDossiers(supabase, tenantId) : [];
   const blocks: string[] = [];
   for (const person of participants) {
     const opponentDossier = matchDossier(dossiers, person);
@@ -588,6 +598,7 @@ const BRIEF_JSON_SCHEMA = {
     "pytania",
     "pulapki",
     "przekazy_dnia",
+    "niescislosci_oponenta",
   ],
   properties: {
     profil_rozmowcy: { type: "string" },
@@ -621,8 +632,82 @@ const BRIEF_JSON_SCHEMA = {
       },
     },
     przekazy_dnia: { type: "array", items: { type: "string" } },
+    niescislosci_oponenta: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["oponent", "item_id", "sprzecznosc", "pytanie", "obrona", "riposta"],
+        properties: {
+          oponent: { type: "string" },
+          item_id: { type: "string" },
+          sprzecznosc: { type: "string" },
+          pytanie: { type: "string" },
+          obrona: { type: "string" },
+          riposta: { type: "string" },
+        },
+      },
+    },
   },
 };
+
+/** Nieścisłość w briefie: punkt od modelu plus wypowiedź z teczki. */
+interface ResolvedInconsistency {
+  oponent: string;
+  item_id: string;
+  dossier_id: string;
+  wypowiedz: string;
+  data: string | null;
+  zrodlo: string;
+  zrodlo_url: string;
+  sprzecznosc: string;
+  pytanie: string;
+  obrona: string;
+  riposta: string;
+}
+
+const MAX_INCONSISTENCIES = 5;
+
+/**
+ * Dokleja do punktów modelu cytat, datę i źródło z teczki.
+ *
+ * Model podaje tylko identyfikator pozycji. Cytat bierzemy z teczki, a nie
+ * z odpowiedzi modelu, bo to on trafi na antenę: przepisany przez model
+ * mógłby się różnić od źródła o słowo, które zmienia sens. Punkt z pozycją,
+ * której w teczce nie ma, wypada (ta sama zasada co w analizach: niedosłowny
+ * cytat odrzuca ustalenie).
+ */
+export function resolveInconsistencies(
+  raw: NonNullable<BriefContent["niescislosci_oponenta"]>,
+  dossiers: DossierForBrief[],
+  participants: Participant[],
+): ResolvedInconsistency[] {
+  const out: ResolvedInconsistency[] = [];
+  for (const point of raw) {
+    const person = participants.find((p) =>
+      dossierMatches({ full_name: p.name, mp_id: null }, { name: point.oponent })
+    ) ?? (participants.length === 1 ? participants[0] : null);
+    if (!person) continue;
+    const dossier = matchDossier(dossiers, person);
+    const item = dossier?.items.find((i) => i.id === point.item_id.trim());
+    if (!dossier || !item) continue;
+    out.push({
+      oponent: person.name,
+      item_id: item.id,
+      dossier_id: dossier.id,
+      wypowiedz: item.quote,
+      data: item.date,
+      zrodlo: item.source_title,
+      zrodlo_url: item.source_url,
+      sprzecznosc: point.sprzecznosc,
+      pytanie: point.pytanie,
+      obrona: point.obrona,
+      riposta: point.riposta,
+    });
+    if (out.length >= MAX_INCONSISTENCIES) break;
+  }
+  return out;
+}
 
 /** 0-1; wartość podana w procentach (np. 80) sprowadzamy do ułamka. */
 function normalizeProbability(value: unknown): number {
@@ -771,6 +856,9 @@ async function opCreate(
   const briefId = created.id as string;
 
   try {
+    // Teczki raz: z nich idzie kontekst oponenta i z nich kod dokleja cytaty
+    // do nieścisłości po generacji.
+    const dossiers = participants.length > 0 ? await getTenantDossiers(supabase, tenantId) : [];
     const [profile, materials, statements, opinion, dayBrief, episodes, opponentContext] =
       await Promise.all([
         getProfile(supabase, tenantId),
@@ -779,10 +867,10 @@ async function opCreate(
         searchOpinionContext(supabase, topic),
         getTodayBrief(supabase, tenantId),
         program ? getProgramEpisodes(supabase, program.id) : Promise.resolve([]),
-        getOpponentContext(supabase, tenantId, participants),
+        getOpponentContext(supabase, dossiers, participants),
       ]);
 
-    const content = await generateBrief({
+    const generated = await generateBrief({
       topic,
       scheduledAt,
       profile: profile as Record<string, unknown> | null,
@@ -797,6 +885,14 @@ async function opCreate(
       participants,
       opponentContext,
     });
+    const content = {
+      ...generated,
+      niescislosci_oponenta: resolveInconsistencies(
+        generated.niescislosci_oponenta ?? [],
+        dossiers,
+        participants,
+      ),
+    };
 
     await supabase
       .from("interview_briefs")

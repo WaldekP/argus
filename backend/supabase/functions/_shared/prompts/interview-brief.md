@@ -49,12 +49,12 @@ Pominięcie pola psuje cały brief, a nie tylko jedną sekcję.
   Gdy obsada jest pusta, wpisz wprost: „Rozmowa jeden na jeden z prowadzącym, bez
   drugiego gościa." i nic nie dopowiadaj.
 - `publicznosc` — kto to ogląda albo czyta i co z tego wynika dla języka wypowiedzi.
-- `pytania` — dokładnie 10 pozycji, uszeregowanych od najbardziej prawdopodobnego.
+- `pytania` — dokładnie 5 pozycji, uszeregowanych od najbardziej prawdopodobnego.
   Każde: treść pytania tak, jak może paść (językiem dziennikarza, nie urzędowym),
   prawdopodobieństwo, rekomendowana odpowiedź (teza plus punkty), ryzyko.
   **Gdy w obsadzie jest oponent, część pytań ma postać zderzenia**, bo tak wyglądają
   pytania w duecie: „poseł X mówi, że..., co pan_i na to". Nie rób z tego wszystkich
-  dziesięciu, prowadzący zadaje też pytania wprost. Ostatnie odcinki programu pokazują,
+  pięciu, prowadzący zadaje też pytania wprost. Ostatnie odcinki programu pokazują,
   czym redakcja żyje w tym tygodniu, więc pytania mają się o nie opierać, a nie
   o ogólne wyobrażenie o temacie.
 - `pulapki` — 3 do 5 miejsc, w których rozmowa może się wywrócić: pytanie z tezą,
@@ -62,6 +62,21 @@ Pominięcie pola psuje cały brief, a nie tylko jedną sekcję.
   do własnego przekazu, nie uciekając od pytania.
 - `przekazy_dnia` — dokładnie 3 zdania, które mają wybrzmieć niezależnie od tego,
   jak potoczy się rozmowa. Każde ma się nadawać na cytat w zapowiedzi.
+- `niescislosci_oponenta` — 3 do 5 punktów, w których oponent mija się z programem
+  własnej partii, z własnymi wcześniejszymi słowami albo z tym, co wydarzyło się
+  później. To amunicja polityka: pytania, które ON zadaje oponentowi w studiu.
+  Opierasz się WYŁĄCZNIE na pozycjach z sekcji „Teczka oponenta"; każdy punkt
+  wskazuje dokładnie jedną pozycję przez jej identyfikator (`item_id`, np. „w7")
+  i nazwisko oponenta tak, jak stoi w nagłówku obsady (`oponent`). Cytatu nie
+  przepisujesz, dokleja go system. Wybierasz pozycje z kategorii sprzecznosc-z-programem,
+  zmiana-zdania i zweryfikowane-przez-fakty, kontrowersje dopiero potem, i tylko
+  te, które dotyczą tematu rozmowy albo dadzą się do niego podpiąć. Każdy punkt:
+  `sprzecznosc` (z czym konkretnie się kłóci: punkt programu, wcześniejsza wypowiedź
+  z datą, późniejszy fakt), `pytanie` (gotowe do zadania na antenie, krótkie,
+  bez obelg, zakończone pytajnikiem), `obrona` (co oponent najpewniej odpowie),
+  `riposta` (jedno zdanie na tę obronę). Gdy nie ma teczki oponenta albo żadna
+  pozycja nie pokazuje nieścisłości, zwracasz pustą listę: lepszy brak punktu niż
+  zarzut, który rozsypie się na antenie.
 
 ## Długość (twarde limity)
 
@@ -76,6 +91,8 @@ nawet wtedy, gdy treść jest trafna.
   `ryzyko` jedno zdanie.
 - Każda pułapka: `pulapka` jedno zdanie, `most` jedno zdanie.
 - Każdy przekaz dnia: jedno zdanie, nadające się do zacytowania w zapowiedzi.
+- Każda nieścisłość: `sprzecznosc` najwyżej 2 zdania, `pytanie` jedno zdanie,
+  `obrona` jedno zdanie, `riposta` jedno zdanie.
 
 ## Styl
 

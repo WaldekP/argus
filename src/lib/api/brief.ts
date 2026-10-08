@@ -26,6 +26,24 @@ export type BriefQuestion = {
   was_asked: boolean | null;
 };
 
+/**
+ * Nieścisłość oponenta: wypowiedź z teczki (cytat, data, źródło dokleja
+ * backend, nie model) plus gotowe pytanie do zadania w studiu.
+ */
+export type BriefInconsistency = {
+  oponent: string;
+  item_id: string;
+  dossier_id: string;
+  wypowiedz: string;
+  data: string | null;
+  zrodlo: string;
+  zrodlo_url: string;
+  sprzecznosc: string;
+  pytanie: string;
+  obrona: string;
+  riposta: string;
+};
+
 export type BriefContent = {
   profil_rozmowcy: string;
   /** Kto siedzi naprzeciwko. Puste przy rozmowie jeden na jeden. */
@@ -33,6 +51,8 @@ export type BriefContent = {
   publicznosc: string;
   pulapki: { pulapka: string; most: string }[];
   przekazy_dnia: string[];
+  /** Brak u briefów sprzed 8 października 2026. */
+  niescislosci_oponenta?: BriefInconsistency[];
 };
 
 export type BriefStatus = 'generating' | 'ready' | 'error';

@@ -251,7 +251,7 @@ nie LangChainem, bo z bloków `web_search_tool_result` walidujemy źródła.
 **Nie przechodź na `web_search_20260209`:** dynamiczne filtrowanie trwało ponad 300 s
 na przebieg, podstawowe `web_search_20250305` z effort medium 40-80 s. Pozycja ze
 źródłem spoza wyników wyszukiwarki jest odrzucana w kodzie. Brief z oponentem bierze
-gotową teczkę (po `mp_id` albo nazwisku) i linkuje do niej.
+gotową teczkę (po `mp_id` albo nazwisku) i linkuje do niej. **Brief sam zbiera teczkę oponenta** (formularz: `ensure` + pętla `step`, potem `create`) i ma sekcję `niescislosci_oponenta` (cytat dokleja kod z teczki po `item_id`); przewidywanych pytań prowadzącego jest 5, nie 10. Brief generuje się przez natywne structured outputs (surowe SDK, `thinking: disabled`), nie `withStructuredOutput`, bo LangChain nie wymuszał wymaganych pól i model gubił całą sekcję pytań.
 
 ## Analizy niespójności (feature poza briefem, 2026-07-24)
 

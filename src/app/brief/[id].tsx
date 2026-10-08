@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
@@ -18,6 +18,7 @@ import {
   type BriefQuestion,
   type InterviewBrief,
 } from '@/lib/api/brief';
+import { formatItemDate, isParaphrase, quoteText, sourceHost } from '@/lib/opponent-format';
 
 /** Prawdopodobieństwo modelu na etykietę. Nie udajemy precyzji do procenta. */
 function probabilityLabel(p: number | null): string {
@@ -203,6 +204,53 @@ export default function BriefDetailScreen() {
                     })}
                   </View>
                 ) : null}
+                {brief.content.niescislosci_oponenta &&
+                brief.content.niescislosci_oponenta.length > 0 ? (
+                  <View style={styles.section}>
+                    <ThemedText type="small" themeColor="textSecondary" style={KickerStyle}>
+                      NIEŚCISŁOŚCI OPONENTA
+                    </ThemedText>
+                    {brief.content.niescislosci_oponenta.map((n) => (
+                      <ThemedView
+                        key={`${n.dossier_id}-${n.item_id}`}
+                        type="backgroundElement"
+                        style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedText type="small" themeColor="accentLight">
+                          {n.oponent}, {formatItemDate(n.data)}
+                        </ThemedText>
+                        {isParaphrase(n.wypowiedz) ? (
+                          <ThemedText type="small" themeColor="text80">
+                            Parafraza: {quoteText(n.wypowiedz)}
+                          </ThemedText>
+                        ) : (
+                          <ThemedText style={styles.quote}>„{quoteText(n.wypowiedz)}”</ThemedText>
+                        )}
+                        <Pressable
+                          accessibilityRole="link"
+                          onPress={() => {
+                            track('opponent_item_source_opened', { rodzaj: 'brief' });
+                            void Linking.openURL(n.zrodlo_url);
+                          }}>
+                          <ThemedText type="small" themeColor="accentLight">
+                            Źródło: {n.zrodlo || sourceHost(n.zrodlo_url)} ({sourceHost(n.zrodlo_url)})
+                          </ThemedText>
+                        </Pressable>
+                        <ThemedText type="small" themeColor="text80">
+                          Z czym się kłóci: {n.sprzecznosc}
+                        </ThemedText>
+                        <View style={[styles.ask, { borderLeftColor: theme.accent }]}>
+                          <ThemedText style={styles.question}>{n.pytanie}</ThemedText>
+                        </View>
+                        <View style={[styles.risk, { borderLeftColor: theme.error }]}>
+                          <ThemedText type="small">Obroni się: {n.obrona}</ThemedText>
+                        </View>
+                        <ThemedText type="small" themeColor="accentLight">
+                          Riposta: {n.riposta}
+                        </ThemedText>
+                      </ThemedView>
+                    ))}
+                  </View>
+                ) : null}
                 <Sekcja tytul="PUBLICZNOŚĆ" tresc={brief.content.publicznosc} theme={theme} />
 
                 <ThemedText type="small" themeColor="textSecondary" style={KickerStyle}>
@@ -365,6 +413,11 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     paddingLeft: Spacing.two,
   },
+  ask: {
+    borderLeftWidth: 2,
+    paddingLeft: Spacing.two,
+  },
+  quote: { fontFamily: FontFamily.serifItalic, fontSize: FontSize.body + 1 },
   rating: { gap: Spacing.two, paddingTop: Spacing.three },
   ratingRow: { flexDirection: 'row', gap: Spacing.two },
   ratingButton: {
