@@ -95,14 +95,18 @@ begin
   select count(*) into c from public.access_logs;
   if c <> 0 then raise exception 'FAIL: access_logs widoczne dla klienta'; end if;
 
-  -- Tabele globalne: odczyt działa, takedown ukrywa dziennikarza
-  select count(*) into c from public.outlets;
+  -- Tabele globalne: odczyt działa, takedown ukrywa dziennikarza.
+  -- Liczymy tylko wiersze testowe: produkcja ma już prawdziwe redakcje,
+  -- dziennikarzy i badania, a liczenie całej tabeli zakładało pustą bazę.
+  select count(*) into c from public.outlets
+    where id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
   if c <> 1 then raise exception 'FAIL: brak odczytu tabel globalnych'; end if;
 
-  select count(*) into c from public.journalists;
+  select count(*) into c from public.journalists
+    where outlet_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc';
   if c <> 1 then raise exception 'FAIL: journalists z takedown widoczni (%)', c; end if;
 
-  select count(*) into c from public.knowledge_docs;
+  select count(*) into c from public.knowledge_docs where content_hash = 'rls-test-hash-0001';
   if c <> 1 then raise exception 'FAIL: brak odczytu knowledge_docs (%)', c; end if;
 
   -- Zapis do własnego tenanta działa
