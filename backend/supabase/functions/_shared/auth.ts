@@ -35,6 +35,13 @@ export async function authenticateRequest(req: Request): Promise<AuthContext> {
     throw new HttpError(401, "Invalid or expired token");
   }
 
+  // Konto zawieszone (flaga w app_metadata, ustawia ją tylko serwer). Ekran
+  // zawieszenia w aplikacji to komunikat dla człowieka; tu jest właściwa
+  // zapora, bo `getUser` czyta flagę z bazy, a nie z tokena.
+  if (data.user.app_metadata?.suspended === true) {
+    throw new HttpError(403, "Konto zostało zawieszone z powodu braku aktywności.");
+  }
+
   return { user: data.user, supabase };
 }
 

@@ -15,10 +15,11 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 
+import { AccountSuspended } from '@/components/account-suspended';
 import { Colors } from '@/constants/theme';
 import { useScreenTracking } from '@/hooks/use-screen-tracking';
 import { initAnalytics } from '@/lib/analytics/posthog';
-import { initAuth } from '@/store/auth';
+import { initAuth, useAuthStore } from '@/store/auth';
 import { loadThemeMode, useThemeStore } from '@/store/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -50,6 +51,11 @@ const ArgusLightTheme: typeof DefaultTheme = {
 export default function RootLayout() {
   const themeMode = useThemeStore((state) => state.mode);
   const themeLoaded = useThemeStore((state) => state.loaded);
+  // Flaga z `app_metadata`, którą ustawia tylko serwer. Sprawdzana tutaj, nad
+  // całą nawigacją, żeby żaden link ani zakładka nie ominęły ekranu.
+  const suspended = useAuthStore(
+    (state) => state.session?.user.app_metadata?.suspended === true
+  );
   const [fontsLoaded] = useFonts({
     CormorantGaramond_600SemiBold,
     CormorantGaramond_600SemiBold_Italic,
@@ -80,6 +86,14 @@ export default function RootLayout() {
   // mignięcia jasnego tła przed wczytaniem preferencji z pamięci urządzenia.
   if (!ready) {
     return null;
+  }
+
+  if (suspended) {
+    return (
+      <ThemeProvider value={themeMode === 'dark' ? ArgusDarkTheme : ArgusLightTheme}>
+        <AccountSuspended />
+      </ThemeProvider>
+    );
   }
 
   return (
