@@ -6,8 +6,18 @@ import { EyeDot } from '@/components/eye-dot';
 import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { FontFamily, FontSize, KickerStyle, MaxContentWidth, Spacing } from '@/constants/theme';
-import { signOut } from '@/store/auth';
+import { FontFamily, FontSize, KickerStyle, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { signOut, useAuthStore } from '@/store/auth';
+
+/** „125 USD", „125,50 USD": polski zapis, grosze tylko gdy są. */
+function formatUsd(value: number): string {
+  const hasCents = Math.round(value * 100) % 100 !== 0;
+  return `${value.toLocaleString('pl-PL', {
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: 2,
+  })} USD`;
+}
 
 /**
  * Ekran zawieszonego konta.
@@ -23,7 +33,14 @@ import { signOut } from '@/store/auth';
  */
 export function AccountSuspended() {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const [signingOut, setSigningOut] = useState(false);
+  // Koszty AI z pilotażu do rozliczenia, w USD. Ustawia je tylko serwer
+  // (`app_metadata.outstanding_usd`); bez pola sekcja się nie pokazuje.
+  const outstanding = useAuthStore((state) => {
+    const value = state.session?.user.app_metadata?.outstanding_usd;
+    return typeof value === 'number' && value > 0 ? value : null;
+  });
 
   return (
     <ThemedView
@@ -41,6 +58,20 @@ export function AccountSuspended() {
           Konto zostało zawieszone z powodu braku aktywności. Twoje dane pozostają zapisane, ale
           korzystanie z aplikacji jest wstrzymane.
         </ThemedText>
+        {outstanding !== null ? (
+          <ThemedView
+            type="backgroundElement"
+            style={[styles.costs, { borderColor: theme.border }]}>
+            <ThemedText type="small" themeColor="accentLight" style={KickerStyle}>
+              DO ROZLICZENIA
+            </ThemedText>
+            <ThemedText style={styles.amount}>{formatUsd(outstanding)}</ThemedText>
+            <ThemedText type="small" themeColor="text80" style={styles.body}>
+              W okresie pilotażu powstały koszty korzystania z modeli AI, które pozostają do
+              rozliczenia.
+            </ThemedText>
+          </ThemedView>
+        ) : null}
         <PrimaryButton
           title="Wyloguj"
           variant="secondary"
@@ -71,4 +102,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   body: { textAlign: 'center' },
+  costs: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    padding: Spacing.four,
+    gap: Spacing.two,
+    alignItems: 'center',
+  },
+  amount: {
+    fontFamily: FontFamily.serif,
+    fontSize: FontSize.screenTitle,
+    lineHeight: FontSize.screenTitle * 1.2,
+  },
 });
